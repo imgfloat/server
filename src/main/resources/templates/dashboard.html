@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Imgfloat Dashboard</title>
+    <link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body>
+<div class="container">
+    <h1>Welcome, <span th:text="${username}">user</span></h1>
+    <p>Manage your overlay or invite channel admins.</p>
+    <div class="actions">
+        <a class="button" th:href="@{'/view/' + ${channel} + '/admin'}">Admin console</a>
+        <a class="button" th:href="@{'/view/' + ${channel} + '/broadcast'}">Broadcast overlay</a>
+        <form th:action="@{/logout}" method="post">
+            <button class="secondary" type="submit">Logout</button>
+        </form>
+    </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Imgfloat Admin</title>
+    <link rel="stylesheet" href="/css/styles.css" />
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+</head>
+<body>
+<div class="admin-layout">
+    <header>
+        <h2>Channel <span th:text="${broadcaster}"></span> overlay controls</h2>
+        <div class="actions">
+            <form th:action="@{/logout}" method="post">
+                <button class="secondary" type="submit">Logout</button>
+            </form>
+        </div>
+    </header>
+    <section class="controls">
+        <div>
+            <h3>Admins</h3>
+            <input id="new-admin" placeholder="Twitch username" />
+            <button onclick="addAdmin()">Add admin</button>
+            <ul id="admin-list"></ul>
+        </div>
+        <div>
+            <h3>Images</h3>
+            <input id="image-url" placeholder="Image URL" />
+            <input id="image-width" placeholder="Width" type="number" value="600" />
+            <input id="image-height" placeholder="Height" type="number" value="400" />
+            <button onclick="uploadImage()">Upload</button>
+            <ul id="image-list"></ul>
+        </div>
+    </section>
+    <section class="overlay">
+        <iframe th:src="${'https://player.twitch.tv/?channel=' + broadcaster + '&parent=localhost'}" allowfullscreen></iframe>
+        <canvas id="admin-canvas"></canvas>
+    </section>
+</div>
+<script th:inline="javascript">
+    const broadcaster = /*[[${broadcaster}]]*/ '';
+    const username = /*[[${username}]]*/ '';
+</script>
+<script src="/js/admin.js"></script>
+</body>
+</html>

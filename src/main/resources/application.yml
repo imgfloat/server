@@ -1,0 +1,35 @@
+server:
+  port: ${SERVER_PORT:8080}
+  ssl:
+    enabled: ${SSL_ENABLED:false}
+    key-store: ${SSL_KEYSTORE_PATH:classpath:keystore.p12}
+    key-store-password: ${SSL_KEYSTORE_PASSWORD:changeit}
+    key-store-type: ${SSL_KEYSTORE_TYPE:PKCS12}
+
+spring:
+  application:
+    name: imgfloat
+  thymeleaf:
+    cache: false
+  security:
+    oauth2:
+      client:
+        registration:
+          twitch:
+            client-id: ${TWITCH_CLIENT_ID:changeme}
+            client-secret: ${TWITCH_CLIENT_SECRET:changeme}
+            redirect-uri: "{baseUrl}/login/oauth2/code/twitch"
+            authorization-grant-type: authorization_code
+            scope: ["user:read:email"]
+        provider:
+          twitch:
+            authorization-uri: https://id.twitch.tv/oauth2/authorize
+            token-uri: https://id.twitch.tv/oauth2/token
+            user-info-uri: https://api.twitch.tv/helix/users
+            user-name-attribute: preferred_username
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

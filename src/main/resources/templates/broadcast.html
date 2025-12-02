@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Imgfloat Broadcast</title>
+    <link rel="stylesheet" href="/css/styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+</head>
+<body class="broadcast-body">
+<canvas id="broadcast-canvas"></canvas>
+<script th:inline="javascript">
+    const broadcaster = /*[[${broadcaster}]]*/ '';
+</script>
+<script src="/js/broadcast.js"></script>
+</body>
+</html>
