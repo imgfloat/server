@@ -1,9 +1,9 @@
 package com.imgfloat.app.service;
 
+import com.imgfloat.app.model.Asset;
+import com.imgfloat.app.model.AssetEvent;
+import com.imgfloat.app.model.AssetRequest;
 import com.imgfloat.app.model.Channel;
-import com.imgfloat.app.model.ImageEvent;
-import com.imgfloat.app.model.ImageLayer;
-import com.imgfloat.app.model.ImageRequest;
 import com.imgfloat.app.model.TransformRequest;
 import com.imgfloat.app.model.VisibilityRequest;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -45,55 +45,55 @@ public class ChannelDirectoryService {
         return removed;
     }
 
-    public Collection<ImageLayer> getImagesForAdmin(String broadcaster) {
-        return getOrCreateChannel(broadcaster).getImages().values();
+    public Collection<Asset> getAssetsForAdmin(String broadcaster) {
+        return getOrCreateChannel(broadcaster).getAssets().values();
     }
 
-    public Collection<ImageLayer> getVisibleImages(String broadcaster) {
-        return getOrCreateChannel(broadcaster).getImages().values().stream()
-                .filter(image -> !image.isHidden())
+    public Collection<Asset> getVisibleAssets(String broadcaster) {
+        return getOrCreateChannel(broadcaster).getAssets().values().stream()
+                .filter(asset -> !asset.isHidden())
                 .toList();
     }
 
-    public Optional<ImageLayer> createImage(String broadcaster, ImageRequest request) {
+    public Optional<Asset> createAsset(String broadcaster, AssetRequest request) {
         Channel channel = getOrCreateChannel(broadcaster);
-        ImageLayer layer = new ImageLayer(request.getUrl(), request.getWidth(), request.getHeight());
-        channel.getImages().put(layer.getId(), layer);
-        messagingTemplate.convertAndSend(topicFor(broadcaster), ImageEvent.created(broadcaster, layer));
-        return Optional.of(layer);
+        Asset asset = new Asset(request.getUrl(), request.getWidth(), request.getHeight());
+        channel.getAssets().put(asset.getId(), asset);
+        messagingTemplate.convertAndSend(topicFor(broadcaster), AssetEvent.created(broadcaster, asset));
+        return Optional.of(asset);
     }
 
-    public Optional<ImageLayer> updateTransform(String broadcaster, String imageId, TransformRequest request) {
+    public Optional<Asset> updateTransform(String broadcaster, String assetId, TransformRequest request) {
         Channel channel = getOrCreateChannel(broadcaster);
-        ImageLayer layer = channel.getImages().get(imageId);
-        if (layer == null) {
+        Asset asset = channel.getAssets().get(assetId);
+        if (asset == null) {
             return Optional.empty();
         }
-        layer.setX(request.getX());
-        layer.setY(request.getY());
-        layer.setWidth(request.getWidth());
-        layer.setHeight(request.getHeight());
-        layer.setRotation(request.getRotation());
-        messagingTemplate.convertAndSend(topicFor(broadcaster), ImageEvent.updated(broadcaster, layer));
-        return Optional.of(layer);
+        asset.setX(request.getX());
+        asset.setY(request.getY());
+        asset.setWidth(request.getWidth());
+        asset.setHeight(request.getHeight());
+        asset.setRotation(request.getRotation());
+        messagingTemplate.convertAndSend(topicFor(broadcaster), AssetEvent.updated(broadcaster, asset));
+        return Optional.of(asset);
     }
 
-    public Optional<ImageLayer> updateVisibility(String broadcaster, String imageId, VisibilityRequest request) {
+    public Optional<Asset> updateVisibility(String broadcaster, String assetId, VisibilityRequest request) {
         Channel channel = getOrCreateChannel(broadcaster);
-        ImageLayer layer = channel.getImages().get(imageId);
-        if (layer == null) {
+        Asset asset = channel.getAssets().get(assetId);
+        if (asset == null) {
             return Optional.empty();
         }
-        layer.setHidden(request.isHidden());
-        messagingTemplate.convertAndSend(topicFor(broadcaster), ImageEvent.visibility(broadcaster, layer));
-        return Optional.of(layer);
+        asset.setHidden(request.isHidden());
+        messagingTemplate.convertAndSend(topicFor(broadcaster), AssetEvent.visibility(broadcaster, asset));
+        return Optional.of(asset);
     }
 
-    public boolean deleteImage(String broadcaster, String imageId) {
+    public boolean deleteAsset(String broadcaster, String assetId) {
         Channel channel = getOrCreateChannel(broadcaster);
-        ImageLayer removed = channel.getImages().remove(imageId);
+        Asset removed = channel.getAssets().remove(assetId);
         if (removed != null) {
-            messagingTemplate.convertAndSend(topicFor(broadcaster), ImageEvent.deleted(broadcaster, imageId));
+            messagingTemplate.convertAndSend(topicFor(broadcaster), AssetEvent.deleted(broadcaster, assetId));
             return true;
         }
         return false;

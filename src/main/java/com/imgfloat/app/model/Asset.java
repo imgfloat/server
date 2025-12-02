@@ -3,7 +3,7 @@ package com.imgfloat.app.model;
 import java.time.Instant;
 import java.util.UUID;
 
-public class ImageLayer {
+public class Asset {
     private final String id;
     private String url;
     private double x;
@@ -14,7 +14,7 @@ public class ImageLayer {
     private boolean hidden;
     private final Instant createdAt;
 
-    public ImageLayer(String url, double width, double height) {
+    public Asset(String url, double width, double height) {
         this.id = UUID.randomUUID().toString();
         this.url = url;
         this.width = width;

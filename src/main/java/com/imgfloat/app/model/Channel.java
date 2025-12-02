@@ -8,12 +8,12 @@ import java.util.concurrent.ConcurrentHashMap;
 public class Channel {
     private final String broadcaster;
     private final Set<String> admins;
-    private final Map<String, ImageLayer> images;
+    private final Map<String, Asset> assets;
 
     public Channel(String broadcaster) {
         this.broadcaster = broadcaster.toLowerCase();
         this.admins = ConcurrentHashMap.newKeySet();
-        this.images = new ConcurrentHashMap<>();
+        this.assets = new ConcurrentHashMap<>();
     }
 
     public String getBroadcaster() {
@@ -24,8 +24,8 @@ public class Channel {
         return Collections.unmodifiableSet(admins);
     }
 
-    public Map<String, ImageLayer> getImages() {
-        return images;
+    public Map<String, Asset> getAssets() {
+        return assets;
     }
 
     public boolean addAdmin(String username) {

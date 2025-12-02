@@ -20,7 +20,7 @@ spring:
           twitch:
             client-id: ${TWITCH_CLIENT_ID}
             client-secret: ${TWITCH_CLIENT_SECRET}
-            redirect-uri: "{baseUrl}/login/oauth2/code/twitch"
+            redirect-uri: "${TWITCH_REDIRECT_URI:{baseUrl}/login/oauth2/code/twitch}"
             authorization-grant-type: authorization_code
             scope: ["user:read:email"]
         provider:

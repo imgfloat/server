@@ -6,7 +6,7 @@ A Spring Boot overlay server for Twitch broadcasters and their channel admins. B
 - Twitch OAuth (OAuth2 login) with broadcaster and channel admin access controls.
 - Admin console with Twitch player embed and canvas preview.
 - Broadcaster overlay view optimized for OBS browser sources.
-- Real-time image creation, movement, resize, rotation, visibility toggles, and deletion via STOMP/WebSockets.
+- Real-time asset creation, movement, resize, rotation, visibility toggles, and deletion via STOMP/WebSockets.
 - In-memory channel directory optimized with lock-free collections for fast updates.
 - Optional SSL with local self-signed keystore support.
 - Dockerfile, Makefile, CI workflow, and Maven build.
@@ -19,9 +19,10 @@ A Spring Boot overlay server for Twitch broadcasters and their channel admins. B
 
 ### Local run
 ```bash
-TWITCH_CLIENT_ID=your_id TWITCH_CLIENT_SECRET=your_secret mvn spring-boot:run
+TWITCH_CLIENT_ID=your_id TWITCH_CLIENT_SECRET=your_secret \
+TWITCH_REDIRECT_URI=http://localhost:8080/login/oauth2/code/twitch mvn spring-boot:run
 ```
-The default server port is `8080`. Log in via `/oauth2/authorization/twitch`.
+The default server port is `8080`. Log in via `/oauth2/authorization/twitch`. The redirect URI above is what Twitch should be configured to call for local development.
 
 ### Enable TLS locally
 ```bash
@@ -32,7 +33,7 @@ mvn spring-boot:run -Dspring-boot.run.arguments="--server.port=8443"
 ```
 
 ### Make targets
-- `make run` – start the dev server.
+- `make run` – start the dev server (exports `TWITCH_REDIRECT_URI` to `http://localhost:8080/login/oauth2/code/twitch` if unset).
 - `make test` – run unit/integration tests.
 - `make package` – build the runnable jar.
 - `make docker-build` / `make docker-run` – containerize and run the service.
@@ -45,7 +46,7 @@ TWITCH_CLIENT_ID=your_id TWITCH_CLIENT_SECRET=your_secret docker run -p 8080:808
 ```
 
 ### OAuth configuration
-Spring Boot reads Twitch credentials from `TWITCH_CLIENT_ID` and `TWITCH_CLIENT_SECRET`. The redirect URI is `{baseUrl}/login/oauth2/code/twitch`.
+Spring Boot reads Twitch credentials from `TWITCH_CLIENT_ID` and `TWITCH_CLIENT_SECRET`. The redirect URI comes from `TWITCH_REDIRECT_URI` (defaulting to `{baseUrl}/login/oauth2/code/twitch`).
 
 ### CI
 GitHub Actions runs `mvn verify` on pushes and pull requests via `.github/workflows/ci.yml`.

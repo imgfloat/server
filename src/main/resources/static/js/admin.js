@@ -3,7 +3,7 @@ const canvas = document.getElementById('admin-canvas');
 const ctx = canvas.getContext('2d');
 canvas.width = canvas.offsetWidth;
 canvas.height = canvas.offsetHeight;
-const images = new Map();
+const assets = new Map();
 
 function connect() {
     const socket = new SockJS('/ws');
@@ -13,13 +13,13 @@ function connect() {
             const body = JSON.parse(payload.body);
             handleEvent(body);
         });
-        fetchImages();
+        fetchAssets();
         fetchAdmins();
     });
 }
 
-function fetchImages() {
-    fetch(`/api/channels/${broadcaster}/images`).then(r => r.json()).then(renderImages);
+function fetchAssets() {
+    fetch(`/api/channels/${broadcaster}/assets`).then(r => r.json()).then(renderAssets);
 }
 
 function fetchAdmins() {
@@ -34,38 +34,38 @@ function fetchAdmins() {
     }).catch(() => {});
 }
 
-function renderImages(list) {
-    list.forEach(img => images.set(img.id, img));
+function renderAssets(list) {
+    list.forEach(asset => assets.set(asset.id, asset));
     draw();
 }
 
 function handleEvent(event) {
     if (event.type === 'DELETED') {
-        images.delete(event.imageId);
+        assets.delete(event.assetId);
     } else if (event.payload) {
-        images.set(event.payload.id, event.payload);
+        assets.set(event.payload.id, event.payload);
     }
     draw();
 }
 
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    images.forEach(img => {
+    assets.forEach(asset => {
         ctx.save();
-        ctx.globalAlpha = img.hidden ? 0.35 : 1;
-        ctx.translate(img.x, img.y);
-        ctx.rotate(img.rotation * Math.PI / 180);
+        ctx.globalAlpha = asset.hidden ? 0.35 : 1;
+        ctx.translate(asset.x, asset.y);
+        ctx.rotate(asset.rotation * Math.PI / 180);
         ctx.fillStyle = 'rgba(124, 58, 237, 0.25)';
-        ctx.fillRect(0, 0, img.width, img.height);
+        ctx.fillRect(0, 0, asset.width, asset.height);
         ctx.restore();
     });
 }
 
-function uploadImage() {
-    const url = document.getElementById('image-url').value;
-    const width = parseFloat(document.getElementById('image-width').value);
-    const height = parseFloat(document.getElementById('image-height').value);
-    fetch(`/api/channels/${broadcaster}/images`, {
+function uploadAsset() {
+    const url = document.getElementById('asset-url').value;
+    const width = parseFloat(document.getElementById('asset-width').value);
+    const height = parseFloat(document.getElementById('asset-height').value);
+    fetch(`/api/channels/${broadcaster}/assets`, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({url, width, height})

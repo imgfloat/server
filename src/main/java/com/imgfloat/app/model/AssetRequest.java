@@ -3,7 +3,7 @@ package com.imgfloat.app.model;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 
-public class ImageRequest {
+public class AssetRequest {
     @NotBlank
     private String url;
 

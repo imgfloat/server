@@ -1,8 +1,8 @@
 package com.imgfloat.app.controller;
 
 import com.imgfloat.app.model.AdminRequest;
-import com.imgfloat.app.model.ImageLayer;
-import com.imgfloat.app.model.ImageRequest;
+import com.imgfloat.app.model.Asset;
+import com.imgfloat.app.model.AssetRequest;
 import com.imgfloat.app.model.TransformRequest;
 import com.imgfloat.app.model.VisibilityRequest;
 import com.imgfloat.app.service.ChannelDirectoryService;
@@ -61,71 +61,71 @@ public class ChannelApiController {
         return ResponseEntity.ok().body(removed);
     }
 
-    @GetMapping("/images")
-    public Collection<ImageLayer> listImages(@PathVariable("broadcaster") String broadcaster,
-                                             OAuth2AuthenticationToken authentication) {
+    @GetMapping("/assets")
+    public Collection<Asset> listAssets(@PathVariable("broadcaster") String broadcaster,
+                                        OAuth2AuthenticationToken authentication) {
         String login = TwitchUser.from(authentication).login();
         if (!channelDirectoryService.isBroadcaster(broadcaster, login)
                 && !channelDirectoryService.isAdmin(broadcaster, login)) {
             throw new ResponseStatusException(FORBIDDEN, "Not authorized");
         }
-        return channelDirectoryService.getImagesForAdmin(broadcaster);
+        return channelDirectoryService.getAssetsForAdmin(broadcaster);
     }
 
-    @GetMapping("/images/visible")
-    public Collection<ImageLayer> listVisible(@PathVariable("broadcaster") String broadcaster,
-                                              OAuth2AuthenticationToken authentication) {
+    @GetMapping("/assets/visible")
+    public Collection<Asset> listVisible(@PathVariable("broadcaster") String broadcaster,
+                                         OAuth2AuthenticationToken authentication) {
         String login = TwitchUser.from(authentication).login();
         if (!channelDirectoryService.isBroadcaster(broadcaster, login)) {
             throw new ResponseStatusException(FORBIDDEN, "Only broadcaster can load public overlay");
         }
-        return channelDirectoryService.getVisibleImages(broadcaster);
+        return channelDirectoryService.getVisibleAssets(broadcaster);
     }
 
-    @PostMapping("/images")
-    public ResponseEntity<ImageLayer> createImage(@PathVariable("broadcaster") String broadcaster,
-                                                  @Valid @RequestBody ImageRequest request,
-                                                  OAuth2AuthenticationToken authentication) {
+    @PostMapping("/assets")
+    public ResponseEntity<Asset> createAsset(@PathVariable("broadcaster") String broadcaster,
+                                             @Valid @RequestBody AssetRequest request,
+                                             OAuth2AuthenticationToken authentication) {
         String login = TwitchUser.from(authentication).login();
         ensureAuthorized(broadcaster, login);
-        return channelDirectoryService.createImage(broadcaster, request)
+        return channelDirectoryService.createAsset(broadcaster, request)
                 .map(ResponseEntity::ok)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Channel not found"));
     }
 
-    @PutMapping("/images/{imageId}/transform")
-    public ResponseEntity<ImageLayer> transform(@PathVariable("broadcaster") String broadcaster,
-                                                @PathVariable("imageId") String imageId,
-                                                @Valid @RequestBody TransformRequest request,
-                                                OAuth2AuthenticationToken authentication) {
+    @PutMapping("/assets/{assetId}/transform")
+    public ResponseEntity<Asset> transform(@PathVariable("broadcaster") String broadcaster,
+                                           @PathVariable("assetId") String assetId,
+                                           @Valid @RequestBody TransformRequest request,
+                                           OAuth2AuthenticationToken authentication) {
         String login = TwitchUser.from(authentication).login();
         ensureAuthorized(broadcaster, login);
-        return channelDirectoryService.updateTransform(broadcaster, imageId, request)
+        return channelDirectoryService.updateTransform(broadcaster, assetId, request)
                 .map(ResponseEntity::ok)
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Image not found"));
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Asset not found"));
     }
 
-    @PutMapping("/images/{imageId}/visibility")
-    public ResponseEntity<ImageLayer> visibility(@PathVariable("broadcaster") String broadcaster,
-                                                 @PathVariable("imageId") String imageId,
-                                                 @RequestBody VisibilityRequest request,
-                                                 OAuth2AuthenticationToken authentication) {
+    @PutMapping("/assets/{assetId}/visibility")
+    public ResponseEntity<Asset> visibility(@PathVariable("broadcaster") String broadcaster,
+                                            @PathVariable("assetId") String assetId,
+                                            @RequestBody VisibilityRequest request,
+                                            OAuth2AuthenticationToken authentication) {
         String login = TwitchUser.from(authentication).login();
         ensureAuthorized(broadcaster, login);
-        return channelDirectoryService.updateVisibility(broadcaster, imageId, request)
+        return channelDirectoryService.updateVisibility(broadcaster, assetId, request)
                 .map(ResponseEntity::ok)
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Image not found"));
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Asset not found"));
     }
 
-    @DeleteMapping("/images/{imageId}")
+    @DeleteMapping("/assets/{assetId}")
     public ResponseEntity<?> delete(@PathVariable("broadcaster") String broadcaster,
-                                    @PathVariable("imageId") String imageId,
+                                    @PathVariable("assetId") String assetId,
                                     OAuth2AuthenticationToken authentication) {
         String login = TwitchUser.from(authentication).login();
         ensureAuthorized(broadcaster, login);
-        boolean removed = channelDirectoryService.deleteImage(broadcaster, imageId);
+        boolean removed = channelDirectoryService.deleteAsset(broadcaster, assetId);
         if (!removed) {
-            throw new ResponseStatusException(NOT_FOUND, "Image not found");
+            throw new ResponseStatusException(NOT_FOUND, "Asset not found");
         }
         return ResponseEntity.ok().build();
     }

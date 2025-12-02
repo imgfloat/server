@@ -3,7 +3,8 @@ APP_NAME=imgfloat
 .PHONY: run test package docker-build docker-run ssl
 
 run:
-	test -f .env && . ./.env
+	test -f .env && . ./.env; \
+	export TWITCH_REDIRECT_URI=$${TWITCH_REDIRECT_URI:-http://localhost:8080/login/oauth2/code/twitch}; \
 	mvn spring-boot:run
 
 test:

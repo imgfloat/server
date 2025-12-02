@@ -1,7 +1,7 @@
 package com.imgfloat.app;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.imgfloat.app.model.ImageRequest;
+import com.imgfloat.app.model.AssetRequest;
 import com.imgfloat.app.model.VisibilityRequest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,7 +33,7 @@ class ChannelApiIntegrationTest {
     private ObjectMapper objectMapper;
 
     @Test
-    void broadcasterManagesAdminsAndImages() throws Exception {
+    void broadcasterManagesAdminsAndAssets() throws Exception {
         String broadcaster = "caster";
         mockMvc.perform(post("/api/channels/{broadcaster}/admins", broadcaster)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -41,39 +41,39 @@ class ChannelApiIntegrationTest {
                         .with(oauth2Login().attributes(attrs -> attrs.put("preferred_username", broadcaster))))
                 .andExpect(status().isOk());
 
-        ImageRequest request = new ImageRequest();
+        AssetRequest request = new AssetRequest();
         request.setUrl("https://example.com/image.png");
         request.setWidth(300);
         request.setHeight(200);
 
         String body = objectMapper.writeValueAsString(request);
-        String imageId = objectMapper.readTree(mockMvc.perform(post("/api/channels/{broadcaster}/images", broadcaster)
+        String assetId = objectMapper.readTree(mockMvc.perform(post("/api/channels/{broadcaster}/assets", broadcaster)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body)
                         .with(oauth2Login().attributes(attrs -> attrs.put("preferred_username", broadcaster))))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString()).get("id").asText();
 
-        mockMvc.perform(get("/api/channels/{broadcaster}/images", broadcaster)
+        mockMvc.perform(get("/api/channels/{broadcaster}/assets", broadcaster)
                         .with(oauth2Login().attributes(attrs -> attrs.put("preferred_username", broadcaster))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(1)));
 
         VisibilityRequest visibilityRequest = new VisibilityRequest();
         visibilityRequest.setHidden(false);
-        mockMvc.perform(put("/api/channels/{broadcaster}/images/{id}/visibility", broadcaster, imageId)
+        mockMvc.perform(put("/api/channels/{broadcaster}/assets/{id}/visibility", broadcaster, assetId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(visibilityRequest))
                         .with(oauth2Login().attributes(attrs -> attrs.put("preferred_username", broadcaster))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.hidden").value(false));
 
-        mockMvc.perform(get("/api/channels/{broadcaster}/images/visible", broadcaster)
+        mockMvc.perform(get("/api/channels/{broadcaster}/assets/visible", broadcaster)
                         .with(oauth2Login().attributes(attrs -> attrs.put("preferred_username", broadcaster))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(1)));
 
-        mockMvc.perform(delete("/api/channels/{broadcaster}/images/{id}", broadcaster, imageId)
+        mockMvc.perform(delete("/api/channels/{broadcaster}/assets/{id}", broadcaster, assetId)
                         .with(oauth2Login().attributes(attrs -> attrs.put("preferred_username", broadcaster))))
                 .andExpect(status().isOk());
     }
