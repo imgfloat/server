@@ -4,3 +4,4 @@
 *.iml
 local/
 *.log
+.env
