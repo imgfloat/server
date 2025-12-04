@@ -22,7 +22,7 @@ public class Asset {
         this.x = 0;
         this.y = 0;
         this.rotation = 0;
-        this.hidden = true;
+        this.hidden = false;
         this.createdAt = Instant.now();
     }
 

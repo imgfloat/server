@@ -16,6 +16,15 @@
             <button class="secondary" type="submit">Logout</button>
         </form>
     </div>
+    <div class="panel">
+        <h3>Channel admins</h3>
+        <p>Add trusted moderators who can upload overlay assets on your behalf.</p>
+        <div class="actions">
+            <input id="new-admin" placeholder="Twitch username" />
+            <button type="button" onclick="addAdmin()">Add admin</button>
+        </div>
+        <ul id="admin-list" class="stacked-list"></ul>
+    </div>
     <div th:if="${adminChannels != null}"
          class="panel">
         <h3>Channels you administer</h3>
@@ -28,5 +37,9 @@
         </ul>
     </div>
 </div>
+<script th:inline="javascript">
+    const broadcaster = /*[[${channel}]]*/ '';
+</script>
+<script src="/js/dashboard.js"></script>
 </body>
 </html>

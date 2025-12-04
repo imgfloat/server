@@ -14,24 +14,11 @@ function connect() {
             handleEvent(body);
         });
         fetchAssets();
-        fetchAdmins();
     });
 }
 
 function fetchAssets() {
     fetch(`/api/channels/${broadcaster}/assets`).then(r => r.json()).then(renderAssets);
-}
-
-function fetchAdmins() {
-    fetch(`/api/channels/${broadcaster}/admins`).then(r => r.json()).then(list => {
-        const adminList = document.getElementById('admin-list');
-        adminList.innerHTML = '';
-        list.forEach(a => {
-            const li = document.createElement('li');
-            li.textContent = a;
-            adminList.appendChild(li);
-        });
-    }).catch(() => {});
 }
 
 function renderAssets(list) {
@@ -75,16 +62,6 @@ function uploadAsset() {
     }).then(() => {
         fileInput.value = '';
     });
-}
-
-function addAdmin() {
-    const usernameInput = document.getElementById('new-admin');
-    const username = usernameInput.value;
-    fetch(`/api/channels/${broadcaster}/admins`, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({username})
-    }).then(() => fetchAdmins());
 }
 
 window.addEventListener('resize', () => {
