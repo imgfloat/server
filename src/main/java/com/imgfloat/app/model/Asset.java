@@ -1,10 +1,25 @@
 package com.imgfloat.app.model;
 
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.Table;
+
 import java.time.Instant;
+import java.util.Locale;
 import java.util.UUID;
 
+@Entity
+@Table(name = "assets")
 public class Asset {
-    private final String id;
+    @Id
+    private String id;
+
+    @Column(nullable = false)
+    private String broadcaster;
+
+    @Column(columnDefinition = "TEXT")
     private String url;
     private double x;
     private double y;
@@ -12,10 +27,14 @@ public class Asset {
     private double height;
     private double rotation;
     private boolean hidden;
-    private final Instant createdAt;
+    private Instant createdAt;
 
-    public Asset(String url, double width, double height) {
+    public Asset() {
+    }
+
+    public Asset(String broadcaster, String url, double width, double height) {
         this.id = UUID.randomUUID().toString();
+        this.broadcaster = normalize(broadcaster);
         this.url = url;
         this.width = width;
         this.height = height;
@@ -26,8 +45,27 @@ public class Asset {
         this.createdAt = Instant.now();
     }
 
+    @PrePersist
+    public void prepare() {
+        if (this.id == null) {
+            this.id = UUID.randomUUID().toString();
+        }
+        if (this.createdAt == null) {
+            this.createdAt = Instant.now();
+        }
+        this.broadcaster = normalize(broadcaster);
+    }
+
     public String getId() {
         return id;
+    }
+
+    public String getBroadcaster() {
+        return broadcaster;
+    }
+
+    public void setBroadcaster(String broadcaster) {
+        this.broadcaster = normalize(broadcaster);
     }
 
     public String getUrl() {
@@ -88,5 +126,13 @@ public class Asset {
 
     public Instant getCreatedAt() {
         return createdAt;
+    }
+
+    public void setCreatedAt(Instant createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    private static String normalize(String value) {
+        return value == null ? null : value.toLowerCase(Locale.ROOT);
     }
 }

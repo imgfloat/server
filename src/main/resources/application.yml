@@ -13,6 +13,18 @@ spring:
     name: imgfloat
   thymeleaf:
     cache: false
+  datasource:
+    url: jdbc:sqlite:imgfloat.db
+    driver-class-name: org.sqlite.JDBC
+  jpa:
+    hibernate:
+      ddl-auto: update
+    database-platform: org.hibernate.community.dialect.SQLiteDialect
+  session:
+    store-type: jdbc
+    jdbc:
+      initialize-schema: always
+      platform: sqlite
   security:
     oauth2:
       client:
