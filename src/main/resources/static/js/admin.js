@@ -25,35 +25,26 @@ const heightInput = document.getElementById('asset-height');
 const aspectLockInput = document.getElementById('maintain-aspect');
 const speedInput = document.getElementById('asset-speed');
 const muteInput = document.getElementById('asset-muted');
-const selectedAssetName = document.getElementById('selected-asset-name');
 const selectedZLabel = document.getElementById('asset-z-level');
-const selectedTypeLabel = document.getElementById('asset-type-label');
-const selectedVisibilityBadge = document.getElementById('selected-asset-visibility');
-const selectedToggleBtn = document.getElementById('selected-asset-toggle');
-const selectedDeleteBtn = document.getElementById('selected-asset-delete');
 const playbackSection = document.getElementById('playback-section');
 const controlsPlaceholder = document.getElementById('asset-controls-placeholder');
 const aspectLockState = new Map();
+const commitSizeChange = debounce(() => applyTransformFromInputs(), 180);
+
+function debounce(fn, wait = 150) {
+    let timeout;
+    return (...args) => {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => fn(...args), wait);
+    };
+}
 
 if (widthInput) widthInput.addEventListener('input', () => handleSizeInputChange('width'));
+if (widthInput) widthInput.addEventListener('change', () => commitSizeChange());
 if (heightInput) heightInput.addEventListener('input', () => handleSizeInputChange('height'));
+if (heightInput) heightInput.addEventListener('change', () => commitSizeChange());
 if (speedInput) speedInput.addEventListener('input', updatePlaybackFromInputs);
 if (muteInput) muteInput.addEventListener('change', updateMuteFromInput);
-if (selectedToggleBtn) selectedToggleBtn.addEventListener('click', (event) => {
-    event.stopPropagation();
-    const asset = getSelectedAsset();
-    if (asset) {
-        updateVisibility(asset, !asset.hidden);
-    }
-});
-if (selectedDeleteBtn) selectedDeleteBtn.addEventListener('click', (event) => {
-    event.stopPropagation();
-    const asset = getSelectedAsset();
-    if (asset) {
-        deleteAsset(asset);
-    }
-});
-
 function connect() {
     const socket = new SockJS('/ws');
     stompClient = Stomp.over(socket);
@@ -642,9 +633,7 @@ function renderAssetList() {
         if (asset.id === selectedAssetId) {
             li.classList.add('selected');
         }
-        if (asset.hidden) {
-            li.classList.add('hidden');
-        }
+        li.classList.toggle('is-hidden', !!asset.hidden);
 
         const row = document.createElement('div');
         row.className = 'asset-row';
@@ -656,9 +645,20 @@ function renderAssetList() {
         const name = document.createElement('strong');
         name.textContent = asset.name || `Asset ${asset.id.slice(0, 6)}`;
         const details = document.createElement('small');
-        details.textContent = `Z ${asset.zIndex ?? 1} · ${Math.round(asset.width)}x${Math.round(asset.height)} · ${getDisplayMediaType(asset)} · ${asset.hidden ? 'Hidden' : 'Visible'}`;
+        details.textContent = `${Math.round(asset.width)}x${Math.round(asset.height)}`;
         meta.appendChild(name);
         meta.appendChild(details);
+
+        const badges = document.createElement('div');
+        badges.className = 'badge-row asset-meta-badges';
+        badges.appendChild(createBadge(asset.hidden ? 'Hidden' : 'Visible', asset.hidden ? 'danger' : ''));
+        badges.appendChild(createBadge(getDisplayMediaType(asset)));
+        badges.appendChild(createBadge(`Z ${asset.zIndex ?? 1}`));
+        const aspectLabel = formatAspectRatioLabel(asset);
+        if (aspectLabel) {
+            badges.appendChild(createBadge(aspectLabel, 'subtle'));
+        }
+        meta.appendChild(badges);
 
         const actions = document.createElement('div');
         actions.className = 'actions';
@@ -712,6 +712,13 @@ function renderAssetList() {
     });
 }
 
+function createBadge(label, extraClass = '') {
+    const badge = document.createElement('span');
+    badge.className = `badge ${extraClass}`.trim();
+    badge.textContent = label;
+    return badge;
+}
+
 function createPreviewElement(asset) {
     if (isVideoAsset(asset)) {
         const video = document.createElement('video');
@@ -744,23 +751,8 @@ function updateSelectedAssetControls(asset = getSelectedAsset()) {
 
     controlsPanel.classList.remove('hidden');
     lastSizeInputChanged = null;
-    selectedAssetName.textContent = asset.name || `Asset ${asset.id.slice(0, 6)}`;
     if (selectedZLabel) {
         selectedZLabel.textContent = asset.zIndex ?? 1;
-    }
-    if (selectedTypeLabel) {
-        selectedTypeLabel.textContent = getDisplayMediaType(asset);
-    }
-    if (selectedVisibilityBadge) {
-        selectedVisibilityBadge.textContent = asset.hidden ? 'Hidden' : 'Visible';
-        selectedVisibilityBadge.classList.toggle('danger', !!asset.hidden);
-    }
-    if (selectedToggleBtn) {
-        const icon = selectedToggleBtn.querySelector('i');
-        if (icon) {
-            icon.className = `fa-solid ${asset.hidden ? 'fa-eye' : 'fa-eye-slash'}`;
-        }
-        selectedToggleBtn.title = asset.hidden ? 'Show asset' : 'Hide asset';
     }
 
     if (widthInput) widthInput.value = Math.round(asset.width);
@@ -925,6 +917,15 @@ function getAssetAspectRatio(asset) {
     return null;
 }
 
+function formatAspectRatioLabel(asset) {
+    const ratio = getAssetAspectRatio(asset);
+    if (!ratio) {
+        return '';
+    }
+    const normalized = ratio >= 1 ? `${ratio.toFixed(2)}:1` : `1:${(1 / ratio).toFixed(2)}`;
+    return `AR ${normalized}`;
+}
+
 function setAspectLock(assetId, locked) {
     aspectLockState.set(assetId, locked);
 }
@@ -936,7 +937,11 @@ function isAspectLocked(assetId) {
 function handleSizeInputChange(type) {
     lastSizeInputChanged = type;
     const asset = getSelectedAsset();
-    if (!asset || !isAspectLocked(asset.id)) {
+    if (!asset) {
+        return;
+    }
+    if (!isAspectLocked(asset.id)) {
+        commitSizeChange();
         return;
     }
     const ratio = getAssetAspectRatio(asset);
@@ -954,6 +959,7 @@ function handleSizeInputChange(type) {
             widthInput.value = Math.round(height * ratio);
         }
     }
+    commitSizeChange();
 }
 
 function updateVisibility(asset, hidden) {
