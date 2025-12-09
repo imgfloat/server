@@ -30,6 +30,9 @@ public class Asset {
     private double width;
     private double height;
     private double rotation;
+    private Double speed;
+    private Boolean muted;
+    private String mediaType;
     private boolean hidden;
     private Instant createdAt;
 
@@ -46,6 +49,8 @@ public class Asset {
         this.x = 0;
         this.y = 0;
         this.rotation = 0;
+        this.speed = 1.0;
+        this.muted = false;
         this.hidden = false;
         this.createdAt = Instant.now();
     }
@@ -62,6 +67,12 @@ public class Asset {
         this.broadcaster = normalize(broadcaster);
         if (this.name == null || this.name.isBlank()) {
             this.name = this.id;
+        }
+        if (this.speed == null || this.speed <= 0) {
+            this.speed = 1.0;
+        }
+        if (this.muted == null) {
+            this.muted = Boolean.FALSE;
         }
     }
 
@@ -131,6 +142,34 @@ public class Asset {
 
     public void setRotation(double rotation) {
         this.rotation = rotation;
+    }
+
+    public double getSpeed() {
+        return speed == null ? 1.0 : speed;
+    }
+
+    public void setSpeed(double speed) {
+        this.speed = speed;
+    }
+
+    public boolean isMuted() {
+        return muted != null && muted;
+    }
+
+    public void setMuted(boolean muted) {
+        this.muted = muted;
+    }
+
+    public String getMediaType() {
+        return mediaType;
+    }
+
+    public void setMediaType(String mediaType) {
+        this.mediaType = mediaType;
+    }
+
+    public boolean isVideo() {
+        return mediaType != null && mediaType.toLowerCase(Locale.ROOT).startsWith("video/");
     }
 
     public boolean isHidden() {

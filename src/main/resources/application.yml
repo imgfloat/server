@@ -11,6 +11,10 @@ spring:
     import: optional:file:.env[.properties]
   application:
     name: imgfloat
+  servlet:
+    multipart:
+      max-file-size: 256MB
+      max-request-size: 256MB
   thymeleaf:
     cache: false
   datasource:

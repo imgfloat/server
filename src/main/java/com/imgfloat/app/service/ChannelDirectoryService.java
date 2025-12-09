@@ -8,21 +8,35 @@ import com.imgfloat.app.model.TransformRequest;
 import com.imgfloat.app.model.VisibilityRequest;
 import com.imgfloat.app.repository.AssetRepository;
 import com.imgfloat.app.repository.ChannelRepository;
+import org.jcodec.api.FrameGrab;
+import org.jcodec.api.JCodecException;
+import org.jcodec.common.io.ByteBufferSeekableByteChannel;
+import org.jcodec.common.model.Picture;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.net.URLConnection;
+import java.nio.ByteBuffer;
 import java.util.Base64;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import javax.imageio.ImageIO;
+import javax.imageio.ImageWriteParam;
+import javax.imageio.ImageWriter;
+import javax.imageio.IIOImage;
+import javax.imageio.stream.ImageOutputStream;
 
 @Service
 public class ChannelDirectoryService {
+    private static final Logger logger = LoggerFactory.getLogger(ChannelDirectoryService.class);
     private final ChannelRepository channelRepository;
     private final AssetRepository assetRepository;
     private final SimpMessagingTemplate messagingTemplate;
@@ -85,17 +99,26 @@ public class ChannelDirectoryService {
     public Optional<Asset> createAsset(String broadcaster, MultipartFile file) throws IOException {
         Channel channel = getOrCreateChannel(broadcaster);
         byte[] bytes = file.getBytes();
-        BufferedImage image = ImageIO.read(new ByteArrayInputStream(bytes));
-        if (image == null) {
+        String mediaType = detectMediaType(file, bytes);
+
+        OptimizedAsset optimized = optimizeAsset(bytes, mediaType);
+        if (optimized == null) {
             return Optional.empty();
         }
+
         String name = Optional.ofNullable(file.getOriginalFilename())
                 .map(filename -> filename.replaceAll("^.*[/\\\\]", ""))
                 .filter(s -> !s.isBlank())
                 .orElse("Asset " + System.currentTimeMillis());
-        String contentType = Optional.ofNullable(file.getContentType()).orElse("application/octet-stream");
-        String dataUrl = "data:" + contentType + ";base64," + Base64.getEncoder().encodeToString(bytes);
-        Asset asset = new Asset(channel.getBroadcaster(), name, dataUrl, image.getWidth(), image.getHeight());
+
+        String dataUrl = "data:" + optimized.mediaType() + ";base64," + Base64.getEncoder().encodeToString(optimized.bytes());
+        double width = optimized.width() > 0 ? optimized.width() : 640;
+        double height = optimized.height() > 0 ? optimized.height() : 360;
+        Asset asset = new Asset(channel.getBroadcaster(), name, dataUrl, width, height);
+        asset.setMediaType(optimized.mediaType());
+        asset.setSpeed(1.0);
+        asset.setMuted(optimized.mediaType().startsWith("video/"));
+
         assetRepository.save(asset);
         messagingTemplate.convertAndSend(topicFor(broadcaster), AssetEvent.created(broadcaster, asset));
         return Optional.of(asset);
@@ -111,6 +134,12 @@ public class ChannelDirectoryService {
                     asset.setWidth(request.getWidth());
                     asset.setHeight(request.getHeight());
                     asset.setRotation(request.getRotation());
+                    if (request.getSpeed() != null && request.getSpeed() > 0) {
+                        asset.setSpeed(request.getSpeed());
+                    }
+                    if (request.getMuted() != null && asset.isVideo()) {
+                        asset.setMuted(request.getMuted());
+                    }
                     assetRepository.save(asset);
                     messagingTemplate.convertAndSend(topicFor(broadcaster), AssetEvent.updated(broadcaster, asset));
                     return asset;
@@ -170,4 +199,105 @@ public class ChannelDirectoryService {
     private String normalize(String value) {
         return value == null ? null : value.toLowerCase();
     }
+
+    private String detectMediaType(MultipartFile file, byte[] bytes) {
+        String contentType = Optional.ofNullable(file.getContentType()).orElse("application/octet-stream");
+        if (!"application/octet-stream".equals(contentType) && !contentType.isBlank()) {
+            return contentType;
+        }
+
+        try (var stream = new ByteArrayInputStream(bytes)) {
+            String guessed = URLConnection.guessContentTypeFromStream(stream);
+            if (guessed != null && !guessed.isBlank()) {
+                return guessed;
+            }
+        } catch (IOException e) {
+            logger.warn("Unable to detect content type from stream", e);
+        }
+
+        return Optional.ofNullable(file.getOriginalFilename())
+                .map(name -> name.replaceAll("^.*\\.", "").toLowerCase())
+                .map(ext -> switch (ext) {
+                    case "png" -> "image/png";
+                    case "jpg", "jpeg" -> "image/jpeg";
+                    case "gif" -> "image/gif";
+                    case "mp4" -> "video/mp4";
+                    case "webm" -> "video/webm";
+                    case "mov" -> "video/quicktime";
+                    default -> "application/octet-stream";
+                })
+                .orElse("application/octet-stream");
+    }
+
+    private OptimizedAsset optimizeAsset(byte[] bytes, String mediaType) throws IOException {
+        if (mediaType.startsWith("image/") && !"image/gif".equalsIgnoreCase(mediaType)) {
+            BufferedImage image = ImageIO.read(new ByteArrayInputStream(bytes));
+            if (image == null) {
+                return null;
+            }
+            byte[] compressed = compressPng(image);
+            return new OptimizedAsset(compressed, "image/png", image.getWidth(), image.getHeight());
+        }
+
+        if (mediaType.startsWith("image/")) {
+            BufferedImage image = ImageIO.read(new ByteArrayInputStream(bytes));
+            if (image == null) {
+                return null;
+            }
+            return new OptimizedAsset(bytes, mediaType, image.getWidth(), image.getHeight());
+        }
+
+        if (mediaType.startsWith("video/")) {
+            var dimensions = extractVideoDimensions(bytes);
+            return new OptimizedAsset(bytes, mediaType, dimensions.width(), dimensions.height());
+        }
+
+        BufferedImage image = ImageIO.read(new ByteArrayInputStream(bytes));
+        if (image != null) {
+            return new OptimizedAsset(bytes, mediaType, image.getWidth(), image.getHeight());
+        }
+        return null;
+    }
+
+    private byte[] compressPng(BufferedImage image) throws IOException {
+        var writers = ImageIO.getImageWritersByFormatName("png");
+        if (!writers.hasNext()) {
+            logger.warn("No PNG writer available; skipping compression");
+            try (ByteArrayOutputStream fallback = new ByteArrayOutputStream()) {
+                ImageIO.write(image, "png", fallback);
+                return fallback.toByteArray();
+            }
+        }
+        ImageWriter writer = writers.next();
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+             ImageOutputStream ios = ImageIO.createImageOutputStream(baos)) {
+            writer.setOutput(ios);
+            ImageWriteParam param = writer.getDefaultWriteParam();
+            if (param.canWriteCompressed()) {
+                param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
+                param.setCompressionQuality(1.0f);
+            }
+            writer.write(null, new IIOImage(image, null, null), param);
+            return baos.toByteArray();
+        } finally {
+            writer.dispose();
+        }
+    }
+
+    private Dimension extractVideoDimensions(byte[] bytes) {
+        try (var channel = new ByteBufferSeekableByteChannel(ByteBuffer.wrap(bytes), bytes.length)) {
+            FrameGrab grab = FrameGrab.createFrameGrab(channel);
+            Picture frame = grab.getNativeFrame();
+            if (frame != null) {
+                return new Dimension(frame.getWidth(), frame.getHeight());
+            }
+        } catch (IOException | JCodecException e) {
+            logger.warn("Unable to read video dimensions", e);
+        }
+        return new Dimension(640, 360);
+    }
+
+    private record OptimizedAsset(byte[] bytes, String mediaType, int width, int height) { }
+
+    private record Dimension(int width, int height) { }
 }

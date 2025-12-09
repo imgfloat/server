@@ -7,7 +7,7 @@ let canvasSettings = { width: 1920, height: 1080 };
 canvas.width = canvasSettings.width;
 canvas.height = canvasSettings.height;
 const assets = new Map();
-const imageCache = new Map();
+const mediaCache = new Map();
 const renderStates = new Map();
 let selectedAssetId = null;
 let interactionState = null;
@@ -20,12 +20,16 @@ const controlsPanel = document.getElementById('asset-controls');
 const widthInput = document.getElementById('asset-width');
 const heightInput = document.getElementById('asset-height');
 const aspectLockInput = document.getElementById('maintain-aspect');
+const speedInput = document.getElementById('asset-speed');
+const muteInput = document.getElementById('asset-muted');
 const selectedAssetName = document.getElementById('selected-asset-name');
 const selectedAssetMeta = document.getElementById('selected-asset-meta');
 const aspectLockState = new Map();
 
 if (widthInput) widthInput.addEventListener('input', () => handleSizeInputChange('width'));
 if (heightInput) heightInput.addEventListener('input', () => handleSizeInputChange('height'));
+if (speedInput) speedInput.addEventListener('change', updatePlaybackFromInputs);
+if (muteInput) muteInput.addEventListener('change', updateMuteFromInput);
 
 function connect() {
     const socket = new SockJS('/ws');
@@ -84,14 +88,14 @@ function renderAssets(list) {
 function handleEvent(event) {
     if (event.type === 'DELETED') {
         assets.delete(event.assetId);
-        imageCache.delete(event.assetId);
+        mediaCache.delete(event.assetId);
         renderStates.delete(event.assetId);
         if (selectedAssetId === event.assetId) {
             selectedAssetId = null;
         }
     } else if (event.payload) {
         assets.set(event.payload.id, event.payload);
-        ensureImage(event.payload);
+        ensureMedia(event.payload);
     }
     drawAndList();
 }
@@ -114,10 +118,11 @@ function drawAsset(asset) {
     ctx.translate(renderState.x + halfWidth, renderState.y + halfHeight);
     ctx.rotate(renderState.rotation * Math.PI / 180);
 
-    const image = ensureImage(asset);
-    if (image?.complete) {
+    const media = ensureMedia(asset);
+    const ready = media && (isVideoElement(media) ? media.readyState >= 2 : media.complete);
+    if (ready) {
         ctx.globalAlpha = asset.hidden ? 0.35 : 0.9;
-        ctx.drawImage(image, -halfWidth, -halfHeight, renderState.width, renderState.height);
+        ctx.drawImage(media, -halfWidth, -halfHeight, renderState.width, renderState.height);
     } else {
         ctx.globalAlpha = asset.hidden ? 0.2 : 0.4;
         ctx.fillStyle = 'rgba(124, 58, 237, 0.35)';
@@ -362,17 +367,54 @@ function startRenderLoop() {
     animationFrameId = requestAnimationFrame(tick);
 }
 
-function ensureImage(asset) {
-    const cached = imageCache.get(asset.id);
+function isVideoAsset(asset) {
+    return (asset.mediaType && asset.mediaType.startsWith('video/')) || asset.url?.startsWith('data:video/');
+}
+
+function isVideoElement(element) {
+    return element && element.tagName === 'VIDEO';
+}
+
+function ensureMedia(asset) {
+    const cached = mediaCache.get(asset.id);
     if (cached && cached.src === asset.url) {
+        applyMediaSettings(cached, asset);
         return cached;
     }
 
-    const image = new Image();
-    image.onload = draw;
-    image.src = asset.url;
-    imageCache.set(asset.id, image);
-    return image;
+    const element = isVideoAsset(asset) ? document.createElement('video') : new Image();
+    if (isVideoElement(element)) {
+        element.loop = true;
+        element.muted = asset.muted ?? true;
+        element.playsInline = true;
+        element.autoplay = true;
+        element.onloadeddata = draw;
+        element.src = asset.url;
+        element.playbackRate = asset.speed && asset.speed > 0 ? asset.speed : 1;
+        element.play().catch(() => {});
+    } else {
+        element.onload = draw;
+        element.src = asset.url;
+    }
+    mediaCache.set(asset.id, element);
+    return element;
+}
+
+function applyMediaSettings(element, asset) {
+    if (!isVideoElement(element)) {
+        return;
+    }
+    const nextSpeed = asset.speed && asset.speed > 0 ? asset.speed : 1;
+    if (element.playbackRate !== nextSpeed) {
+        element.playbackRate = nextSpeed;
+    }
+    const shouldMute = asset.muted ?? true;
+    if (element.muted !== shouldMute) {
+        element.muted = shouldMute;
+    }
+    if (element.paused) {
+        element.play().catch(() => {});
+    }
 }
 
 function renderAssetList() {
@@ -400,10 +442,7 @@ function renderAssetList() {
             li.classList.add('hidden');
         }
 
-        const preview = document.createElement('img');
-        preview.className = 'asset-preview';
-        preview.src = asset.url;
-        preview.alt = asset.name || 'Asset preview';
+        const preview = createPreviewElement(asset);
 
         const meta = document.createElement('div');
         meta.className = 'meta';
@@ -454,6 +493,26 @@ function renderAssetList() {
     updateSelectedAssetControls();
 }
 
+function createPreviewElement(asset) {
+    if (isVideoAsset(asset)) {
+        const video = document.createElement('video');
+        video.className = 'asset-preview';
+        video.src = asset.url;
+        video.loop = true;
+        video.muted = true;
+        video.playsInline = true;
+        video.autoplay = true;
+        video.play().catch(() => {});
+        return video;
+    }
+
+    const img = document.createElement('img');
+    img.className = 'asset-preview';
+    img.src = asset.url;
+    img.alt = asset.name || 'Asset preview';
+    return img;
+}
+
 function getSelectedAsset() {
     return selectedAssetId ? assets.get(selectedAssetId) : null;
 }
@@ -478,6 +537,14 @@ function updateSelectedAssetControls() {
     if (aspectLockInput) {
         aspectLockInput.checked = isAspectLocked(asset.id);
         aspectLockInput.onchange = () => setAspectLock(asset.id, aspectLockInput.checked);
+    }
+    if (speedInput) {
+        speedInput.value = Math.round((asset.speed && asset.speed > 0 ? asset.speed : 1) * 100) / 100;
+    }
+    if (muteInput) {
+        muteInput.checked = !!asset.muted;
+        muteInput.disabled = !isVideoAsset(asset);
+        muteInput.parentElement?.classList.toggle('disabled', !isVideoAsset(asset));
     }
 }
 
@@ -506,6 +573,29 @@ function applyTransformFromInputs() {
     drawAndList();
 }
 
+function updatePlaybackFromInputs() {
+    const asset = getSelectedAsset();
+    if (!asset) return;
+    const nextSpeed = Math.max(0.1, parseFloat(speedInput?.value) || asset.speed || 1);
+    asset.speed = nextSpeed;
+    renderStates.set(asset.id, { ...asset });
+    persistTransform(asset);
+    drawAndList();
+}
+
+function updateMuteFromInput() {
+    const asset = getSelectedAsset();
+    if (!asset || !isVideoAsset(asset)) return;
+    asset.muted = !!muteInput?.checked;
+    renderStates.set(asset.id, { ...asset });
+    persistTransform(asset);
+    const media = mediaCache.get(asset.id);
+    if (media) {
+        applyMediaSettings(media, asset);
+    }
+    drawAndList();
+}
+
 function nudgeRotation(delta) {
     const asset = getSelectedAsset();
     if (!asset) return;
@@ -529,9 +619,12 @@ function recenterSelectedAsset() {
 }
 
 function getAssetAspectRatio(asset) {
-    const image = ensureImage(asset);
-    if (image?.naturalWidth && image?.naturalHeight) {
-        return image.naturalWidth / image.naturalHeight;
+    const media = ensureMedia(asset);
+    if (isVideoElement(media) && media?.videoWidth && media?.videoHeight) {
+        return media.videoWidth / media.videoHeight;
+    }
+    if (!isVideoElement(media) && media?.naturalWidth && media?.naturalHeight) {
+        return media.naturalWidth / media.naturalHeight;
     }
     if (asset.width && asset.height) {
         return asset.width / asset.height;
@@ -584,7 +677,7 @@ function updateVisibility(asset, hidden) {
 function deleteAsset(asset) {
     fetch(`/api/channels/${broadcaster}/assets/${asset.id}`, { method: 'DELETE' }).then(() => {
         assets.delete(asset.id);
-        imageCache.delete(asset.id);
+        mediaCache.delete(asset.id);
         renderStates.delete(asset.id);
         if (selectedAssetId === asset.id) {
             selectedAssetId = null;
@@ -596,7 +689,7 @@ function deleteAsset(asset) {
 function uploadAsset() {
     const fileInput = document.getElementById('asset-file');
     if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
-        alert('Please choose an image to upload.');
+        alert('Please choose an image, GIF, or video to upload.');
         return;
     }
     const data = new FormData();
@@ -646,7 +739,9 @@ function persistTransform(asset) {
             y: asset.y,
             width: asset.width,
             height: asset.height,
-            rotation: asset.rotation
+            rotation: asset.rotation,
+            speed: asset.speed,
+            muted: asset.muted
         })
     }).then((r) => r.json()).then((updated) => {
         assets.set(updated.id, updated);

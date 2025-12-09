@@ -4,7 +4,7 @@ let canvasSettings = { width: 1920, height: 1080 };
 canvas.width = canvasSettings.width;
 canvas.height = canvasSettings.height;
 const assets = new Map();
-const imageCache = new Map();
+const mediaCache = new Map();
 const renderStates = new Map();
 let animationFrameId = null;
 
@@ -51,14 +51,14 @@ function resizeCanvas() {
 function handleEvent(event) {
     if (event.type === 'DELETED') {
         assets.delete(event.assetId);
-        imageCache.delete(event.assetId);
+        mediaCache.delete(event.assetId);
         renderStates.delete(event.assetId);
     } else if (event.payload && !event.payload.hidden) {
         assets.set(event.payload.id, event.payload);
-        ensureImage(event.payload);
+        ensureMedia(event.payload);
     } else if (event.payload && event.payload.hidden) {
         assets.delete(event.payload.id);
-        imageCache.delete(event.payload.id);
+        mediaCache.delete(event.payload.id);
         renderStates.delete(event.payload.id);
     }
     draw();
@@ -77,9 +77,10 @@ function drawAsset(asset) {
     ctx.translate(renderState.x + halfWidth, renderState.y + halfHeight);
     ctx.rotate(renderState.rotation * Math.PI / 180);
 
-    const image = ensureImage(asset);
-    if (image?.complete) {
-        ctx.drawImage(image, -halfWidth, -halfHeight, renderState.width, renderState.height);
+    const media = ensureMedia(asset);
+    const ready = media && (isVideoElement(media) ? media.readyState >= 2 : media.complete);
+    if (ready) {
+        ctx.drawImage(media, -halfWidth, -halfHeight, renderState.width, renderState.height);
     }
 
     ctx.restore();
@@ -108,17 +109,54 @@ function lerp(a, b, t) {
     return a + (b - a) * t;
 }
 
-function ensureImage(asset) {
-    const cached = imageCache.get(asset.id);
+function isVideoAsset(asset) {
+    return (asset.mediaType && asset.mediaType.startsWith('video/')) || asset.url?.startsWith('data:video/');
+}
+
+function isVideoElement(element) {
+    return element && element.tagName === 'VIDEO';
+}
+
+function ensureMedia(asset) {
+    const cached = mediaCache.get(asset.id);
     if (cached && cached.src === asset.url) {
+        applyMediaSettings(cached, asset);
         return cached;
     }
 
-    const image = new Image();
-    image.onload = draw;
-    image.src = asset.url;
-    imageCache.set(asset.id, image);
-    return image;
+    const element = isVideoAsset(asset) ? document.createElement('video') : new Image();
+    if (isVideoElement(element)) {
+        element.loop = true;
+        element.muted = asset.muted ?? true;
+        element.playsInline = true;
+        element.autoplay = true;
+        element.onloadeddata = draw;
+        element.src = asset.url;
+        element.playbackRate = asset.speed && asset.speed > 0 ? asset.speed : 1;
+        element.play().catch(() => {});
+    } else {
+        element.onload = draw;
+        element.src = asset.url;
+    }
+    mediaCache.set(asset.id, element);
+    return element;
+}
+
+function applyMediaSettings(element, asset) {
+    if (!isVideoElement(element)) {
+        return;
+    }
+    const nextSpeed = asset.speed && asset.speed > 0 ? asset.speed : 1;
+    if (element.playbackRate !== nextSpeed) {
+        element.playbackRate = nextSpeed;
+    }
+    const shouldMute = asset.muted ?? true;
+    if (element.muted !== shouldMute) {
+        element.muted = shouldMute;
+    }
+    if (element.paused) {
+        element.play().catch(() => {});
+    }
 }
 
 function startRenderLoop() {

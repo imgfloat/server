@@ -6,6 +6,8 @@ public class TransformRequest {
     private double width;
     private double height;
     private double rotation;
+    private Double speed;
+    private Boolean muted;
 
     public double getX() {
         return x;
@@ -45,5 +47,21 @@ public class TransformRequest {
 
     public void setRotation(double rotation) {
         this.rotation = rotation;
+    }
+
+    public Double getSpeed() {
+        return speed;
+    }
+
+    public void setSpeed(Double speed) {
+        this.speed = speed;
+    }
+
+    public Boolean getMuted() {
+        return muted;
+    }
+
+    public void setMuted(Boolean muted) {
+        this.muted = muted;
     }
 }
