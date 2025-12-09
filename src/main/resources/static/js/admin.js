@@ -25,14 +25,7 @@ const heightInput = document.getElementById('asset-height');
 const aspectLockInput = document.getElementById('maintain-aspect');
 const speedInput = document.getElementById('asset-speed');
 const muteInput = document.getElementById('asset-muted');
-const selectedAssetName = document.getElementById('selected-asset-name');
 const selectedZLabel = document.getElementById('asset-z-level');
-const selectedTypeLabel = document.getElementById('asset-type-label');
-const selectedVisibilityBadge = document.getElementById('selected-asset-visibility');
-const selectedZBadge = document.getElementById('asset-z-badge');
-const selectedAspectBadge = document.getElementById('asset-aspect-label');
-const selectedToggleBtn = document.getElementById('selected-asset-toggle');
-const selectedDeleteBtn = document.getElementById('selected-asset-delete');
 const playbackSection = document.getElementById('playback-section');
 const controlsPlaceholder = document.getElementById('asset-controls-placeholder');
 const aspectLockState = new Map();
@@ -52,21 +45,6 @@ if (heightInput) heightInput.addEventListener('input', () => handleSizeInputChan
 if (heightInput) heightInput.addEventListener('change', () => commitSizeChange());
 if (speedInput) speedInput.addEventListener('input', updatePlaybackFromInputs);
 if (muteInput) muteInput.addEventListener('change', updateMuteFromInput);
-if (selectedToggleBtn) selectedToggleBtn.addEventListener('click', (event) => {
-    event.stopPropagation();
-    const asset = getSelectedAsset();
-    if (asset) {
-        updateVisibility(asset, !asset.hidden);
-    }
-});
-if (selectedDeleteBtn) selectedDeleteBtn.addEventListener('click', (event) => {
-    event.stopPropagation();
-    const asset = getSelectedAsset();
-    if (asset) {
-        deleteAsset(asset);
-    }
-});
-
 function connect() {
     const socket = new SockJS('/ws');
     stompClient = Stomp.over(socket);
@@ -773,29 +751,8 @@ function updateSelectedAssetControls(asset = getSelectedAsset()) {
 
     controlsPanel.classList.remove('hidden');
     lastSizeInputChanged = null;
-    selectedAssetName.textContent = asset.name || `Asset ${asset.id.slice(0, 6)}`;
     if (selectedZLabel) {
         selectedZLabel.textContent = asset.zIndex ?? 1;
-    }
-    if (selectedTypeLabel) {
-        selectedTypeLabel.textContent = getDisplayMediaType(asset);
-    }
-    if (selectedZBadge) {
-        selectedZBadge.textContent = `Z ${asset.zIndex ?? 1}`;
-    }
-    if (selectedAspectBadge) {
-        selectedAspectBadge.textContent = formatAspectRatioLabel(asset) || 'Aspect —';
-    }
-    if (selectedVisibilityBadge) {
-        selectedVisibilityBadge.textContent = asset.hidden ? 'Hidden' : 'Visible';
-        selectedVisibilityBadge.classList.toggle('danger', !!asset.hidden);
-    }
-    if (selectedToggleBtn) {
-        const icon = selectedToggleBtn.querySelector('i');
-        if (icon) {
-            icon.className = `fa-solid ${asset.hidden ? 'fa-eye' : 'fa-eye-slash'}`;
-        }
-        selectedToggleBtn.title = asset.hidden ? 'Show asset' : 'Hide asset';
     }
 
     if (widthInput) widthInput.value = Math.round(asset.width);
