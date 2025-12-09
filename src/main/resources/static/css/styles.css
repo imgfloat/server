@@ -399,6 +399,13 @@ body {
     background: #0b1220;
 }
 
+.assets-panel {
+    margin-top: 16px;
+    background: #0b1220;
+    border-top: 1px solid #1f2937;
+    padding: 18px;
+}
+
 .controls ul {
     list-style: none;
     padding: 0;
@@ -588,6 +595,11 @@ body {
     box-shadow: 0 0 0 1px rgba(124, 58, 237, 0.6);
 }
 
+.asset-item.is-hidden {
+    opacity: 0.72;
+    border-style: dashed;
+}
+
 .asset-row {
     display: flex;
     align-items: center;
@@ -612,6 +624,10 @@ body {
 .asset-item .actions {
     display: flex;
     gap: 8px;
+}
+
+.asset-meta-badges {
+    margin-top: 4px;
 }
 
 .asset-detail {

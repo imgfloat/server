@@ -19,7 +19,11 @@
             </form>
         </div>
     </header>
-    <section class="controls">
+    <section class="overlay" id="admin-overlay">
+        <iframe th:src="${'https://player.twitch.tv/?channel=' + broadcaster + '&parent=localhost'}" allowfullscreen></iframe>
+        <canvas id="admin-canvas"></canvas>
+    </section>
+    <section class="controls assets-panel">
         <div>
             <h3>Overlay assets</h3>
             <p>Upload overlay visuals and adjust them inline.</p>
@@ -44,6 +48,8 @@
                 <div class="badge-row stacked">
                     <span class="badge subtle" id="selected-asset-visibility">Visible</span>
                     <span class="badge subtle" id="asset-type-label"></span>
+                    <span class="badge subtle" id="asset-z-badge"></span>
+                    <span class="badge subtle" id="asset-aspect-label"></span>
                 </div>
 
                 <div class="panel-section">
@@ -101,14 +107,9 @@
                 <div class="control-actions filled compact">
                     <button type="button" onclick="nudgeRotation(-5)" class="secondary" title="Rotate left"><i class="fa-solid fa-rotate-left"></i></button>
                     <button type="button" onclick="nudgeRotation(5)" class="secondary" title="Rotate right"><i class="fa-solid fa-rotate-right"></i></button>
-                    <button type="button" onclick="applyTransformFromInputs()" title="Apply size"><i class="fa-solid fa-floppy-disk"></i><span class="sr-only">Apply size</span></button>
                 </div>
             </div>
         </div>
-    </section>
-    <section class="overlay" id="admin-overlay">
-        <iframe th:src="${'https://player.twitch.tv/?channel=' + broadcaster + '&parent=localhost'}" allowfullscreen></iframe>
-        <canvas id="admin-canvas"></canvas>
     </section>
 </div>
 <script th:inline="javascript">
