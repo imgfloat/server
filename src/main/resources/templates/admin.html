@@ -39,21 +39,21 @@
                         Height
                         <input id="asset-height" type="number" min="10" step="5" />
                     </label>
-                    <label>
-                        Rotation
-                        <input id="asset-rotation" type="range" min="-180" max="180" step="1" />
-                        <div class="range-value" id="rotation-display">0°</div>
+                    <label class="checkbox-inline">
+                        <input id="maintain-aspect" type="checkbox" checked />
+                        Maintain aspect ratio
                     </label>
                 </div>
                 <div class="control-actions">
-                    <button type="button" onclick="nudgeRotation(-5)" class="secondary">Rotate -5°</button>
-                    <button type="button" onclick="nudgeRotation(5)" class="secondary">Rotate +5°</button>
-                    <button type="button" onclick="applyTransformFromInputs()">Apply size & rotation</button>
+                    <button type="button" onclick="nudgeRotation(-5)" class="secondary">Rotate left</button>
+                    <button type="button" onclick="nudgeRotation(5)" class="secondary">Rotate right</button>
+                    <button type="button" onclick="applyTransformFromInputs()">Apply size</button>
+                    <button type="button" onclick="recenterSelectedAsset()" class="secondary">Re-center asset</button>
                 </div>
             </div>
         </div>
     </section>
-    <section class="overlay">
+    <section class="overlay" id="admin-overlay">
         <iframe th:src="${'https://player.twitch.tv/?channel=' + broadcaster + '&parent=localhost'}" allowfullscreen></iframe>
         <canvas id="admin-canvas"></canvas>
     </section>

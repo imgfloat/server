@@ -2,6 +2,7 @@ package com.imgfloat.app.controller;
 
 import com.imgfloat.app.model.AdminRequest;
 import com.imgfloat.app.model.Asset;
+import com.imgfloat.app.model.CanvasSettingsRequest;
 import com.imgfloat.app.model.TransformRequest;
 import com.imgfloat.app.model.VisibilityRequest;
 import com.imgfloat.app.service.ChannelDirectoryService;
@@ -83,6 +84,23 @@ public class ChannelApiController {
             throw new ResponseStatusException(FORBIDDEN, "Only broadcaster can load public overlay");
         }
         return channelDirectoryService.getVisibleAssets(broadcaster);
+    }
+
+    @GetMapping("/canvas")
+    public CanvasSettingsRequest getCanvas(@PathVariable("broadcaster") String broadcaster,
+                                           OAuth2AuthenticationToken authentication) {
+        String login = TwitchUser.from(authentication).login();
+        ensureAuthorized(broadcaster, login);
+        return channelDirectoryService.getCanvasSettings(broadcaster);
+    }
+
+    @PutMapping("/canvas")
+    public CanvasSettingsRequest updateCanvas(@PathVariable("broadcaster") String broadcaster,
+                                              @Valid @RequestBody CanvasSettingsRequest request,
+                                              OAuth2AuthenticationToken authentication) {
+        String login = TwitchUser.from(authentication).login();
+        ensureBroadcaster(broadcaster, login);
+        return channelDirectoryService.updateCanvasSettings(broadcaster, request);
     }
 
     @PostMapping(value = "/assets", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

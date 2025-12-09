@@ -17,6 +17,24 @@
         </form>
     </div>
     <div class="panel">
+        <h3>Canvas size</h3>
+        <p>Set the pixel dimensions for your overlay. Admins will see this aspect ratio when positioning assets.</p>
+        <div class="control-grid">
+            <label>
+                Width
+                <input id="canvas-width" type="number" min="100" step="10" />
+            </label>
+            <label>
+                Height
+                <input id="canvas-height" type="number" min="100" step="10" />
+            </label>
+        </div>
+        <div class="control-actions">
+            <button type="button" onclick="saveCanvasSettings()">Save canvas size</button>
+            <span id="canvas-status" class="muted"></span>
+        </div>
+    </div>
+    <div class="panel">
         <h3>Channel admins</h3>
         <p>Add trusted moderators who can upload overlay assets on your behalf.</p>
         <div class="actions">

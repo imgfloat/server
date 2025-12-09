@@ -28,11 +28,17 @@ public class Channel {
     @Column(name = "admin_username")
     private Set<String> admins = new HashSet<>();
 
+    private double canvasWidth = 1920;
+
+    private double canvasHeight = 1080;
+
     public Channel() {
     }
 
     public Channel(String broadcaster) {
         this.broadcaster = normalize(broadcaster);
+        this.canvasWidth = 1920;
+        this.canvasHeight = 1080;
     }
 
     public String getBroadcaster() {
@@ -51,6 +57,22 @@ public class Channel {
         return admins.remove(normalize(username));
     }
 
+    public double getCanvasWidth() {
+        return canvasWidth;
+    }
+
+    public void setCanvasWidth(double canvasWidth) {
+        this.canvasWidth = canvasWidth;
+    }
+
+    public double getCanvasHeight() {
+        return canvasHeight;
+    }
+
+    public void setCanvasHeight(double canvasHeight) {
+        this.canvasHeight = canvasHeight;
+    }
+
     @PrePersist
     @PreUpdate
     public void normalizeFields() {
@@ -58,6 +80,12 @@ public class Channel {
         this.admins = admins.stream()
                 .map(Channel::normalize)
                 .collect(Collectors.toSet());
+        if (canvasWidth <= 0) {
+            canvasWidth = 1920;
+        }
+        if (canvasHeight <= 0) {
+            canvasHeight = 1080;
+        }
     }
 
     private static String normalize(String value) {

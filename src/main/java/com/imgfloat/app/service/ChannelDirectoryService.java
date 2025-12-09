@@ -3,6 +3,7 @@ package com.imgfloat.app.service;
 import com.imgfloat.app.model.Asset;
 import com.imgfloat.app.model.AssetEvent;
 import com.imgfloat.app.model.Channel;
+import com.imgfloat.app.model.CanvasSettingsRequest;
 import com.imgfloat.app.model.TransformRequest;
 import com.imgfloat.app.model.VisibilityRequest;
 import com.imgfloat.app.repository.AssetRepository;
@@ -66,6 +67,19 @@ public class ChannelDirectoryService {
 
     public Collection<Asset> getVisibleAssets(String broadcaster) {
         return assetRepository.findByBroadcasterAndHiddenFalse(normalize(broadcaster));
+    }
+
+    public CanvasSettingsRequest getCanvasSettings(String broadcaster) {
+        Channel channel = getOrCreateChannel(broadcaster);
+        return new CanvasSettingsRequest(channel.getCanvasWidth(), channel.getCanvasHeight());
+    }
+
+    public CanvasSettingsRequest updateCanvasSettings(String broadcaster, CanvasSettingsRequest request) {
+        Channel channel = getOrCreateChannel(broadcaster);
+        channel.setCanvasWidth(request.getWidth());
+        channel.setCanvasHeight(request.getHeight());
+        channelRepository.save(channel);
+        return new CanvasSettingsRequest(channel.getCanvasWidth(), channel.getCanvasHeight());
     }
 
     public Optional<Asset> createAsset(String broadcaster, MultipartFile file) throws IOException {

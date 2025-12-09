@@ -1,7 +1,8 @@
 const canvas = document.getElementById('broadcast-canvas');
 const ctx = canvas.getContext('2d');
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
+let canvasSettings = { width: 1920, height: 1080 };
+canvas.width = canvasSettings.width;
+canvas.height = canvasSettings.height;
 const assets = new Map();
 const imageCache = new Map();
 const renderStates = new Map();
@@ -21,6 +22,29 @@ function connect() {
 
 function renderAssets(list) {
     list.forEach(asset => assets.set(asset.id, asset));
+    draw();
+}
+
+function fetchCanvasSettings() {
+    return fetch(`/api/channels/${broadcaster}/canvas`)
+        .then((r) => r.json())
+        .then((settings) => {
+            canvasSettings = settings;
+            resizeCanvas();
+        })
+        .catch(() => resizeCanvas());
+}
+
+function resizeCanvas() {
+    const scale = Math.min(window.innerWidth / canvasSettings.width, window.innerHeight / canvasSettings.height);
+    const displayWidth = canvasSettings.width * scale;
+    const displayHeight = canvasSettings.height * scale;
+    canvas.width = canvasSettings.width;
+    canvas.height = canvasSettings.height;
+    canvas.style.width = `${displayWidth}px`;
+    canvas.style.height = `${displayHeight}px`;
+    canvas.style.left = `${(window.innerWidth - displayWidth) / 2}px`;
+    canvas.style.top = `${(window.innerHeight - displayHeight) / 2}px`;
     draw();
 }
 
@@ -47,13 +71,15 @@ function draw() {
 
 function drawAsset(asset) {
     const renderState = smoothState(asset);
+    const halfWidth = renderState.width / 2;
+    const halfHeight = renderState.height / 2;
     ctx.save();
-    ctx.translate(renderState.x, renderState.y);
+    ctx.translate(renderState.x + halfWidth, renderState.y + halfHeight);
     ctx.rotate(renderState.rotation * Math.PI / 180);
 
     const image = ensureImage(asset);
     if (image?.complete) {
-        ctx.drawImage(image, 0, 0, renderState.width, renderState.height);
+        ctx.drawImage(image, -halfWidth, -halfHeight, renderState.width, renderState.height);
     }
 
     ctx.restore();
@@ -107,10 +133,11 @@ function startRenderLoop() {
 }
 
 window.addEventListener('resize', () => {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-    draw();
+    resizeCanvas();
 });
 
-startRenderLoop();
-connect();
+fetchCanvasSettings().finally(() => {
+    resizeCanvas();
+    startRenderLoop();
+    connect();
+});

@@ -1,26 +1,29 @@
 let stompClient;
 const canvas = document.getElementById('admin-canvas');
 const ctx = canvas.getContext('2d');
-canvas.width = canvas.offsetWidth;
-canvas.height = canvas.offsetHeight;
+const overlay = document.getElementById('admin-overlay');
+const overlayFrame = overlay?.querySelector('iframe');
+let canvasSettings = { width: 1920, height: 1080 };
+canvas.width = canvasSettings.width;
+canvas.height = canvasSettings.height;
 const assets = new Map();
 const imageCache = new Map();
 const renderStates = new Map();
 let selectedAssetId = null;
 let dragState = null;
 let animationFrameId = null;
+let lastSizeInputChanged = null;
 
 const controlsPanel = document.getElementById('asset-controls');
 const widthInput = document.getElementById('asset-width');
 const heightInput = document.getElementById('asset-height');
-const rotationInput = document.getElementById('asset-rotation');
-const rotationDisplay = document.getElementById('rotation-display');
+const aspectLockInput = document.getElementById('maintain-aspect');
 const selectedAssetName = document.getElementById('selected-asset-name');
 const selectedAssetMeta = document.getElementById('selected-asset-meta');
+const aspectLockState = new Map();
 
-if (rotationInput) {
-    rotationInput.addEventListener('input', updateRotationDisplay);
-}
+if (widthInput) widthInput.addEventListener('input', () => handleSizeInputChange('width'));
+if (heightInput) heightInput.addEventListener('input', () => handleSizeInputChange('height'));
 
 function connect() {
     const socket = new SockJS('/ws');
@@ -36,6 +39,39 @@ function connect() {
 
 function fetchAssets() {
     fetch(`/api/channels/${broadcaster}/assets`).then((r) => r.json()).then(renderAssets);
+}
+
+function fetchCanvasSettings() {
+    return fetch(`/api/channels/${broadcaster}/canvas`)
+        .then((r) => r.json())
+        .then((settings) => {
+            canvasSettings = settings;
+            resizeCanvas();
+        })
+        .catch(() => resizeCanvas());
+}
+
+function resizeCanvas() {
+    if (!overlay) {
+        return;
+    }
+    const bounds = overlay.getBoundingClientRect();
+    const scale = Math.min(bounds.width / canvasSettings.width, bounds.height / canvasSettings.height);
+    const displayWidth = canvasSettings.width * scale;
+    const displayHeight = canvasSettings.height * scale;
+    canvas.width = canvasSettings.width;
+    canvas.height = canvasSettings.height;
+    canvas.style.width = `${displayWidth}px`;
+    canvas.style.height = `${displayHeight}px`;
+    canvas.style.left = `${(bounds.width - displayWidth) / 2}px`;
+    canvas.style.top = `${(bounds.height - displayHeight) / 2}px`;
+    if (overlayFrame) {
+        overlayFrame.style.width = `${displayWidth}px`;
+        overlayFrame.style.height = `${displayHeight}px`;
+        overlayFrame.style.left = `${(bounds.width - displayWidth) / 2}px`;
+        overlayFrame.style.top = `${(bounds.height - displayHeight) / 2}px`;
+    }
+    draw();
 }
 
 function renderAssets(list) {
@@ -70,30 +106,32 @@ function draw() {
 
 function drawAsset(asset) {
     const renderState = smoothState(asset);
+    const halfWidth = renderState.width / 2;
+    const halfHeight = renderState.height / 2;
     ctx.save();
-    ctx.translate(renderState.x, renderState.y);
+    ctx.translate(renderState.x + halfWidth, renderState.y + halfHeight);
     ctx.rotate(renderState.rotation * Math.PI / 180);
 
     const image = ensureImage(asset);
     if (image?.complete) {
         ctx.globalAlpha = asset.hidden ? 0.35 : 0.9;
-        ctx.drawImage(image, 0, 0, renderState.width, renderState.height);
+        ctx.drawImage(image, -halfWidth, -halfHeight, renderState.width, renderState.height);
     } else {
         ctx.globalAlpha = asset.hidden ? 0.2 : 0.4;
         ctx.fillStyle = 'rgba(124, 58, 237, 0.35)';
-        ctx.fillRect(0, 0, renderState.width, renderState.height);
+        ctx.fillRect(-halfWidth, -halfHeight, renderState.width, renderState.height);
     }
 
     if (asset.hidden) {
         ctx.fillStyle = 'rgba(15, 23, 42, 0.35)';
-        ctx.fillRect(0, 0, renderState.width, renderState.height);
+        ctx.fillRect(-halfWidth, -halfHeight, renderState.width, renderState.height);
     }
 
     ctx.globalAlpha = 1;
     ctx.strokeStyle = asset.id === selectedAssetId ? 'rgba(124, 58, 237, 0.9)' : 'rgba(255, 255, 255, 0.4)';
     ctx.lineWidth = asset.id === selectedAssetId ? 2 : 1;
     ctx.setLineDash(asset.id === selectedAssetId ? [6, 4] : []);
-    ctx.strokeRect(0, 0, renderState.width, renderState.height);
+    ctx.strokeRect(-halfWidth, -halfHeight, renderState.width, renderState.height);
     ctx.restore();
 }
 
@@ -238,27 +276,38 @@ function updateSelectedAssetControls() {
     }
 
     controlsPanel.classList.remove('hidden');
+    lastSizeInputChanged = null;
     selectedAssetName.textContent = asset.name || `Asset ${asset.id.slice(0, 6)}`;
     selectedAssetMeta.textContent = `${Math.round(asset.width)}x${Math.round(asset.height)} · ${asset.hidden ? 'Hidden' : 'Visible'}`;
 
     if (widthInput) widthInput.value = Math.round(asset.width);
     if (heightInput) heightInput.value = Math.round(asset.height);
-    if (rotationInput) {
-        rotationInput.value = Math.round(asset.rotation);
-        updateRotationDisplay();
+    if (aspectLockInput) {
+        aspectLockInput.checked = isAspectLocked(asset.id);
+        aspectLockInput.onchange = () => setAspectLock(asset.id, aspectLockInput.checked);
     }
 }
 
 function applyTransformFromInputs() {
     const asset = getSelectedAsset();
     if (!asset) return;
-    const nextWidth = parseFloat(widthInput?.value) || asset.width;
-    const nextHeight = parseFloat(heightInput?.value) || asset.height;
-    const nextRotation = parseFloat(rotationInput?.value) || 0;
+    const locked = isAspectLocked(asset.id);
+    const ratio = getAssetAspectRatio(asset);
+    let nextWidth = parseFloat(widthInput?.value) || asset.width;
+    let nextHeight = parseFloat(heightInput?.value) || asset.height;
+
+    if (locked && ratio) {
+        if (lastSizeInputChanged === 'height') {
+            nextWidth = nextHeight * ratio;
+            if (widthInput) widthInput.value = Math.round(nextWidth);
+        } else {
+            nextHeight = nextWidth / ratio;
+            if (heightInput) heightInput.value = Math.round(nextHeight);
+        }
+    }
 
     asset.width = Math.max(10, nextWidth);
     asset.height = Math.max(10, nextHeight);
-    asset.rotation = nextRotation;
     renderStates.set(asset.id, { ...asset });
     persistTransform(asset);
     drawAndList();
@@ -268,17 +317,63 @@ function nudgeRotation(delta) {
     const asset = getSelectedAsset();
     if (!asset) return;
     const next = (asset.rotation || 0) + delta;
-    if (rotationInput) rotationInput.value = next;
     asset.rotation = next;
     renderStates.set(asset.id, { ...asset });
-    updateRotationDisplay();
     persistTransform(asset);
+    drawAndList();
 }
 
-function updateRotationDisplay() {
-    if (rotationDisplay && rotationInput) {
-        const value = Math.round(parseFloat(rotationInput.value || '0'));
-        rotationDisplay.textContent = `${value}°`;
+function recenterSelectedAsset() {
+    const asset = getSelectedAsset();
+    if (!asset) return;
+    const centerX = (canvas.width - asset.width) / 2;
+    const centerY = (canvas.height - asset.height) / 2;
+    asset.x = centerX;
+    asset.y = centerY;
+    renderStates.set(asset.id, { ...asset });
+    persistTransform(asset);
+    drawAndList();
+}
+
+function getAssetAspectRatio(asset) {
+    const image = ensureImage(asset);
+    if (image?.naturalWidth && image?.naturalHeight) {
+        return image.naturalWidth / image.naturalHeight;
+    }
+    if (asset.width && asset.height) {
+        return asset.width / asset.height;
+    }
+    return null;
+}
+
+function setAspectLock(assetId, locked) {
+    aspectLockState.set(assetId, locked);
+}
+
+function isAspectLocked(assetId) {
+    return aspectLockState.has(assetId) ? aspectLockState.get(assetId) : true;
+}
+
+function handleSizeInputChange(type) {
+    lastSizeInputChanged = type;
+    const asset = getSelectedAsset();
+    if (!asset || !isAspectLocked(asset.id)) {
+        return;
+    }
+    const ratio = getAssetAspectRatio(asset);
+    if (!ratio) {
+        return;
+    }
+    if (type === 'width' && widthInput && heightInput) {
+        const width = parseFloat(widthInput.value);
+        if (width > 0) {
+            heightInput.value = Math.round(width / ratio);
+        }
+    } else if (type === 'height' && widthInput && heightInput) {
+        const height = parseFloat(heightInput.value);
+        if (height > 0) {
+            widthInput.value = Math.round(height * ratio);
+        }
     }
 }
 
@@ -333,10 +428,12 @@ function getCanvasPoint(event) {
 
 function isPointOnAsset(asset, x, y) {
     ctx.save();
-    ctx.translate(asset.x, asset.y);
+    const halfWidth = asset.width / 2;
+    const halfHeight = asset.height / 2;
+    ctx.translate(asset.x + halfWidth, asset.y + halfHeight);
     ctx.rotate(asset.rotation * Math.PI / 180);
     const path = new Path2D();
-    path.rect(0, 0, asset.width, asset.height);
+    path.rect(-halfWidth, -halfHeight, asset.width, asset.height);
     const hit = ctx.isPointInPath(path, x, y);
     ctx.restore();
     return hit;
@@ -411,10 +508,11 @@ canvas.addEventListener('mouseup', endDrag);
 canvas.addEventListener('mouseleave', endDrag);
 
 window.addEventListener('resize', () => {
-    canvas.width = canvas.offsetWidth;
-    canvas.height = canvas.offsetHeight;
-    draw();
+    resizeCanvas();
 });
 
-startRenderLoop();
-connect();
+fetchCanvasSettings().finally(() => {
+    resizeCanvas();
+    startRenderLoop();
+    connect();
+});
