@@ -27,12 +27,25 @@
             <ul id="asset-list" class="asset-list"></ul>
             <div id="asset-controls" class="panel hidden asset-settings">
                 <div class="panel-header">
-                    <div>
-                        <p class="eyebrow subtle">Asset settings</p>
-                        <div class="title-row">
-                            <h4 id="selected-asset-name">Selected asset</h4>
+                    <div class="selected-asset-banner">
+                        <div class="selected-asset-main">
+                            <p class="eyebrow subtle">Asset settings</p>
+                            <div class="title-row">
+                                <h4 id="selected-asset-name">Selected asset</h4>
+                                <span class="badge subtle" id="selected-asset-visibility">Visible</span>
+                            </div>
+                            <p class="muted meta-text" id="selected-asset-meta"></p>
                         </div>
-                        <p class="muted meta-text" id="selected-asset-meta"></p>
+                        <div class="selected-asset-actions">
+                            <button type="button" id="selected-asset-toggle" class="ghost icon-button" title="Toggle visibility">
+                                <span class="icon" aria-hidden="true">🙈</span>
+                                <span class="label">Hide</span>
+                            </button>
+                            <button type="button" id="selected-asset-delete" class="ghost danger icon-button" title="Delete asset">
+                                <span class="icon" aria-hidden="true">🗑️</span>
+                                <span class="label">Delete</span>
+                            </button>
+                        </div>
                     </div>
                     <div class="panel-summary">
                         <p class="muted">Fine-tune the selected overlay item with sizing, playback, and layering controls.</p>
@@ -47,11 +60,11 @@
                     <div class="control-grid condensed">
                         <label>
                             Width
-                            <input id="asset-width" type="number" min="10" step="5" />
+                            <input id="asset-width" class="number-input" type="number" min="10" step="5" />
                         </label>
                         <label>
                             Height
-                            <input id="asset-height" type="number" min="10" step="5" />
+                            <input id="asset-height" class="number-input" type="number" min="10" step="5" />
                         </label>
                         <label class="checkbox-inline">
                             <input id="maintain-aspect" type="checkbox" checked />
@@ -68,8 +81,8 @@
                         </div>
                         <div class="control-grid condensed">
                             <label>
-                                Animation speed
-                                <input id="asset-speed" type="number" min="0.1" step="0.1" value="1" />
+                                Animation speed (% of original)
+                                <input id="asset-speed" class="number-input" type="number" min="10" max="400" step="5" value="100" />
                             </label>
                             <label class="checkbox-inline">
                                 <input id="asset-muted" type="checkbox" />

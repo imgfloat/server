@@ -27,12 +27,29 @@ const selectedAssetName = document.getElementById('selected-asset-name');
 const selectedAssetMeta = document.getElementById('selected-asset-meta');
 const selectedZLabel = document.getElementById('asset-z-level');
 const selectedTypeLabel = document.getElementById('asset-type-label');
+const selectedVisibilityBadge = document.getElementById('selected-asset-visibility');
+const selectedToggleBtn = document.getElementById('selected-asset-toggle');
+const selectedDeleteBtn = document.getElementById('selected-asset-delete');
 const aspectLockState = new Map();
 
 if (widthInput) widthInput.addEventListener('input', () => handleSizeInputChange('width'));
 if (heightInput) heightInput.addEventListener('input', () => handleSizeInputChange('height'));
 if (speedInput) speedInput.addEventListener('change', updatePlaybackFromInputs);
 if (muteInput) muteInput.addEventListener('change', updateMuteFromInput);
+if (selectedToggleBtn) selectedToggleBtn.addEventListener('click', (event) => {
+    event.stopPropagation();
+    const asset = getSelectedAsset();
+    if (asset) {
+        updateVisibility(asset, !asset.hidden);
+    }
+});
+if (selectedDeleteBtn) selectedDeleteBtn.addEventListener('click', (event) => {
+    event.stopPropagation();
+    const asset = getSelectedAsset();
+    if (asset) {
+        deleteAsset(asset);
+    }
+});
 
 function connect() {
     const socket = new SockJS('/ws');
@@ -599,8 +616,8 @@ function renderAssetList() {
 
         const toggleBtn = document.createElement('button');
         toggleBtn.type = 'button';
-        toggleBtn.className = 'secondary';
-        toggleBtn.textContent = asset.hidden ? 'Show' : 'Hide';
+        toggleBtn.className = 'ghost icon-button';
+        toggleBtn.innerHTML = `<span class="icon" aria-hidden="true">${asset.hidden ? '👁️' : '🙈'}</span><span class="label">${asset.hidden ? 'Show' : 'Hide'}</span>`;
         toggleBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             selectedAssetId = asset.id;
@@ -609,8 +626,8 @@ function renderAssetList() {
 
         const deleteBtn = document.createElement('button');
         deleteBtn.type = 'button';
-        deleteBtn.className = 'secondary';
-        deleteBtn.textContent = 'Delete';
+        deleteBtn.className = 'ghost danger icon-button';
+        deleteBtn.innerHTML = '<span class="icon" aria-hidden="true">🗑️</span><span class="label">Delete</span>';
         deleteBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             deleteAsset(asset);
@@ -678,6 +695,14 @@ function updateSelectedAssetControls() {
     if (selectedTypeLabel) {
         selectedTypeLabel.textContent = getDisplayMediaType(asset);
     }
+    if (selectedVisibilityBadge) {
+        selectedVisibilityBadge.textContent = asset.hidden ? 'Hidden' : 'Visible';
+        selectedVisibilityBadge.classList.toggle('danger', !!asset.hidden);
+    }
+    if (selectedToggleBtn) {
+        selectedToggleBtn.querySelector('.label').textContent = asset.hidden ? 'Show' : 'Hide';
+        selectedToggleBtn.querySelector('.icon').textContent = asset.hidden ? '👁️' : '🙈';
+    }
 
     if (widthInput) widthInput.value = Math.round(asset.width);
     if (heightInput) heightInput.value = Math.round(asset.height);
@@ -686,7 +711,7 @@ function updateSelectedAssetControls() {
         aspectLockInput.onchange = () => setAspectLock(asset.id, aspectLockInput.checked);
     }
     if (speedInput) {
-        speedInput.value = Math.round((asset.speed && asset.speed > 0 ? asset.speed : 1) * 100) / 100;
+        speedInput.value = Math.round((asset.speed && asset.speed > 0 ? asset.speed : 1) * 100);
     }
     if (muteInput) {
         muteInput.checked = !!asset.muted;
@@ -723,8 +748,8 @@ function applyTransformFromInputs() {
 function updatePlaybackFromInputs() {
     const asset = getSelectedAsset();
     if (!asset) return;
-    const nextSpeed = Math.max(0.1, parseFloat(speedInput?.value) || asset.speed || 1);
-    asset.speed = nextSpeed;
+    const percent = Math.max(10, Math.min(400, parseFloat(speedInput?.value) || 100));
+    asset.speed = percent / 100;
     renderStates.set(asset.id, { ...asset });
     persistTransform(asset);
     drawAndList();
