@@ -5,11 +5,100 @@
     <title>Imgfloat - Twitch overlay</title>
     <link rel="stylesheet" href="/css/styles.css" />
 </head>
-<body>
-<div class="container">
-    <h1>Imgfloat</h1>
-    <p>Authenticate with Twitch to manage your channel overlays and invite channel admins.</p>
-    <a class="button" href="/oauth2/authorization/twitch">Login with Twitch</a>
+<body class="landing-body">
+<div class="landing">
+    <header class="landing-header">
+        <div class="brand">
+            <div class="brand-mark">IF</div>
+            <div>
+                <div class="brand-title">Imgfloat</div>
+                <div class="brand-subtitle">Twitch overlay manager</div>
+            </div>
+        </div>
+        <a class="button ghost" href="/oauth2/authorization/twitch">Login with Twitch</a>
+    </header>
+
+    <main class="hero">
+        <div class="hero-text">
+            <p class="eyebrow">Overlay toolkit for busy streamers</p>
+            <h1>Design, schedule, and control your Twitch overlays with ease.</h1>
+            <p class="lead">Imgfloat keeps your branding consistent while letting mods and trusted admins help run the show. Upload assets, schedule when they appear, and keep everything in sync across your scenes.</p>
+            <div class="cta-row">
+                <a class="button" href="/oauth2/authorization/twitch">Login with Twitch</a>
+                <span class="muted">No bots to invite. Connect securely with Twitch OAuth.</span>
+            </div>
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-value">Live</div>
+                    <div class="stat-label">Status preview for your overlay</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value">Admins</div>
+                    <div class="stat-label">Invite trusted helpers in seconds</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value">Assets</div>
+                    <div class="stat-label">Manage images & animations from one place</div>
+                </div>
+            </div>
+        </div>
+        <div class="hero-panel">
+            <div class="panel-header">
+                <div>
+                    <p class="eyebrow">Preview</p>
+                    <h3>Overlay control center</h3>
+                </div>
+                <span class="badge">Secure</span>
+            </div>
+            <ul class="feature-list">
+                <li>
+                    <div>
+                        <div class="feature-title">Live dashboard</div>
+                        <div class="feature-desc">Monitor your broadcast overlay and see changes instantly.</div>
+                    </div>
+                </li>
+                <li>
+                    <div>
+                        <div class="feature-title">Invite admins</div>
+                        <div class="feature-desc">Share access with team members without sharing credentials.</div>
+                    </div>
+                </li>
+                <li>
+                    <div>
+                        <div class="feature-title">Asset library</div>
+                        <div class="feature-desc">Upload, tag, and reuse assets across events and layouts.</div>
+                    </div>
+                </li>
+            </ul>
+            <a class="button block" href="/oauth2/authorization/twitch">Get started</a>
+        </div>
+    </main>
+
+    <section class="info-grid">
+        <div class="info-card">
+            <div class="badge subtle">Step 1</div>
+            <h4>Connect your Twitch account</h4>
+            <p>Authenticate once with Twitch OAuth to unlock the dashboard and sync your channel context. No complex setup required.</p>
+        </div>
+        <div class="info-card">
+            <div class="badge subtle">Step 2</div>
+            <h4>Upload overlays & widgets</h4>
+            <p>Add images, animations, or sponsor placements. Imgfloat keeps them organized and ready for your next broadcast.</p>
+        </div>
+        <div class="info-card">
+            <div class="badge subtle">Step 3</div>
+            <h4>Invite trusted admins</h4>
+            <p>Share control with moderators so someone always has the controls, even while you focus on the stream.</p>
+        </div>
+    </section>
+
+    <footer class="landing-footer">
+        <div>
+            <div class="brand-title">Imgfloat</div>
+            <div class="muted">Ready when you go live.</div>
+        </div>
+        <a class="button" href="/oauth2/authorization/twitch">Launch dashboard</a>
+    </footer>
 </div>
 </body>
 </html>
