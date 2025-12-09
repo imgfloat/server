@@ -48,6 +48,12 @@ class ChannelApiIntegrationTest {
                         .with(oauth2Login().attributes(attrs -> attrs.put("preferred_username", broadcaster))))
                 .andExpect(status().isOk());
 
+        mockMvc.perform(get("/api/channels/{broadcaster}/admins", broadcaster)
+                        .with(oauth2Login().attributes(attrs -> attrs.put("preferred_username", broadcaster))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].login").value("helper"))
+                .andExpect(jsonPath("$[0].displayName").value("helper"));
+
         MockMultipartFile file = new MockMultipartFile("file", "image.png", "image/png", samplePng());
 
         String assetId = objectMapper.readTree(mockMvc.perform(multipart("/api/channels/{broadcaster}/assets", broadcaster)

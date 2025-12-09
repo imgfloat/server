@@ -4,11 +4,15 @@ import com.imgfloat.app.model.AdminRequest;
 import com.imgfloat.app.model.Asset;
 import com.imgfloat.app.model.CanvasSettingsRequest;
 import com.imgfloat.app.model.TransformRequest;
+import com.imgfloat.app.model.TwitchUserProfile;
 import com.imgfloat.app.model.VisibilityRequest;
 import com.imgfloat.app.service.ChannelDirectoryService;
+import com.imgfloat.app.service.TwitchUserLookupService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.MediaType;
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClientService;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -23,6 +27,9 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Collection;
 import java.io.IOException;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Optional;
 
 import static org.springframework.http.HttpStatus.FORBIDDEN;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
@@ -32,9 +39,15 @@ import static org.springframework.http.HttpStatus.BAD_REQUEST;
 @RequestMapping("/api/channels/{broadcaster}")
 public class ChannelApiController {
     private final ChannelDirectoryService channelDirectoryService;
+    private final OAuth2AuthorizedClientService authorizedClientService;
+    private final TwitchUserLookupService twitchUserLookupService;
 
-    public ChannelApiController(ChannelDirectoryService channelDirectoryService) {
+    public ChannelApiController(ChannelDirectoryService channelDirectoryService,
+                               OAuth2AuthorizedClientService authorizedClientService,
+                               TwitchUserLookupService twitchUserLookupService) {
         this.channelDirectoryService = channelDirectoryService;
+        this.authorizedClientService = authorizedClientService;
+        this.twitchUserLookupService = twitchUserLookupService;
     }
 
     @PostMapping("/admins")
@@ -48,11 +61,26 @@ public class ChannelApiController {
     }
 
     @GetMapping("/admins")
-    public Collection<String> listAdmins(@PathVariable("broadcaster") String broadcaster,
-                                         OAuth2AuthenticationToken authentication) {
+    public Collection<TwitchUserProfile> listAdmins(@PathVariable("broadcaster") String broadcaster,
+                                                    OAuth2AuthenticationToken authentication) {
         String login = TwitchUser.from(authentication).login();
         ensureBroadcaster(broadcaster, login);
-        return channelDirectoryService.getOrCreateChannel(broadcaster).getAdmins();
+        var channel = channelDirectoryService.getOrCreateChannel(broadcaster);
+        List<String> admins = channel.getAdmins().stream()
+                .sorted(Comparator.naturalOrder())
+                .toList();
+        OAuth2AuthorizedClient authorizedClient = authorizedClientService.loadAuthorizedClient(
+                authentication.getAuthorizedClientRegistrationId(),
+                authentication.getName());
+        String accessToken = Optional.ofNullable(authorizedClient)
+                .map(OAuth2AuthorizedClient::getAccessToken)
+                .map(token -> token.getTokenValue())
+                .orElse(null);
+        String clientId = Optional.ofNullable(authorizedClient)
+                .map(OAuth2AuthorizedClient::getClientRegistration)
+                .map(registration -> registration.getClientId())
+                .orElse(null);
+        return twitchUserLookupService.fetchProfiles(admins, accessToken, clientId);
     }
 
     @DeleteMapping("/admins/{username}")

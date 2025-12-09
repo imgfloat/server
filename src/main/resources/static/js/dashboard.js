@@ -10,7 +10,35 @@ function renderAdmins(list) {
 
     list.forEach((admin) => {
         const li = document.createElement('li');
-        li.textContent = admin;
+        li.className = 'stacked-list-item';
+
+        const identity = document.createElement('div');
+        identity.className = 'identity-row';
+
+        const avatar = document.createElement(admin.avatarUrl ? 'img' : 'div');
+        avatar.className = 'avatar';
+        if (admin.avatarUrl) {
+            avatar.src = admin.avatarUrl;
+            avatar.alt = `${admin.displayName || admin.login} avatar`;
+        } else {
+            avatar.classList.add('avatar-fallback');
+            avatar.textContent = (admin.displayName || admin.login || '?').charAt(0).toUpperCase();
+        }
+
+        const details = document.createElement('div');
+        details.className = 'identity-text';
+        const title = document.createElement('p');
+        title.className = 'list-title';
+        title.textContent = admin.displayName || admin.login;
+        const subtitle = document.createElement('p');
+        subtitle.className = 'muted';
+        subtitle.textContent = `@${admin.login}`;
+
+        details.appendChild(title);
+        details.appendChild(subtitle);
+        identity.appendChild(avatar);
+        identity.appendChild(details);
+        li.appendChild(identity);
         adminList.appendChild(li);
     });
 }

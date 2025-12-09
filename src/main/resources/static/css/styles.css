@@ -574,3 +574,32 @@ body {
     margin: 0;
     font-weight: 700;
 }
+
+.identity-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.identity-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: linear-gradient(135deg, #7c3aed, #4f46e5);
+    display: grid;
+    place-items: center;
+    font-weight: 700;
+    color: #e0e7ff;
+    text-transform: uppercase;
+}
+
+.avatar-fallback {
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
