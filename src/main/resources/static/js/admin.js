@@ -1084,23 +1084,6 @@ function renderAssetList() {
         meta.appendChild(name);
         meta.appendChild(details);
 
-        const badges = document.createElement('div');
-        badges.className = 'badge-row asset-meta-badges';
-        badges.appendChild(createBadge(getDisplayMediaType(asset)));
-        if (!isAudioAsset(asset)) {
-            badges.appendChild(createBadge(asset.hidden ? 'Hidden' : 'Visible', asset.hidden ? 'danger' : ''));
-            badges.appendChild(createBadge(`Layer ${asset.zIndex ?? 1}`));
-        }
-        const aspectLabel = !isAudioAsset(asset) ? formatAspectRatioLabel(asset) : '';
-        if (aspectLabel) {
-            badges.appendChild(createBadge(aspectLabel, 'subtle'));
-        }
-        const durationLabel = getDurationBadge(asset);
-        if (durationLabel) {
-            badges.appendChild(createBadge(durationLabel, 'subtle'));
-        }
-        meta.appendChild(badges);
-
         const actions = document.createElement('div');
         actions.className = 'actions';
 
@@ -1142,18 +1125,6 @@ function renderAssetList() {
             });
             actions.appendChild(toggleBtn);
         }
-
-        const deleteBtn = document.createElement('button');
-        deleteBtn.type = 'button';
-        deleteBtn.className = 'ghost danger icon-button';
-        deleteBtn.innerHTML = '<i class="fa-solid fa-trash"></i>';
-        deleteBtn.title = 'Delete asset';
-        deleteBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            deleteAsset(asset);
-        });
-
-        actions.appendChild(deleteBtn);
 
         row.appendChild(preview);
         row.appendChild(meta);

@@ -30,12 +30,6 @@
 
     <div class="admin-workspace">
         <aside class="admin-rail">
-            <div class="rail-header">
-                <div>
-                    <p class="eyebrow subtle">Assets</p>
-                    <h3 class="panel-title">Library & uploads</h3>
-                </div>
-            </div>
             <div class="upload-row">
                 <input id="asset-file" class="file-input-field" type="file" accept="image/*,video/*,audio/*" onchange="handleFileSelection(this)" />
                 <label for="asset-file" class="file-input-trigger">
@@ -53,12 +47,6 @@
             </div>
 
             <div id="asset-inspector" class="rail-inspector hidden">
-                <div class="drawer-header">
-                    <div>
-                        <p class="eyebrow subtle">Settings</p>
-                        <h4>Selected asset</h4>
-                    </div>
-                </div>
                 <div class="asset-inspector panel-section">
                     <div class="selected-asset-banner">
                         <div class="selected-asset-main">
@@ -68,6 +56,14 @@
                             <p class="meta-text" id="selected-asset-meta">Pick an asset in the list to adjust its placement and playback.</p>
                             <p class="meta-text subtle-text hidden" id="selected-asset-id"></p>
                             <div class="badge-row asset-meta-badges" id="selected-asset-badges"></div>
+                        </div>
+                        <div class="selected-asset-actions">
+                            <button id="selected-asset-visibility" class="ghost icon-button" type="button" title="Hide asset" disabled>
+                                <i class="fa-solid fa-eye-slash"></i>
+                            </button>
+                            <button id="selected-asset-delete" class="ghost danger icon-button" type="button" title="Delete asset" disabled>
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
                         </div>
                     </div>
                     <div id="asset-controls-placeholder" class="asset-controls-placeholder">
