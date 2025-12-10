@@ -9,24 +9,32 @@
     <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
 </head>
-<body>
+<body class="admin-body">
 <div class="admin-layout">
-    <header>
-        <h2>Channel <span th:text="${broadcaster}"></span> overlay controls</h2>
-        <div class="actions">
-            <form th:action="@{/logout}" method="post">
-                <button class="secondary" type="submit">Logout</button>
-            </form>
-        </div>
-    </header>
-    <section class="overlay" id="admin-overlay">
-        <iframe th:src="${'https://player.twitch.tv/?channel=' + broadcaster + '&parent=localhost'}" allowfullscreen></iframe>
-        <canvas id="admin-canvas"></canvas>
-    </section>
-    <section class="controls assets-panel">
-        <div class="controls-full panel">
-            <h3>Overlay assets</h3>
-            <p>Upload overlay visuals and adjust them inline.</p>
+    <div class="admin-shell">
+        <header class="admin-header">
+            <div class="admin-identity">
+                <div class="brand-mark">IF</div>
+                <div>
+                    <p class="eyebrow subtle">Channel</p>
+                    <h1 th:text="${broadcaster}"></h1>
+                </div>
+            </div>
+            <div class="header-actions horizontal">
+                <a class="button ghost" th:href="@{/}">Back to dashboard</a>
+                <form th:action="@{/logout}" method="post">
+                    <button class="secondary" type="submit">Logout</button>
+                </form>
+            </div>
+        </header>
+        <section class="overlay" id="admin-overlay">
+            <iframe th:src="${'https://player.twitch.tv/?channel=' + broadcaster + '&parent=localhost'}" allowfullscreen></iframe>
+            <canvas id="admin-canvas"></canvas>
+        </section>
+        <section class="controls assets-panel">
+            <div class="controls-full panel">
+                <h3>Overlay assets</h3>
+                <p>Upload overlay visuals and adjust them inline.</p>
             <div class="asset-management">
                 <div class="asset-column">
                     <div class="upload-row">
@@ -161,7 +169,8 @@
                 </div>
             </div>
         </div>
-    </section>
+        </section>
+    </div>
 </div>
 <script th:inline="javascript">
     const broadcaster = /*[[${broadcaster}]]*/ '';
