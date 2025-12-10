@@ -7,12 +7,14 @@ let canvasSettings = { width: 1920, height: 1080 };
 canvas.width = canvasSettings.width;
 canvas.height = canvasSettings.height;
 const assets = new Map();
+let pendingUploads = [];
 const mediaCache = new Map();
 const renderStates = new Map();
 const animatedCache = new Map();
 const audioControllers = new Map();
 const pendingAudioUnlock = new Set();
 const loopPlaybackState = new Map();
+const previewCache = new Map();
 let drawPending = false;
 let zOrderDirty = true;
 let zOrderCache = [];
@@ -31,6 +33,7 @@ const muteInput = document.getElementById('asset-muted');
 const selectedZLabel = document.getElementById('asset-z-level');
 const playbackSection = document.getElementById('playback-section');
 const audioSection = document.getElementById('audio-section');
+const layoutSection = document.getElementById('layout-section');
 const audioLoopInput = document.getElementById('asset-audio-loop');
 const audioDelayInput = document.getElementById('asset-audio-delay');
 const audioSpeedInput = document.getElementById('asset-audio-speed');
@@ -64,6 +67,40 @@ function debounce(fn, wait = 150) {
         clearTimeout(timeout);
         timeout = setTimeout(() => fn(...args), wait);
     };
+}
+
+function addPendingUpload(name) {
+    const pending = {
+        id: `pending-${Date.now()}-${Math.round(Math.random() * 100000)}`,
+        name,
+        status: 'uploading',
+        createdAtMs: Date.now()
+    };
+    pendingUploads.push(pending);
+    renderAssetList();
+    return pending.id;
+}
+
+function updatePendingUpload(id, updates = {}) {
+    const pending = pendingUploads.find((item) => item.id === id);
+    if (!pending) return;
+    Object.assign(pending, updates);
+    renderAssetList();
+}
+
+function removePendingUpload(id) {
+    const index = pendingUploads.findIndex((item) => item.id === id);
+    if (index === -1) return;
+    pendingUploads.splice(index, 1);
+    renderAssetList();
+}
+
+function resolvePendingUploadByName(name) {
+    if (!name) return;
+    const index = pendingUploads.findIndex((item) => item.name === name);
+    if (index === -1) return;
+    pendingUploads.splice(index, 1);
+    renderAssetList();
 }
 
 function formatDurationLabel(durationMs) {
@@ -228,6 +265,11 @@ function renderAssets(list) {
 
 function storeAsset(asset) {
     if (!asset) return;
+    const existing = assets.get(asset.id);
+    if (existing && existing.url !== asset.url) {
+        clearMedia(asset.id);
+        previewCache.delete(asset.id);
+    }
     asset.zIndex = Math.max(1, asset.zIndex ?? 1);
     const parsedCreatedAt = asset.createdAt ? new Date(asset.createdAt).getTime() : NaN;
     const hasCreatedAtMs = typeof asset.createdAtMs === 'number' && Number.isFinite(asset.createdAtMs);
@@ -239,6 +281,7 @@ function storeAsset(asset) {
     if (!renderStates.has(asset.id)) {
         renderStates.set(asset.id, { ...asset });
     }
+    resolvePendingUploadByName(asset.name);
 }
 
 function updateRenderState(asset) {
@@ -615,6 +658,7 @@ function isDrawable(element) {
 
 function clearMedia(assetId) {
     mediaCache.delete(assetId);
+    previewCache.delete(assetId);
     const animated = animatedCache.get(assetId);
     if (animated) {
         animated.cancelled = true;
@@ -717,6 +761,9 @@ function autoStartAudio(asset) {
 
 function ensureMedia(asset) {
     const cached = mediaCache.get(asset.id);
+    if (cached && cached.src !== asset.url) {
+        clearMedia(asset.id);
+    }
     if (cached && cached.src === asset.url) {
         applyMediaSettings(cached, asset);
         return cached;
@@ -737,6 +784,7 @@ function ensureMedia(asset) {
     }
 
     const element = isVideoAsset(asset) ? document.createElement('video') : new Image();
+    element.crossOrigin = 'anonymous';
     if (isVideoElement(element)) {
         element.loop = true;
         element.muted = asset.muted ?? true;
@@ -867,7 +915,10 @@ function renderAssetList() {
     }
     list.innerHTML = '';
 
-    if (!assets.size) {
+    const hasAssets = assets.size > 0;
+    const hasPending = pendingUploads.length > 0;
+
+    if (!hasAssets && !hasPending) {
         selectedAssetId = null;
         if (assetInspector) {
             assetInspector.classList.add('hidden');
@@ -880,8 +931,13 @@ function renderAssetList() {
     }
 
     if (assetInspector) {
-        assetInspector.classList.remove('hidden');
+        assetInspector.classList.toggle('hidden', !hasAssets);
     }
+
+    const pendingItems = [...pendingUploads].sort((a, b) => (a.createdAtMs || 0) - (b.createdAtMs || 0));
+    pendingItems.forEach((pending) => {
+        list.appendChild(createPendingListItem(pending));
+    });
 
     const sortedAssets = getChronologicalAssets();
     sortedAssets.forEach((asset) => {
@@ -990,6 +1046,43 @@ function renderAssetList() {
     updateSelectedAssetControls();
 }
 
+function createPendingListItem(pending) {
+    const li = document.createElement('li');
+    li.className = 'asset-item pending';
+
+    const row = document.createElement('div');
+    row.className = 'asset-row';
+
+    const preview = document.createElement('div');
+    preview.className = 'asset-preview pending-preview';
+    preview.innerHTML = '<i class="fa-solid fa-cloud-arrow-up" aria-hidden="true"></i>';
+
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    const name = document.createElement('strong');
+    name.textContent = pending?.name || 'Uploading asset';
+    const details = document.createElement('small');
+    details.textContent = pending.status === 'processing' ? 'Processing upload…' : 'Uploading…';
+    meta.appendChild(name);
+    meta.appendChild(details);
+
+    const progress = document.createElement('div');
+    progress.className = 'upload-progress';
+    const bar = document.createElement('div');
+    bar.className = 'upload-progress-bar';
+    if (pending.status === 'processing') {
+        bar.classList.add('is-processing');
+    }
+    progress.appendChild(bar);
+    meta.appendChild(progress);
+
+    row.appendChild(preview);
+    row.appendChild(meta);
+    li.appendChild(row);
+
+    return li;
+}
+
 function createBadge(label, extraClass = '') {
     const badge = document.createElement('span');
     badge.className = `badge ${extraClass}`.trim();
@@ -1021,23 +1114,123 @@ function createPreviewElement(asset) {
         icon.innerHTML = '<i class="fa-solid fa-music" aria-hidden="true"></i>';
         return icon;
     }
-    if (isVideoAsset(asset)) {
-        const video = document.createElement('video');
-        video.className = 'asset-preview';
-        video.src = asset.url;
-        video.loop = true;
-        video.muted = true;
-        video.playsInline = true;
-        video.autoplay = true;
-        video.play().catch(() => { });
-        return video;
+    if (isVideoAsset(asset) || isGifAsset(asset)) {
+        const still = document.createElement('div');
+        still.className = 'asset-preview still';
+        still.setAttribute('aria-label', asset.name || 'Asset preview');
+
+        const overlay = document.createElement('div');
+        overlay.className = 'preview-overlay';
+        overlay.innerHTML = '<i class="fa-solid fa-play"></i>';
+        still.appendChild(overlay);
+
+        loadPreviewFrame(asset, still);
+        return still;
     }
 
     const img = document.createElement('img');
     img.className = 'asset-preview';
     img.src = asset.url;
     img.alt = asset.name || 'Asset preview';
+    img.loading = 'lazy';
     return img;
+}
+
+function loadPreviewFrame(asset, element) {
+    if (!asset || !element) return;
+    const cached = previewCache.get(asset.id);
+    if (cached) {
+        applyPreviewFrame(element, cached);
+        return;
+    }
+
+    const source = isVideoAsset(asset)
+        ? captureVideoFrame(asset)
+        : isGifAsset(asset)
+            ? captureGifFrame(asset)
+            : Promise.resolve(null);
+
+    source
+        .then((dataUrl) => {
+            if (!dataUrl) {
+                return;
+            }
+            previewCache.set(asset.id, dataUrl);
+            applyPreviewFrame(element, dataUrl);
+        })
+        .catch(() => { });
+}
+
+function applyPreviewFrame(element, dataUrl) {
+    if (!element || !dataUrl) return;
+    element.style.backgroundImage = `url(${dataUrl})`;
+    element.classList.add('has-image');
+}
+
+function captureVideoFrame(asset) {
+    return new Promise((resolve) => {
+        const video = document.createElement('video');
+        video.crossOrigin = 'anonymous';
+        video.preload = 'auto';
+        video.muted = true;
+        video.playsInline = true;
+        video.src = asset.url;
+
+        const cleanup = () => {
+            video.pause();
+            video.removeAttribute('src');
+            video.load();
+        };
+
+        video.addEventListener('loadeddata', () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth || asset.width || 0;
+            canvas.height = video.videoHeight || asset.height || 0;
+            if (!canvas.width || !canvas.height) {
+                cleanup();
+                resolve(null);
+                return;
+            }
+            const context = canvas.getContext('2d');
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            try {
+                const dataUrl = canvas.toDataURL('image/png');
+                resolve(dataUrl);
+            } catch (err) {
+                resolve(null);
+            }
+            cleanup();
+        }, { once: true });
+
+        video.addEventListener('error', () => {
+            cleanup();
+            resolve(null);
+        }, { once: true });
+    });
+}
+
+function captureGifFrame(asset) {
+    if (!('ImageDecoder' in window)) {
+        return Promise.resolve(null);
+    }
+    return fetch(asset.url)
+        .then((r) => r.blob())
+        .then((blob) => new ImageDecoder({ data: blob, type: blob.type || 'image/gif' }))
+        .then((decoder) => decoder.decode({ frameIndex: 0 }))
+        .then(({ image }) => {
+            const canvas = document.createElement('canvas');
+            canvas.width = image.displayWidth || asset.width || 0;
+            canvas.height = image.displayHeight || asset.height || 0;
+            const ctx2d = canvas.getContext('2d');
+            ctx2d.drawImage(image, 0, 0, canvas.width, canvas.height);
+            image.close?.();
+            try {
+                return canvas.toDataURL('image/png');
+            } catch (err) {
+                return null;
+            }
+        })
+        .catch(() => null);
 }
 
 function getSelectedAsset() {
@@ -1067,6 +1260,15 @@ function updateSelectedAssetControls(asset = getSelectedAsset()) {
     if (aspectLockInput) {
         aspectLockInput.checked = isAspectLocked(asset.id);
         aspectLockInput.onchange = () => setAspectLock(asset.id, aspectLockInput.checked);
+    }
+    if (layoutSection) {
+        const hideLayout = isAudioAsset(asset);
+        layoutSection.classList.toggle('hidden', hideLayout);
+        const layoutControls = layoutSection.querySelectorAll('input, button');
+        layoutControls.forEach((control) => {
+            control.disabled = hideLayout;
+            control.classList.toggle('disabled', hideLayout);
+        });
     }
     if (speedInput) {
         const percent = Math.round((asset.speed ?? 1) * 100);
@@ -1435,6 +1637,8 @@ function uploadAsset(file = null) {
         }
         return;
     }
+
+    const pendingId = addPendingUpload(selectedFile.name);
     const data = new FormData();
     data.append('file', selectedFile);
     if (fileNameLabel) {
@@ -1452,12 +1656,14 @@ function uploadAsset(file = null) {
             handleFileSelection(fileInput);
         }
         if (typeof showToast === 'function') {
-            showToast('Asset uploaded successfully.', 'success');
+            showToast('Upload received. Processing asset...', 'success');
         }
+        updatePendingUpload(pendingId, { status: 'processing' });
     }).catch(() => {
         if (fileNameLabel) {
             fileNameLabel.textContent = 'Upload failed';
         }
+        removePendingUpload(pendingId);
         if (typeof showToast === 'function') {
             showToast('Upload failed. Please try again with a supported file.', 'error');
         }

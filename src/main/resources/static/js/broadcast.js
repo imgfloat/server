@@ -437,6 +437,9 @@ function autoStartAudio(asset) {
 
 function ensureMedia(asset) {
     const cached = mediaCache.get(asset.id);
+    if (cached && cached.src !== asset.url) {
+        clearMedia(asset.id);
+    }
     if (cached && cached.src === asset.url) {
         applyMediaSettings(cached, asset);
         return cached;
@@ -457,6 +460,7 @@ function ensureMedia(asset) {
     }
 
     const element = isVideoAsset(asset) ? document.createElement('video') : new Image();
+    element.crossOrigin = 'anonymous';
     if (isVideoElement(element)) {
         element.loop = true;
         element.muted = asset.muted ?? true;

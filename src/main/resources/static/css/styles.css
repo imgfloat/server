@@ -744,6 +744,12 @@ body {
     box-shadow: 0 0 0 1px rgba(124, 58, 237, 0.6);
 }
 
+.asset-item.pending {
+    cursor: default;
+    border-style: dashed;
+    opacity: 0.92;
+}
+
 .asset-item.is-hidden {
     opacity: 0.72;
     border-style: dashed;
@@ -832,6 +838,73 @@ body {
     border: 1px solid #1f2937;
     border-radius: 8px;
     flex-shrink: 0;
+}
+
+.asset-preview.still {
+    position: relative;
+    overflow: hidden;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    object-fit: cover;
+}
+
+.asset-preview.still:not(.has-image) {
+    display: grid;
+    place-items: center;
+    color: #cbd5e1;
+    background: #111827;
+}
+
+.preview-overlay {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    background: linear-gradient(180deg, rgba(15, 23, 42, 0.4), rgba(15, 23, 42, 0.4));
+    color: #e5e7eb;
+    pointer-events: none;
+    font-size: 18px;
+}
+
+.pending-preview {
+    display: grid;
+    place-items: center;
+    color: #cbd5e1;
+    background: rgba(124, 58, 237, 0.08);
+    border-style: dashed;
+}
+
+.upload-progress {
+    margin-top: 10px;
+    width: 100%;
+    height: 6px;
+    background: rgba(148, 163, 184, 0.12);
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.upload-progress-bar {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, rgba(124, 58, 237, 0.8), rgba(99, 102, 241, 0.8), rgba(124, 58, 237, 0.8));
+    background-size: 200% 100%;
+    animation: upload-progress 1.2s linear infinite;
+}
+
+.upload-progress-bar.is-processing {
+    background: linear-gradient(90deg, rgba(34, 197, 94, 0.85), rgba(52, 211, 153, 0.8), rgba(34, 197, 94, 0.85));
+    animation-duration: 1.8s;
+}
+
+@keyframes upload-progress {
+    from {
+        background-position: 200% 0;
+    }
+    to {
+        background-position: -200% 0;
+    }
 }
 
 .audio-icon {
