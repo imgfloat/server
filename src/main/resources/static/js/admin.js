@@ -961,6 +961,7 @@ function applyMediaSettings(element, asset) {
     }
     const nextSpeed = asset.speed ?? 1;
     const effectiveSpeed = Math.max(nextSpeed, 0.01);
+    const wasMuted = element.muted;
     if (element.playbackRate !== effectiveSpeed) {
         element.playbackRate = effectiveSpeed;
     }
@@ -968,7 +969,19 @@ function applyMediaSettings(element, asset) {
     if (element.muted !== shouldMute) {
         element.muted = shouldMute;
     }
-    element.pause();
+    if (nextSpeed === 0) {
+        element.pause();
+        return;
+    }
+    const playPromise = element.play();
+    if (playPromise?.catch) {
+        playPromise.catch(() => {
+            if (!shouldMute && wasMuted) {
+                element.muted = true;
+                element.play().catch(() => {});
+            }
+        });
+    }
 }
 
 function renderAssetList() {

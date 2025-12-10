@@ -670,6 +670,7 @@ function applyMediaSettings(element, asset) {
     }
     const nextSpeed = asset.speed ?? 1;
     const effectiveSpeed = Math.max(nextSpeed, 0.01);
+    const wasMuted = element.muted;
     if (element.playbackRate !== effectiveSpeed) {
         element.playbackRate = effectiveSpeed;
     }
@@ -679,8 +680,16 @@ function applyMediaSettings(element, asset) {
     }
     if (nextSpeed === 0) {
         element.pause();
-    } else if (element.paused) {
-        element.play().catch(() => {});
+    } else {
+        const playPromise = element.play();
+        if (playPromise?.catch) {
+            playPromise.catch(() => {
+                if (!shouldMute && wasMuted) {
+                    element.muted = true;
+                    element.play().catch(() => {});
+                }
+            });
+        }
     }
 }
 

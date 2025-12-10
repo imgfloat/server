@@ -14,14 +14,15 @@
     <div class="admin-shell">
         <header class="admin-header">
             <div class="admin-identity">
-                <div class="brand-mark">IF</div>
-                <div>
-                    <p class="eyebrow subtle">Channel</p>
-                    <h1 th:text="${broadcaster}"></h1>
-                </div>
+                <p class="eyebrow subtle">Channel</p>
+                <h1 th:text="${broadcaster}"></h1>
             </div>
             <div class="header-actions horizontal">
-                <a class="button ghost" th:href="@{/}">Back to dashboard</a>
+                <a class="icon-button" th:href="@{/}" title="Back to dashboard">
+                    <i class="fa-solid fa-chevron-left" aria-hidden="true"></i>
+                    <span class="sr-only">Back to dashboard</span>
+                </a>
+                <a class="button ghost" th:href="${'/view/' + broadcaster + '/broadcast'}" target="_blank" rel="noopener">Broadcaster view</a>
                 <form th:action="@{/logout}" method="post">
                     <button class="secondary" type="submit">Logout</button>
                 </form>
