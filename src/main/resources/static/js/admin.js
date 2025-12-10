@@ -842,17 +842,14 @@ function ensureMedia(asset) {
         element.loop = true;
         element.muted = asset.muted ?? true;
         element.playsInline = true;
-        element.autoplay = true;
+        element.autoplay = false;
+        element.preload = 'metadata';
         element.onloadeddata = requestDraw;
         element.onloadedmetadata = () => recordDuration(asset.id, element.duration);
         element.src = asset.url;
         const playback = asset.speed ?? 1;
         element.playbackRate = Math.max(playback, 0.01);
-        if (playback === 0) {
-            element.pause();
-        } else {
-            element.play().catch(() => { });
-        }
+        element.pause();
     } else {
         element.onload = requestDraw;
         element.src = asset.url;
@@ -951,11 +948,7 @@ function applyMediaSettings(element, asset) {
     if (element.muted !== shouldMute) {
         element.muted = shouldMute;
     }
-    if (nextSpeed === 0) {
-        element.pause();
-    } else if (element.paused) {
-        element.play().catch(() => { });
-    }
+    element.pause();
 }
 
 function renderAssetList() {
