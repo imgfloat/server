@@ -18,6 +18,41 @@ jobs:
       - name: Build and test
         run: mvn -B verify
 
+  electron-build:
+    name: Electron packages (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            build-command: npm run dist:linux
+            artifact-name: electron-linux
+          - os: windows-latest
+            build-command: npm run dist:win
+            artifact-name: electron-windows
+          - os: macos-latest
+            build-command: npm run dist:mac
+            artifact-name: electron-macos
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: src/main/node/package-lock.json
+      - name: Install dependencies
+        working-directory: src/main/node
+        run: npm ci
+      - name: Build Electron bundles
+        working-directory: src/main/node
+        run: ${{ matrix.build-command }}
+      - name: Upload Electron artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact-name }}
+          path: src/main/node/dist/**
+
   docker:
     runs-on: ubuntu-latest
     needs: build

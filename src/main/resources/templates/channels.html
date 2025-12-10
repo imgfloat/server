@@ -5,9 +5,9 @@
     <title>Browse channels - Imgfloat</title>
     <link rel="stylesheet" href="/css/styles.css" />
 </head>
-<body class="landing-body">
-<div class="landing">
-    <header class="landing-header">
+<body class="channels-body">
+<div class="channels-shell">
+    <header class="channels-header">
         <div class="brand">
             <div class="brand-mark">IF</div>
             <div>
@@ -15,50 +15,21 @@
                 <div class="brand-subtitle">Twitch overlay manager</div>
             </div>
         </div>
-        <div class="cta-row">
-            <a class="button ghost" href="/">Home</a>
-            <a class="button" href="/oauth2/authorization/twitch">Login</a>
-        </div>
     </header>
 
-    <main class="hero hero-compact">
-        <div class="hero-text">
-            <p class="eyebrow">Broadcast views</p>
-            <h1>Open a public channel overlay.</h1>
-            <p class="lead">Search any broadcaster with published overlays and jump straight to their on-stream view without logging in.</p>
-            <ul class="pill-list minimal">
-                <li>Autocomplete from all published overlays</li>
-                <li>Direct broadcast view links</li>
-            </ul>
-        </div>
-        <div class="hero-panel search-panel">
-            <div class="panel-header">
-                <div>
-                    <p class="eyebrow subtle">Search</p>
-                    <h3>Find a broadcaster</h3>
-                </div>
-                <span class="badge">Live</span>
-            </div>
-            <p class="muted">Type a channel name to get autocomplete suggestions and open the broadcast overlay.</p>
-            <form id="channel-search-form" class="search-form">
-                <label class="sr-only" for="channel-search">Search by broadcaster</label>
-                <div class="search-row">
-                    <input id="channel-search" name="channel" class="text-input" type="text" list="channel-suggestions" placeholder="Search broadcaster..." autocomplete="off" />
-                    <datalist id="channel-suggestions"></datalist>
-                    <button type="submit" class="button secondary">Open</button>
-                </div>
-                <p class="muted tiny">Autocomplete shows all broadcasters with published overlays.</p>
+    <main class="channels-main">
+        <section class="channel-card">
+            <p class="eyebrow subtle">Broadcast overlay</p>
+            <h1>Open a channel</h1>
+            <p class="muted">Type the channel name to jump straight to their overlay.</p>
+            <form id="channel-search-form" class="channel-form">
+                <label class="sr-only" for="channel-search">Channel name</label>
+                <input id="channel-search" name="channel" class="text-input" type="text" list="channel-suggestions" placeholder="Type a channel name" autocomplete="off" />
+                <datalist id="channel-suggestions"></datalist>
+                <button type="submit" class="button block">Open overlay</button>
             </form>
-        </div>
+        </section>
     </main>
-
-    <footer class="landing-footer compact">
-        <div>
-            <div class="brand-title">Imgfloat</div>
-            <div class="muted">Ready when you go live.</div>
-        </div>
-        <a class="button ghost" href="/oauth2/authorization/twitch">Login</a>
-    </footer>
 </div>
 <script src="/js/landing.js"></script>
 </body>

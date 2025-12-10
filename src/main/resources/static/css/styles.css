@@ -27,6 +27,73 @@ body {
     padding: 40px 20px 64px;
 }
 
+.channels-body {
+    min-height: 100vh;
+    background: radial-gradient(circle at 10% 20%, rgba(124, 58, 237, 0.16), transparent 30%),
+                radial-gradient(circle at 85% 10%, rgba(59, 130, 246, 0.18), transparent 28%),
+                #0f172a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: clamp(24px, 4vw, 48px);
+}
+
+.channels-shell {
+    width: min(760px, 100%);
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.channels-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.cta-row.compact {
+    margin: 0;
+}
+
+.channels-main {
+    display: flex;
+    justify-content: center;
+}
+
+.channel-card {
+    width: 100%;
+    background: rgba(11, 18, 32, 0.95);
+    border: 1px solid #1f2937;
+    border-radius: 16px;
+    padding: clamp(20px, 3vw, 32px);
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.45);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.channel-card h1 {
+    margin: 6px 0 4px;
+}
+
+.channel-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 6px;
+}
+
+.channels-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 10px;
+    border-radius: 12px;
+    border: 1px solid #1f2937;
+    background: rgba(11, 18, 32, 0.9);
+}
+
 .landing-header {
     display: flex;
     align-items: center;

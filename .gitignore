@@ -9,3 +9,5 @@ local/
 *.db-shm
 *.db-wal
 previews/
+node_modules/
+src/main/node/dist/

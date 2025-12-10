@@ -1,0 +1,40 @@
+{
+  "name": "imgfloat-electron",
+  "version": "0.0.1",
+  "description": "Electron wrapper for the Imgfloat overlay",
+  "main": "app.js",
+  "scripts": {
+    "dist:linux": "electron-builder --linux AppImage",
+    "dist:win": "electron-builder --win nsis",
+    "dist:mac": "electron-builder --mac"
+  },
+  "build": {
+    "appId": "com.imgfloat.overlay",
+    "productName": "Imgfloat",
+    "files": [
+      "app.js"
+    ],
+    "asar": false,
+    "directories": {
+      "output": "dist"
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "Utility"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "mac": {
+      "category": "public.app-category.productivity"
+    }
+  },
+  "devDependencies": {
+    "electron": "^30.0.6",
+    "electron-builder": "^24.13.3"
+  }
+}
