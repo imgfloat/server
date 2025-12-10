@@ -36,6 +36,12 @@ const audioPitchInput = document.getElementById('asset-audio-pitch');
 const audioVolumeInput = document.getElementById('asset-audio-volume');
 const controlsPlaceholder = document.getElementById('asset-controls-placeholder');
 const fileNameLabel = document.getElementById('asset-file-name');
+const assetInspector = document.getElementById('asset-inspector');
+const selectedAssetName = document.getElementById('selected-asset-name');
+const selectedAssetMeta = document.getElementById('selected-asset-meta');
+const selectedAssetBadges = document.getElementById('selected-asset-badges');
+const selectedVisibilityBtn = document.getElementById('selected-asset-visibility');
+const selectedDeleteBtn = document.getElementById('selected-asset-delete');
 const audioPlaceholder = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="320" height="80"><rect width="100%" height="100%" fill="#1f2937" rx="8"/><g fill="#fbbf24" transform="translate(20 20)"><circle cx="15" cy="20" r="6"/><rect x="28" y="5" width="12" height="30" rx="2"/><rect x="45" y="10" width="140" height="5" fill="#fef3c7"/><rect x="45" y="23" width="110" height="5" fill="#fef3c7"/></g><text x="20" y="70" fill="#e5e7eb" font-family="sans-serif" font-size="14">Audio</text></svg>');
 const aspectLockState = new Map();
 const commitSizeChange = debounce(() => applyTransformFromInputs(), 180);
@@ -59,6 +65,20 @@ if (audioDelayInput) audioDelayInput.addEventListener('input', updateAudioSettin
 if (audioSpeedInput) audioSpeedInput.addEventListener('input', updateAudioSettingsFromInputs);
 if (audioPitchInput) audioPitchInput.addEventListener('input', updateAudioSettingsFromInputs);
 if (audioVolumeInput) audioVolumeInput.addEventListener('input', updateAudioSettingsFromInputs);
+if (selectedVisibilityBtn) {
+    selectedVisibilityBtn.addEventListener('click', () => {
+        const asset = getSelectedAsset();
+        if (!asset) return;
+        updateVisibility(asset, !asset.hidden);
+    });
+}
+if (selectedDeleteBtn) {
+    selectedDeleteBtn.addEventListener('click', () => {
+        const asset = getSelectedAsset();
+        if (!asset) return;
+        deleteAsset(asset);
+    });
+}
 function connect() {
     const socket = new SockJS('/ws');
     stompClient = Stomp.over(socket);
@@ -824,11 +844,18 @@ function renderAssetList() {
 
     if (!assets.size) {
         selectedAssetId = null;
+        if (assetInspector) {
+            assetInspector.classList.add('hidden');
+        }
         const empty = document.createElement('li');
         empty.textContent = 'No assets yet. Upload to get started.';
         list.appendChild(empty);
         updateSelectedAssetControls();
         return;
+    }
+
+    if (assetInspector) {
+        assetInspector.classList.remove('hidden');
     }
 
     const sortedAssets = getChronologicalAssets();
@@ -903,18 +930,10 @@ function renderAssetList() {
         });
 
         li.appendChild(row);
-
-        if (asset.id === selectedAssetId && controlsPanel) {
-            controlsPanel.classList.remove('hidden');
-            const detail = document.createElement('div');
-            detail.className = 'asset-detail';
-            detail.appendChild(controlsPanel);
-            li.appendChild(detail);
-            updateSelectedAssetControls(asset);
-        }
-
         list.appendChild(li);
     });
+
+    updateSelectedAssetControls();
 }
 
 function createBadge(label, extraClass = '') {
@@ -957,6 +976,12 @@ function getSelectedAsset() {
 }
 
 function updateSelectedAssetControls(asset = getSelectedAsset()) {
+    if (controlsPlaceholder && controlsPanel && controlsPanel.parentElement !== controlsPlaceholder) {
+        controlsPlaceholder.appendChild(controlsPanel);
+    }
+
+    updateSelectedAssetSummary(asset);
+
     if (!controlsPanel || !asset) {
         if (controlsPanel) controlsPanel.classList.add('hidden');
         return;
@@ -998,6 +1023,43 @@ function updateSelectedAssetControls(asset = getSelectedAsset()) {
             audioPitchInput.value = Math.round(Math.max(0.5, asset.audioPitch ?? 1) * 100);
             audioVolumeInput.value = Math.round(Math.max(0, Math.min(1, asset.audioVolume ?? 1)) * 100);
         }
+    }
+}
+
+function updateSelectedAssetSummary(asset) {
+    if (assetInspector) {
+        assetInspector.classList.toggle('hidden', !asset && !assets.size);
+    }
+
+    if (selectedAssetName) {
+        selectedAssetName.textContent = asset ? (asset.name || `Asset ${asset.id.slice(0, 6)}`) : 'Choose an asset';
+    }
+    if (selectedAssetMeta) {
+        selectedAssetMeta.textContent = asset
+            ? `${Math.round(asset.width)}x${Math.round(asset.height)} · Layer ${asset.zIndex ?? 1}`
+            : 'Pick an asset in the list to adjust its placement and playback.';
+    }
+    if (selectedAssetBadges) {
+        selectedAssetBadges.innerHTML = '';
+        if (asset) {
+            selectedAssetBadges.appendChild(createBadge(asset.hidden ? 'Hidden' : 'Visible', asset.hidden ? 'danger' : ''));
+            selectedAssetBadges.appendChild(createBadge(getDisplayMediaType(asset)));
+            const aspectLabel = formatAspectRatioLabel(asset);
+            if (aspectLabel) {
+                selectedAssetBadges.appendChild(createBadge(aspectLabel, 'subtle'));
+            }
+        }
+    }
+    if (selectedVisibilityBtn) {
+        selectedVisibilityBtn.disabled = !asset;
+        selectedVisibilityBtn.title = asset ? (asset.hidden ? 'Show asset' : 'Hide asset') : 'Toggle visibility';
+        selectedVisibilityBtn.innerHTML = asset
+            ? `<i class="fa-solid ${asset.hidden ? 'fa-eye' : 'fa-eye-slash'}"></i>`
+            : '<i class="fa-solid fa-eye-slash"></i>';
+    }
+    if (selectedDeleteBtn) {
+        selectedDeleteBtn.disabled = !asset;
+        selectedDeleteBtn.title = asset ? 'Delete asset' : 'Delete asset';
     }
 }
 
