@@ -23,8 +23,19 @@ public class SchemaMigration implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
+        cleanupSpringSessionTables();
         ensureChannelCanvasColumns();
         ensureAssetMediaColumns();
+    }
+
+    private void cleanupSpringSessionTables() {
+        try {
+            jdbcTemplate.execute("DELETE FROM SPRING_SESSION_ATTRIBUTES");
+            jdbcTemplate.execute("DELETE FROM SPRING_SESSION");
+            logger.info("Cleared persisted Spring Session tables on startup to avoid stale session conflicts");
+        } catch (DataAccessException ex) {
+            logger.debug("Spring Session tables not available for cleanup", ex);
+        }
     }
 
     private void ensureChannelCanvasColumns() {

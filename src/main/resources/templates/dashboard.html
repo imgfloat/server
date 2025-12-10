@@ -7,63 +7,54 @@
 </head>
 <body class="dashboard-body">
 <div class="dashboard-shell">
-    <header class="dashboard-hero hero hero-compact">
-        <div class="hero-text">
-            <p class="eyebrow">Dashboard</p>
-            <h1>Hello, <span th:text="${username}">user</span></h1>
-            <p class="lead">Manage overlay assets, keep your canvas sized correctly, and hand off control to trusted mods.</p>
-            <ul class="pill-list minimal">
-                <li>Channel: <strong th:text="${channel}">channel</strong></li>
-                <li>Secure dashboard</li>
-            </ul>
+    <header class="dashboard-topbar">
+        <div class="brand">
+            <div class="brand-mark">IF</div>
+            <div>
+                <div class="brand-title">Imgfloat</div>
+                <div class="brand-subtitle">Twitch overlay manager</div>
+            </div>
         </div>
-        <div class="hero-panel hero-preview">
-            <div class="panel-header">
-                <div>
-                    <p class="eyebrow subtle">Quick actions</p>
-                    <h3>Jump into your overlay</h3>
-                </div>
-                <span class="badge">Live</span>
-            </div>
-            <div class="preview-summary">
-                <p class="muted">Open your broadcast view or delegate control without leaving this page.</p>
-            </div>
-            <div class="panel-actions">
-                <a class="button block" th:href="@{'/view/' + ${channel} + '/broadcast'}">Open broadcast overlay</a>
-                <a class="button ghost block" th:href="@{'/view/' + ${channel} + '/admin'}">Open admin console</a>
-                <form class="block" th:action="@{/logout}" method="post">
-                    <button class="secondary block" type="submit">Logout</button>
-                </form>
-            </div>
+        <div class="user-pill">
+            <span class="eyebrow subtle">Signed in as</span>
+            <span class="user-display" th:text="${username}">user</span>
         </div>
     </header>
 
-    <section class="card-grid two-col">
-        <div class="card">
-            <div class="card-header">
-                <div>
-                    <p class="eyebrow">Canvas</p>
-                    <h3>Overlay size</h3>
-                    <p class="muted">Match your OBS output so overlays land where you expect.</p>
-                </div>
-                <div class="pill">Visible to admins</div>
-            </div>
-            <div class="control-grid">
-                <label>
-                    Width
-                    <input id="canvas-width" type="number" min="100" step="10" />
-                </label>
-                <label>
-                    Height
-                    <input id="canvas-height" type="number" min="100" step="10" />
-                </label>
-            </div>
-            <div class="control-actions">
-                <button type="button" onclick="saveCanvasSettings()">Save canvas size</button>
-                <span id="canvas-status" class="muted"></span>
-            </div>
+    <section class="card">
+        <p class="eyebrow">Navigation</p>
+        <h3>Shortcuts</h3>
+        <p class="muted">Jump into your overlay</p>
+        <div class="panel-actions">
+            <a class="button block" th:href="@{'/view/' + ${channel} + '/broadcast'}">Open broadcast overlay</a>
+            <a class="button ghost block" th:href="@{'/view/' + ${channel} + '/admin'}">Open admin console</a>
+            <form class="block" th:action="@{/logout}" method="post">
+                <button class="secondary block" type="submit">Logout</button>
+            </form>
         </div>
+    </section>
 
+    <section class="card">
+        <p class="eyebrow">Settings</p>
+        <h3>Overlay dimensions</h3>
+        <p class="muted">Match these with your OBS resolution.</p>
+        <div class="control-grid">
+            <label>
+                Width
+                <input id="canvas-width" type="number" min="100" step="10" />
+            </label>
+            <label>
+                Height
+                <input id="canvas-height" type="number" min="100" step="10" />
+            </label>
+        </div>
+        <div class="control-actions">
+            <button type="button" onclick="saveCanvasSettings()">Save canvas size</button>
+            <span id="canvas-status" class="muted"></span>
+        </div>
+    </section>
+
+    <section class="card-grid two-col">
         <div class="card">
             <div class="card-header">
                 <div>
@@ -78,14 +69,13 @@
             </div>
             <div class="card-section">
                 <div class="section-header">
-                    <p class="eyebrow subtle">Current</p>
                     <h4 class="list-title">Admins</h4>
+                    <p class="muted">Users who can currently modify your overlay.</p>
                 </div>
                 <ul id="admin-list" class="stacked-list"></ul>
             </div>
             <div class="card-section">
                 <div class="section-header">
-                    <p class="eyebrow subtle">Suggested</p>
                     <h4 class="list-title">Your Twitch moderators</h4>
                     <p class="muted">Add moderators who already help run your channel.</p>
                 </div>
