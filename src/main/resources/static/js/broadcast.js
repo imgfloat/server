@@ -8,7 +8,14 @@ const mediaCache = new Map();
 const renderStates = new Map();
 const animatedCache = new Map();
 const audioControllers = new Map();
-let animationFrameId = null;
+const TARGET_FPS = 60;
+const MIN_FRAME_TIME = 1000 / TARGET_FPS;
+let lastRenderTime = 0;
+let frameScheduled = false;
+let pendingDraw = false;
+let sortedAssetsCache = [];
+let assetsDirty = true;
+let renderIntervalId = null;
 const audioPlaceholder = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="320" height="80"><rect width="100%" height="100%" fill="#0f172a" rx="8"/><g fill="#22d3ee" transform="translate(20 20)"><circle cx="15" cy="20" r="6"/><rect x="28" y="5" width="12" height="30" rx="2"/><rect x="45" y="10" width="140" height="5" fill="#a5f3fc"/><rect x="45" y="23" width="110" height="5" fill="#a5f3fc"/></g><text x="20" y="70" fill="#e5e7eb" font-family="sans-serif" font-size="14">Audio</text></svg>');
 
 function connect() {
@@ -28,6 +35,7 @@ function renderAssets(list) {
         asset.zIndex = Math.max(1, asset.zIndex ?? 1);
         assets.set(asset.id, asset);
     });
+    assetsDirty = true;
     draw();
 }
 
@@ -71,16 +79,45 @@ function handleEvent(event) {
         clearMedia(event.payload.id);
         renderStates.delete(event.payload.id);
     }
+    assetsDirty = true;
     draw();
 }
 
 function draw() {
+    if (frameScheduled) {
+        pendingDraw = true;
+        return;
+    }
+    frameScheduled = true;
+    requestAnimationFrame((timestamp) => {
+        const elapsed = timestamp - lastRenderTime;
+        const delay = MIN_FRAME_TIME - elapsed;
+        const shouldRender = elapsed >= MIN_FRAME_TIME;
+
+        if (shouldRender) {
+            lastRenderTime = timestamp;
+            renderFrame();
+        }
+
+        frameScheduled = false;
+        if (pendingDraw || !shouldRender) {
+            pendingDraw = false;
+            setTimeout(draw, Math.max(0, delay));
+        }
+    });
+}
+
+function renderFrame() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     getZOrderedAssets().forEach(drawAsset);
 }
 
 function getZOrderedAssets() {
-    return Array.from(assets.values()).sort(zComparator);
+    if (assetsDirty) {
+        sortedAssetsCache = Array.from(assets.values()).sort(zComparator);
+        assetsDirty = false;
+    }
+    return sortedAssetsCache;
 }
 
 function zComparator(a, b) {
@@ -480,14 +517,12 @@ function applyMediaSettings(element, asset) {
 }
 
 function startRenderLoop() {
-    if (animationFrameId) {
+    if (renderIntervalId) {
         return;
     }
-    const tick = () => {
+    renderIntervalId = setInterval(() => {
         draw();
-        animationFrameId = requestAnimationFrame(tick);
-    };
-    animationFrameId = requestAnimationFrame(tick);
+    }, MIN_FRAME_TIME);
 }
 
 window.addEventListener('resize', () => {
