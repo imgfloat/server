@@ -2,7 +2,6 @@ let stompClient;
 const canvas = document.getElementById('admin-canvas');
 const ctx = canvas.getContext('2d');
 const overlay = document.getElementById('admin-overlay');
-const overlayFrame = overlay?.querySelector('iframe');
 let canvasSettings = { width: 1920, height: 1080 };
 canvas.width = canvasSettings.width;
 canvas.height = canvasSettings.height;
@@ -56,6 +55,8 @@ const selectedAssetIdLabel = document.getElementById('selected-asset-id');
 const selectedAssetBadges = document.getElementById('selected-asset-badges');
 const selectedVisibilityBtn = document.getElementById('selected-asset-visibility');
 const selectedDeleteBtn = document.getElementById('selected-asset-delete');
+const canvasResolutionLabel = document.getElementById('canvas-resolution');
+const canvasScaleLabel = document.getElementById('canvas-scale');
 const aspectLockState = new Map();
 const commitSizeChange = debounce(() => applyTransformFromInputs(), 180);
 const audioUnlockEvents = ['pointerdown', 'keydown', 'touchstart'];
@@ -308,11 +309,11 @@ function resizeCanvas() {
     canvas.style.height = `${displayHeight}px`;
     canvas.style.left = `${(bounds.width - displayWidth) / 2}px`;
     canvas.style.top = `${(bounds.height - displayHeight) / 2}px`;
-    if (overlayFrame) {
-        overlayFrame.style.width = `${displayWidth}px`;
-        overlayFrame.style.height = `${displayHeight}px`;
-        overlayFrame.style.left = `${(bounds.width - displayWidth) / 2}px`;
-        overlayFrame.style.top = `${(bounds.height - displayHeight) / 2}px`;
+    if (canvasResolutionLabel) {
+        canvasResolutionLabel.textContent = `${canvasSettings.width} x ${canvasSettings.height}`;
+    }
+    if (canvasScaleLabel) {
+        canvasScaleLabel.textContent = `${Math.round(scale * 100)}%`;
     }
     requestDraw();
 }

@@ -10,160 +10,196 @@
     <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
 </head>
 <body class="admin-body">
-<div class="admin-layout">
-    <div class="admin-shell">
-        <header class="admin-header">
+<div class="admin-frame">
+    <header class="admin-topbar">
+        <div class="topbar-left">
+            <span class="status-dot" aria-hidden="true"></span>
             <div class="admin-identity">
+                <p class="eyebrow subtle">Admin</p>
                 <h1 th:text="${broadcaster}"></h1>
             </div>
-            <div class="header-actions horizontal">
-                <a class="icon-button" th:href="@{/}" title="Back to dashboard">
-                    <i class="fa-solid fa-chevron-left" aria-hidden="true"></i>
-                    <span class="sr-only">Back to dashboard</span>
-                </a>
-                <a class="button ghost" th:href="${'/view/' + broadcaster + '/broadcast'}" target="_blank" rel="noopener">Broadcaster view</a>
+        </div>
+        <div class="header-actions horizontal">
+            <a class="icon-button" th:href="@{/}" title="Back to dashboard">
+                <i class="fa-solid fa-chevron-left" aria-hidden="true"></i>
+                <span class="sr-only">Back to dashboard</span>
+            </a>
+            <a class="button ghost" th:href="${'/view/' + broadcaster + '/broadcast'}" target="_blank" rel="noopener">Broadcaster view</a>
+        </div>
+    </header>
+
+    <div class="admin-workspace">
+        <aside class="admin-rail">
+            <div class="rail-header">
+                <div>
+                    <p class="eyebrow subtle">Assets</p>
+                    <h3 class="panel-title">Library & uploads</h3>
+                </div>
             </div>
-        </header>
-        <section class="overlay" id="admin-overlay">
-            <iframe th:src="${'https://player.twitch.tv/?channel=' + broadcaster + '&parent=localhost'}" allowfullscreen></iframe>
-            <canvas id="admin-canvas"></canvas>
-        </section>
-        <section class="controls-full panel">
-            <div class="asset-management">
-                <div class="asset-column">
-                    <div class="upload-row">
-                        <input id="asset-file" class="file-input-field" type="file" accept="image/*,video/*,audio/*" onchange="handleFileSelection(this)" />
-                        <label for="asset-file" class="file-input-trigger">
-                            <span class="file-input-icon"><i class="fa-solid fa-cloud-arrow-up"></i></span>
-                            <span class="file-input-copy">
-                                <strong>Select an image, GIF, video, or audio</strong>
-                                <small id="asset-file-name">No file chosen</small>
-                            </span>
-                        </label>
-                    </div>
+            <div class="upload-row">
+                <input id="asset-file" class="file-input-field" type="file" accept="image/*,video/*,audio/*" onchange="handleFileSelection(this)" />
+                <label for="asset-file" class="file-input-trigger">
+                    <span class="file-input-icon"><i class="fa-solid fa-cloud-arrow-up"></i></span>
+                    <span class="file-input-copy">
+                        <strong>Upload asset</strong>
+                        <small id="asset-file-name">No file chosen</small>
+                    </span>
+                </label>
+            </div>
+            <div class="rail-body">
+                <div class="rail-scroll">
                     <ul id="asset-list" class="asset-list"></ul>
                 </div>
-                <div class="asset-column inspector">
-                    <div id="asset-inspector" class="asset-inspector panel-section hidden">
-                        <div class="selected-asset-banner">
-                            <div class="selected-asset-main">
-                                <div class="title-row">
-                                    <strong id="selected-asset-name">Choose an asset</strong>
-                                </div>
-                                <p class="meta-text" id="selected-asset-meta">Pick an asset in the list to adjust its placement and playback.</p>
-                                <p class="meta-text subtle-text hidden" id="selected-asset-id"></p>
-                                <div class="badge-row asset-meta-badges" id="selected-asset-badges"></div>
+            </div>
+
+            <div id="asset-inspector" class="rail-inspector hidden">
+                <div class="drawer-header">
+                    <div>
+                        <p class="eyebrow subtle">Settings</p>
+                        <h4>Selected asset</h4>
+                    </div>
+                </div>
+                <div class="asset-inspector panel-section">
+                    <div class="selected-asset-banner">
+                        <div class="selected-asset-main">
+                            <div class="title-row">
+                                <strong id="selected-asset-name">Choose an asset</strong>
                             </div>
+                            <p class="meta-text" id="selected-asset-meta">Pick an asset in the list to adjust its placement and playback.</p>
+                            <p class="meta-text subtle-text hidden" id="selected-asset-id"></p>
+                            <div class="badge-row asset-meta-badges" id="selected-asset-badges"></div>
                         </div>
-                        <div id="asset-controls-placeholder" class="asset-controls-placeholder">
-                            <div id="asset-controls" class="hidden asset-settings">
-                                <div class="panel-section" id="layout-section">
-                                    <div class="section-header">
-                                        <h5>Layout & order</h5>
-                                    </div>
-                                    <div class="control-grid condensed three-col">
-                                        <label>
-                                            Width
-                                            <input id="asset-width" class="number-input" type="number" min="10" step="5" />
-                                        </label>
-                                        <label>
-                                            Height
-                                            <input id="asset-height" class="number-input" type="number" min="10" step="5" />
-                                        </label>
-                                        <label>
-                                            Maintain AR
-                                            <label class="checkbox-inline toggle">
-                                                <input id="maintain-aspect" type="checkbox" checked />
-                                                <span class="toggle-track" aria-hidden="true">
-                                                    <span class="toggle-thumb"></span>
-                                                </span>
-                                            </label>
-                                        </label>
-                                    </div>
-                                    <div class="control-grid condensed">
-                                        <label>
-                                            Layer
-                                            <div class="badge-row stacked">
-                                                <span class="badge">Layer <strong id="asset-z-level">1</strong></span>
-                                            </div>
-                                        </label>
-                                    </div>
-                                    <div class="control-actions filled compact">
-                                        <button type="button" onclick="sendToBack()" class="secondary" title="Send to back"><i class="fa-solid fa-angles-down"></i></button>
-                                        <button type="button" onclick="bringBackward()" class="secondary" title="Move backward"><i class="fa-solid fa-arrow-down"></i></button>
-                                        <button type="button" onclick="bringForward()" class="secondary" title="Move forward"><i class="fa-solid fa-arrow-up"></i></button>
-                                        <button type="button" onclick="bringToFront()" class="secondary" title="Bring to front"><i class="fa-solid fa-angles-up"></i></button>
-                                        <button type="button" onclick="recenterSelectedAsset()" class="secondary" title="Center on canvas"><i class="fa-solid fa-bullseye"></i></button>
-                                        <button type="button" onclick="nudgeRotation(-5)" class="secondary" title="Rotate left"><i class="fa-solid fa-rotate-left"></i></button>
-                                        <button type="button" onclick="nudgeRotation(5)" class="secondary" title="Rotate right"><i class="fa-solid fa-rotate-right"></i></button>
-                                    </div>
+                    </div>
+                    <div id="asset-controls-placeholder" class="asset-controls-placeholder">
+                        <div id="asset-controls" class="hidden asset-settings">
+                            <div class="panel-section" id="layout-section">
+                                <div class="section-header">
+                                    <h5>Layout & order</h5>
                                 </div>
-
-                                <div class="panel-section" id="playback-section">
-                                    <div class="section-header">
-                                        <h5>Playback</h5>
-                                    </div>
-                                    <div class="stacked-field">
-                                        <div class="label-row">
-                                            <span>Playback speed</span>
-                                            <span class="value-hint" id="asset-speed-label">100%</span>
-                                        </div>
-                                        <input id="asset-speed" class="range-input" type="range" min="0" max="1000" step="10" value="100" />
-                                        <div class="range-meta"><span>0%</span><span>1000%</span></div>
-                                    </div>
-                                </div>
-
-                                <div class="panel-section" id="volume-section">
-                                    <div class="section-header">
-                                        <h5>Volume</h5>
-                                    </div>
-                                    <div class="stacked-field">
-                                        <div class="label-row">
-                                            <span>Playback volume</span>
-                                            <span class="value-hint" id="asset-volume-label">100%</span>
-                                        </div>
-                                        <input id="asset-volume" class="range-input" type="range" min="0" max="200" step="1" value="100" />
-                                        <div class="range-meta"><span>0%</span><span>200%</span></div>
-                                    </div>
-                                </div>
-
-                                <div class="panel-section hidden" id="audio-section">
-                                    <div class="section-header">
-                                        <h5>Audio</h5>
-                                    </div>
-                                    <div class="control-grid condensed two-col">
-        
-                                        <label class="checkbox-inline toggle inline-toggle">
-                                            <input id="asset-audio-loop" type="checkbox" />
+                                <div class="control-grid condensed three-col">
+                                    <label>
+                                        Width
+                                        <input id="asset-width" class="number-input" type="number" min="10" step="5" />
+                                    </label>
+                                    <label>
+                                        Height
+                                        <input id="asset-height" class="number-input" type="number" min="10" step="5" />
+                                    </label>
+                                    <label>
+                                        Maintain AR
+                                        <label class="checkbox-inline toggle">
+                                            <input id="maintain-aspect" type="checkbox" checked />
                                             <span class="toggle-track" aria-hidden="true">
                                                 <span class="toggle-thumb"></span>
                                             </span>
-                                            <span class="toggle-label">Loop</span>
                                         </label>
-                                        <label>
-                                            Delay (ms)
-                                            <input id="asset-audio-delay" class="number-input" type="number" min="0" step="100" />
-                                        </label>
-                                    </div>
-                                    <div class="stacked-field">
-                                        <div class="label-row">
-                                            <span>Playback speed</span>
-                                            <span class="value-hint" id="asset-audio-speed-label">1.0x</span>
+                                    </label>
+                                </div>
+                                <div class="control-grid condensed">
+                                    <label>
+                                        Layer
+                                        <div class="badge-row stacked">
+                                            <span class="badge">Layer <strong id="asset-z-level">1</strong></span>
                                         </div>
-                                        <input id="asset-audio-speed" class="range-input" type="range" min="25" max="400" step="5" value="100" />
-                                        <div class="range-meta"><span>0.25x</span><span>4x</span></div>
+                                    </label>
+                                </div>
+                                <div class="control-actions filled compact">
+                                    <button type="button" onclick="sendToBack()" class="secondary" title="Send to back"><i class="fa-solid fa-angles-down"></i></button>
+                                    <button type="button" onclick="bringBackward()" class="secondary" title="Move backward"><i class="fa-solid fa-arrow-down"></i></button>
+                                    <button type="button" onclick="bringForward()" class="secondary" title="Move forward"><i class="fa-solid fa-arrow-up"></i></button>
+                                    <button type="button" onclick="bringToFront()" class="secondary" title="Bring to front"><i class="fa-solid fa-angles-up"></i></button>
+                                    <button type="button" onclick="recenterSelectedAsset()" class="secondary" title="Center on canvas"><i class="fa-solid fa-bullseye"></i></button>
+                                    <button type="button" onclick="nudgeRotation(-5)" class="secondary" title="Rotate left"><i class="fa-solid fa-rotate-left"></i></button>
+                                    <button type="button" onclick="nudgeRotation(5)" class="secondary" title="Rotate right"><i class="fa-solid fa-rotate-right"></i></button>
+                                </div>
+                            </div>
+
+                            <div class="panel-section" id="playback-section">
+                                <div class="section-header">
+                                    <h5>Playback</h5>
+                                </div>
+                                <div class="stacked-field">
+                                    <div class="label-row">
+                                        <span>Playback speed</span>
+                                        <span class="value-hint" id="asset-speed-label">100%</span>
                                     </div>
-                                    <div class="control-grid condensed two-col">
-                                        <label>
-                                            Pitch (%)
-                                            <input id="asset-audio-pitch" class="range-input" type="range" min="50" max="200" step="5" value="100" />
-                                        </label>
-                                        <div></div>
+                                    <input id="asset-speed" class="range-input" type="range" min="0" max="1000" step="10" value="100" />
+                                    <div class="range-meta"><span>0%</span><span>1000%</span></div>
+                                </div>
+                            </div>
+
+                            <div class="panel-section" id="volume-section">
+                                <div class="section-header">
+                                    <h5>Volume</h5>
+                                </div>
+                                <div class="stacked-field">
+                                    <div class="label-row">
+                                        <span>Playback volume</span>
+                                        <span class="value-hint" id="asset-volume-label">100%</span>
                                     </div>
+                                    <input id="asset-volume" class="range-input" type="range" min="0" max="200" step="1" value="100" />
+                                    <div class="range-meta"><span>0%</span><span>200%</span></div>
+                                </div>
+                            </div>
+
+                            <div class="panel-section hidden" id="audio-section">
+                                <div class="section-header">
+                                    <h5>Audio</h5>
+                                </div>
+                                <div class="control-grid condensed two-col">
+
+                                    <label class="checkbox-inline toggle inline-toggle">
+                                        <input id="asset-audio-loop" type="checkbox" />
+                                        <span class="toggle-track" aria-hidden="true">
+                                            <span class="toggle-thumb"></span>
+                                        </span>
+                                        <span class="toggle-label">Loop</span>
+                                    </label>
+                                    <label>
+                                        Delay (ms)
+                                        <input id="asset-audio-delay" class="number-input" type="number" min="0" step="100"/>
+                                    </label>
+                                </div>
+                                <div class="stacked-field">
+                                    <div class="label-row">
+                                        <span>Playback speed</span>
+                                        <span class="value-hint" id="asset-audio-speed-label">1.0x</span>
+                                    </div>
+                                    <input id="asset-audio-speed" class="range-input" type="range" min="25" max="400" step="5" value="100" />
+                                    <div class="range-meta"><span>0.25x</span><span>4x</span></div>
+                                </div>
+                                <div class="control-grid condensed two-col">
+                                    <label>
+                                        Pitch (%)
+                                        <input id="asset-audio-pitch" class="range-input" type="range" min="50" max="200" step="5" value="100" />
+                                    </label>
+                                    <div></div>
                                 </div>
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>
+        </aside>
+
+        <section class="canvas-stack">
+            <div class="canvas-topbar">
+                <div>
+                    <p class="eyebrow subtle">Canvas</p>
+                    <h3 class="panel-title">Live composition</h3>
+                </div>
+                <div class="canvas-meta">
+                    <span class="badge soft" id="canvas-resolution">1920 x 1080</span>
+                    <span class="badge outline" id="canvas-scale">100%</span>
+                </div>
+            </div>
+            <div class="canvas-surface">
+                <div class="overlay canvas-boundary" id="admin-overlay">
+                    <div class="canvas-guides"></div>
+                    <canvas id="admin-canvas"></canvas>
+                </div>
+                <div class="canvas-footnote">
+                    <p>Edges of the canvas are outlined to match your stream aspect ratio.</p>
                 </div>
             </div>
         </section>
