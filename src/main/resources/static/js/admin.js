@@ -51,6 +51,7 @@ const fileNameLabel = document.getElementById('asset-file-name');
 const assetInspector = document.getElementById('asset-inspector');
 const selectedAssetName = document.getElementById('selected-asset-name');
 const selectedAssetMeta = document.getElementById('selected-asset-meta');
+const selectedAssetResolution = document.getElementById('selected-asset-resolution');
 const selectedAssetIdLabel = document.getElementById('selected-asset-id');
 const selectedAssetBadges = document.getElementById('selected-asset-badges');
 const selectedVisibilityBtn = document.getElementById('selected-asset-visibility');
@@ -1471,10 +1472,18 @@ function updateSelectedAssetSummary(asset) {
         selectedAssetName.textContent = asset ? (asset.name || `Asset ${asset.id.slice(0, 6)}`) : 'Choose an asset';
     }
     if (selectedAssetMeta) {
-        const baseMeta = asset ? `${Math.round(asset.width)}x${Math.round(asset.height)}` : null;
         selectedAssetMeta.textContent = asset
-            ? `${baseMeta}`
+            ? getDisplayMediaType(asset)
             : 'Pick an asset in the list to adjust its placement and playback.';
+    }
+    if (selectedAssetResolution) {
+        if (asset) {
+            selectedAssetResolution.textContent = `${Math.round(asset.width)}×${Math.round(asset.height)}`;
+            selectedAssetResolution.classList.remove('hidden');
+        } else {
+            selectedAssetResolution.textContent = '';
+            selectedAssetResolution.classList.add('hidden');
+        }
     }
     if (selectedAssetIdLabel) {
         if (asset) {

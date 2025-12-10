@@ -251,6 +251,18 @@ body {
     background: #475569;
 }
 
+.secondary.danger {
+    background: #7f1d1d;
+    border: 1px solid rgba(248, 113, 113, 0.35);
+    color: #fecdd3;
+}
+
+.secondary.danger:hover:not(:disabled) {
+    border-color: rgba(248, 113, 113, 0.6);
+    background: #991b1b;
+    color: #fee2e2;
+}
+
 .hero-panel {
     background: #0b1220;
     border: 1px solid #1f2937;
@@ -884,18 +896,22 @@ body {
 }
 
 .rail-inspector {
-    margin-top: auto;
+    margin-top: 0;
     display: flex;
     flex-direction: column;
-    max-height: 48vh;
-    overflow: hidden;
+    gap: 12px;
+    max-height: none;
+    overflow: visible;
+    border-top: 1px solid #1f2937;
+    padding: 14px 16px 0;
+    width: 100%;
 }
 
 .rail-inspector .panel-section {
-    margin-top: 4px;
-    overflow-y: auto;
-    padding-right: 4px;
-    max-height: calc(48vh - 72px);
+    margin-top: 0;
+    overflow: visible;
+    padding-right: 0;
+    max-height: none;
 }
 
 .control-panel {
@@ -905,7 +921,11 @@ body {
 .asset-settings {
     background: transparent;
     box-shadow: none;
-    padding: 6px;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
 }
 
 .panel-header {
@@ -938,21 +958,22 @@ body {
     border: none;
     border-radius: 0;
     padding: 0;
+    width: 100%;
 }
 
 .asset-controls-placeholder {
-    margin-top: 8px;
+    margin-top: 0;
 }
 
 .selected-asset-banner {
     display: grid;
-    grid-template-columns: 1fr auto;
+    grid-template-columns: 1fr;
     gap: 10px;
-    padding: 10px;
-    border-radius: 10px;
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid rgba(124, 58, 237, 0.2);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    padding: 4px 0 10px;
+    border-radius: 0;
+    background: transparent;
+    border: none;
+    box-shadow: none;
 }
 
 .selected-asset-main {
@@ -1029,15 +1050,73 @@ body {
 
 .title-row {
     display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 8px;
+    flex-wrap: nowrap;
+    justify-content: space-between;
 }
 
 .title-row strong {
+    flex: 1;
+    min-width: 0;
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
+}
+
+.asset-resolution {
+    margin-left: auto;
+    white-space: nowrap;
+    font-size: 12px;
+    color: #cbd5e1;
+    text-align: right;
+}
+
+.property-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+}
+
+.property-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+}
+
+.property-label {
+    color: #e2e8f0;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.property-control {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    min-width: 0;
+}
+
+.property-row .number-input {
+    max-width: 140px;
+    text-align: right;
+}
+
+.property-row .range-input {
+    min-width: 200px;
+    flex: 1;
+}
+
+.property-row .badge-row {
+    justify-content: flex-end;
+}
+
+.inline-toggle {
+    padding-top: 0;
 }
 
 .meta-text {
@@ -1125,7 +1204,8 @@ body {
 }
 
 .asset-item strong {
-    width: 157px;
+    flex: 1;
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
 }
@@ -1174,6 +1254,14 @@ body {
 .asset-inspector .selected-asset-actions .icon-button,
 .asset-inspector .selected-asset-actions .icon-button:disabled {
     background: #0f172a;
+}
+
+.asset-inspector .panel-section {
+    margin-top: 0;
+    padding: 0;
+    border-radius: 0;
+    background: transparent;
+    border: none;
 }
 
 .asset-meta-badges {
@@ -1394,6 +1482,7 @@ body {
     gap: 8px;
     margin-top: 12px;
     flex-wrap: wrap;
+    width: 100%;
 }
 
 .control-actions.compact button {
@@ -1405,6 +1494,15 @@ body {
     border: 1px solid rgba(124, 58, 237, 0.22);
     padding: 12px;
     border-radius: 12px;
+}
+
+.unified-actions {
+    padding: 0;
+    margin: 14px 0;
+}
+
+.unified-actions button {
+    flex: 1 1 48px;
 }
 
 .checkbox-inline {
