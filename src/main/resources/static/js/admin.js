@@ -1294,26 +1294,40 @@ function deleteAsset(asset) {
 
 function handleFileSelection(input) {
     if (!input) return;
-    const name = input.files && input.files.length ? input.files[0].name : '';
+    const hasFile = input.files && input.files.length;
+    const name = hasFile ? input.files[0].name : '';
     if (fileNameLabel) {
         fileNameLabel.textContent = name || 'No file chosen';
     }
+    if (hasFile) {
+        uploadAsset(input.files[0]);
+    }
 }
 
-function uploadAsset() {
+function uploadAsset(file = null) {
     const fileInput = document.getElementById('asset-file');
-    if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+    const selectedFile = file || (fileInput?.files && fileInput.files.length ? fileInput.files[0] : null);
+    if (!selectedFile) {
         alert('Please choose an image, GIF, video, or audio file to upload.');
         return;
     }
     const data = new FormData();
-    data.append('file', fileInput.files[0]);
+    data.append('file', selectedFile);
+    if (fileNameLabel) {
+        fileNameLabel.textContent = 'Uploading...';
+    }
     fetch(`/api/channels/${broadcaster}/assets`, {
         method: 'POST',
         body: data
     }).then(() => {
-        fileInput.value = '';
-        handleFileSelection(fileInput);
+        if (fileInput) {
+            fileInput.value = '';
+            handleFileSelection(fileInput);
+        }
+    }).catch(() => {
+        if (fileNameLabel) {
+            fileNameLabel.textContent = 'Upload failed';
+        }
     });
 }
 

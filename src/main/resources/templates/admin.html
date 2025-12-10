@@ -38,7 +38,6 @@
                                 <small id="asset-file-name">No file chosen</small>
                             </span>
                         </label>
-                        <button onclick="uploadAsset()">Upload</button>
                     </div>
                     <ul id="asset-list" class="asset-list"></ul>
                 </div>
@@ -76,9 +75,12 @@
                                             Height
                                             <input id="asset-height" class="number-input" type="number" min="10" step="5" />
                                         </label>
-                                        <label class="checkbox-inline">
+                                        <label class="checkbox-inline toggle">
                                             <input id="maintain-aspect" type="checkbox" checked />
-                                            Maintain aspect
+                                            <span class="toggle-track" aria-hidden="true">
+                                                <span class="toggle-thumb"></span>
+                                            </span>
+                                            <span class="toggle-label">Maintain aspect</span>
                                         </label>
                                     </div>
                                     <div class="control-grid condensed">
@@ -110,9 +112,12 @@
                                             <input id="asset-speed" class="range-input" type="range" min="0" max="1000" step="10" value="100" />
                                         </label>
                                         <div class="range-meta"><span>0%</span><span>1000%</span></div>
-                                        <label class="checkbox-inline">
+                                        <label class="checkbox-inline toggle">
                                             <input id="asset-muted" type="checkbox" />
-                                            Mute
+                                            <span class="toggle-track" aria-hidden="true">
+                                                <span class="toggle-thumb"></span>
+                                            </span>
+                                            <span class="toggle-label">Mute</span>
                                         </label>
                                     </div>
                                 </div>
@@ -122,9 +127,12 @@
                                         <h5>Audio</h5>
                                     </div>
                                     <div class="control-grid condensed three-col">
-                                        <label class="checkbox-inline">
+                                        <label class="checkbox-inline toggle">
                                             <input id="asset-audio-loop" type="checkbox" />
-                                            Loop
+                                            <span class="toggle-track" aria-hidden="true">
+                                                <span class="toggle-thumb"></span>
+                                            </span>
+                                            <span class="toggle-label">Loop</span>
                                         </label>
                                         <label>
                                             Delay (ms)
