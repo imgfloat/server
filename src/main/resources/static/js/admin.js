@@ -989,7 +989,7 @@ function applyMediaSettings(element, asset) {
         playPromise.catch(() => {
             if (!shouldMute && wasMuted) {
                 element.muted = true;
-                element.play().catch(() => {});
+                element.play().catch(() => { });
             }
         });
     }
@@ -1461,9 +1461,8 @@ function updateSelectedAssetSummary(asset) {
     }
     if (selectedAssetMeta) {
         const baseMeta = asset ? `${Math.round(asset.width)}x${Math.round(asset.height)}` : null;
-        const layerMeta = asset && !isAudioAsset(asset) ? ` · Layer ${asset.zIndex ?? 1}` : '';
         selectedAssetMeta.textContent = asset
-            ? `${baseMeta}${layerMeta}`
+            ? `${baseMeta}`
             : 'Pick an asset in the list to adjust its placement and playback.';
     }
     if (selectedAssetIdLabel) {
