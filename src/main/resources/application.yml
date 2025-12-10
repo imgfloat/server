@@ -46,7 +46,7 @@ spring:
             client-authentication-method: client_secret_post
             redirect-uri: "${TWITCH_REDIRECT_URI:{baseUrl}/login/oauth2/code/twitch}"
             authorization-grant-type: authorization_code
-            scope: ["user:read:email"]
+            scope: ["user:read:email", "moderation:read"]
         provider:
           twitch:
             authorization-uri: https://id.twitch.tv/oauth2/authorize

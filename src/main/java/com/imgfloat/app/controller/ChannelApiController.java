@@ -94,6 +94,27 @@ public class ChannelApiController {
         return twitchUserLookupService.fetchProfiles(admins, accessToken, clientId);
     }
 
+    @GetMapping("/admins/suggestions")
+    public Collection<TwitchUserProfile> listAdminSuggestions(@PathVariable("broadcaster") String broadcaster,
+                                                              OAuth2AuthenticationToken authentication) {
+        String login = TwitchUser.from(authentication).login();
+        ensureBroadcaster(broadcaster, login);
+        LOG.debug("Listing admin suggestions for {} by {}", broadcaster, login);
+        var channel = channelDirectoryService.getOrCreateChannel(broadcaster);
+        OAuth2AuthorizedClient authorizedClient = authorizedClientService.loadAuthorizedClient(
+                authentication.getAuthorizedClientRegistrationId(),
+                authentication.getName());
+        String accessToken = Optional.ofNullable(authorizedClient)
+                .map(OAuth2AuthorizedClient::getAccessToken)
+                .map(token -> token.getTokenValue())
+                .orElse(null);
+        String clientId = Optional.ofNullable(authorizedClient)
+                .map(OAuth2AuthorizedClient::getClientRegistration)
+                .map(registration -> registration.getClientId())
+                .orElse(null);
+        return twitchUserLookupService.fetchModerators(broadcaster, channel.getAdmins(), accessToken, clientId);
+    }
+
     @DeleteMapping("/admins/{username}")
     public ResponseEntity<?> removeAdmin(@PathVariable("broadcaster") String broadcaster,
                                          @PathVariable("username") String username,

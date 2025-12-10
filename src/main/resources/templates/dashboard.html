@@ -76,7 +76,21 @@
                 <input id="new-admin" placeholder="Twitch username" />
                 <button type="button" onclick="addAdmin()">Add admin</button>
             </div>
-            <ul id="admin-list" class="stacked-list"></ul>
+            <div class="card-section">
+                <div class="section-header">
+                    <p class="eyebrow subtle">Current</p>
+                    <h4 class="list-title">Admins</h4>
+                </div>
+                <ul id="admin-list" class="stacked-list"></ul>
+            </div>
+            <div class="card-section">
+                <div class="section-header">
+                    <p class="eyebrow subtle">Suggested</p>
+                    <h4 class="list-title">Your Twitch moderators</h4>
+                    <p class="muted">Add moderators who already help run your channel.</p>
+                </div>
+                <ul id="admin-suggestions" class="stacked-list"></ul>
+            </div>
         </div>
     </section>
 

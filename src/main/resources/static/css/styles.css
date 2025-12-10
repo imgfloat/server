@@ -556,6 +556,13 @@ body {
     color: #e2e8f0;
 }
 
+.card-section {
+    margin-top: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
 .container {
     max-width: 960px;
     margin: 40px auto;

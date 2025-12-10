@@ -1,5 +1,36 @@
+function buildIdentity(admin) {
+    const identity = document.createElement('div');
+    identity.className = 'identity-row';
+
+    const avatar = document.createElement(admin.avatarUrl ? 'img' : 'div');
+    avatar.className = 'avatar';
+    if (admin.avatarUrl) {
+        avatar.src = admin.avatarUrl;
+        avatar.alt = `${admin.displayName || admin.login} avatar`;
+    } else {
+        avatar.classList.add('avatar-fallback');
+        avatar.textContent = (admin.displayName || admin.login || '?').charAt(0).toUpperCase();
+    }
+
+    const details = document.createElement('div');
+    details.className = 'identity-text';
+    const title = document.createElement('p');
+    title.className = 'list-title';
+    title.textContent = admin.displayName || admin.login;
+    const subtitle = document.createElement('p');
+    subtitle.className = 'muted';
+    subtitle.textContent = `@${admin.login}`;
+
+    details.appendChild(title);
+    details.appendChild(subtitle);
+    identity.appendChild(avatar);
+    identity.appendChild(details);
+    return identity;
+}
+
 function renderAdmins(list) {
     const adminList = document.getElementById('admin-list');
+    if (!adminList) return;
     adminList.innerHTML = '';
     if (!list || list.length === 0) {
         const empty = document.createElement('li');
@@ -12,33 +43,7 @@ function renderAdmins(list) {
         const li = document.createElement('li');
         li.className = 'stacked-list-item';
 
-        const identity = document.createElement('div');
-        identity.className = 'identity-row';
-
-        const avatar = document.createElement(admin.avatarUrl ? 'img' : 'div');
-        avatar.className = 'avatar';
-        if (admin.avatarUrl) {
-            avatar.src = admin.avatarUrl;
-            avatar.alt = `${admin.displayName || admin.login} avatar`;
-        } else {
-            avatar.classList.add('avatar-fallback');
-            avatar.textContent = (admin.displayName || admin.login || '?').charAt(0).toUpperCase();
-        }
-
-        const details = document.createElement('div');
-        details.className = 'identity-text';
-        const title = document.createElement('p');
-        title.className = 'list-title';
-        title.textContent = admin.displayName || admin.login;
-        const subtitle = document.createElement('p');
-        subtitle.className = 'muted';
-        subtitle.textContent = `@${admin.login}`;
-
-        details.appendChild(title);
-        details.appendChild(subtitle);
-        identity.appendChild(avatar);
-        identity.appendChild(details);
-        li.appendChild(identity);
+        li.appendChild(buildIdentity(admin));
 
         const actions = document.createElement('div');
         actions.className = 'actions';
@@ -53,6 +58,54 @@ function renderAdmins(list) {
         li.appendChild(actions);
         adminList.appendChild(li);
     });
+}
+
+function renderSuggestedAdmins(list) {
+    const suggestionList = document.getElementById('admin-suggestions');
+    if (!suggestionList) return;
+
+    suggestionList.innerHTML = '';
+    if (!list || list.length === 0) {
+        const empty = document.createElement('li');
+        empty.className = 'stacked-list-item';
+        empty.textContent = 'No moderator suggestions right now';
+        suggestionList.appendChild(empty);
+        return;
+    }
+
+    list.forEach((admin) => {
+        const li = document.createElement('li');
+        li.className = 'stacked-list-item';
+
+        li.appendChild(buildIdentity(admin));
+
+        const actions = document.createElement('div');
+        actions.className = 'actions';
+
+        const addBtn = document.createElement('button');
+        addBtn.type = 'button';
+        addBtn.className = 'ghost';
+        addBtn.textContent = 'Add as admin';
+        addBtn.addEventListener('click', () => addAdmin(admin.login));
+
+        actions.appendChild(addBtn);
+        li.appendChild(actions);
+        suggestionList.appendChild(li);
+    });
+}
+
+function fetchSuggestedAdmins() {
+    fetch(`/api/channels/${broadcaster}/admins/suggestions`)
+        .then((r) => {
+            if (!r.ok) {
+                throw new Error('Failed to load admin suggestions');
+            }
+            return r.json();
+        })
+        .then(renderSuggestedAdmins)
+        .catch(() => {
+            renderSuggestedAdmins([]);
+        });
 }
 
 function fetchAdmins() {
@@ -81,6 +134,7 @@ function removeAdmin(username) {
             showToast('Failed to remove admin. Please retry.', 'error');
         }
         fetchAdmins();
+        fetchSuggestedAdmins();
     }).catch(() => {
         if (typeof showToast === 'function') {
             showToast('Failed to remove admin. Please retry.', 'error');
@@ -88,9 +142,9 @@ function removeAdmin(username) {
     });
 }
 
-function addAdmin() {
+function addAdmin(usernameFromAction) {
     const input = document.getElementById('new-admin');
-    const username = input.value.trim();
+    const username = (usernameFromAction || input?.value || '').trim();
     if (!username) {
         if (typeof showToast === 'function') {
             showToast('Enter a Twitch username to add as an admin.', 'info');
@@ -107,11 +161,14 @@ function addAdmin() {
             if (!response.ok) {
                 throw new Error('Add admin failed');
             }
-            input.value = '';
+            if (input) {
+                input.value = '';
+            }
             if (typeof showToast === 'function') {
                 showToast(`Added @${username} as an admin.`, 'success');
             }
             fetchAdmins();
+            fetchSuggestedAdmins();
         })
         .catch(() => {
             if (typeof showToast === 'function') {
@@ -187,4 +244,5 @@ function saveCanvasSettings() {
 }
 
 fetchAdmins();
+fetchSuggestedAdmins();
 fetchCanvasSettings();

@@ -24,6 +24,11 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.Optional;
 
 @Service
 public class TwitchUserLookupService {
@@ -48,10 +53,115 @@ public class TwitchUserLookupService {
                 .distinct()
                 .toList();
 
+        Map<String, TwitchUserData> byLogin = fetchUsers(normalizedLogins, accessToken, clientId);
+
+        return normalizedLogins.stream()
+                .map(login -> toProfile(login, byLogin.get(login)))
+                .toList();
+    }
+
+    public List<TwitchUserProfile> fetchModerators(String broadcasterLogin,
+                                                   Collection<String> existingAdmins,
+                                                   String accessToken,
+                                                   String clientId) {
+        if (broadcasterLogin == null || broadcasterLogin.isBlank()) {
+            return List.of();
+        }
+
         if (accessToken == null || accessToken.isBlank() || clientId == null || clientId.isBlank()) {
-            return normalizedLogins.stream()
-                    .map(login -> new TwitchUserProfile(login, login, null))
-                    .toList();
+            return List.of();
+        }
+
+        String normalizedBroadcaster = broadcasterLogin.toLowerCase(Locale.ROOT);
+        Map<String, TwitchUserData> broadcasterData = fetchUsers(List.of(normalizedBroadcaster), accessToken, clientId);
+        String broadcasterId = Optional.ofNullable(broadcasterData.get(normalizedBroadcaster))
+                .map(TwitchUserData::id)
+                .orElse(null);
+
+        if (broadcasterId == null || broadcasterId.isBlank()) {
+            LOG.warn("No broadcaster id found for {} when fetching moderators", broadcasterLogin);
+            return List.of();
+        }
+
+        Set<String> skipLogins = new HashSet<>();
+        if (existingAdmins != null) {
+            existingAdmins.stream()
+                    .filter(Objects::nonNull)
+                    .map(login -> login.toLowerCase(Locale.ROOT))
+                    .forEach(skipLogins::add);
+        }
+        skipLogins.add(normalizedBroadcaster);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(accessToken);
+        headers.add("Client-ID", clientId);
+
+        List<String> moderatorLogins = new ArrayList<>();
+        String cursor = null;
+
+        do {
+            UriComponentsBuilder builder = UriComponentsBuilder
+                    .fromHttpUrl("https://api.twitch.tv/helix/moderation/moderators")
+                    .queryParam("broadcaster_id", broadcasterId)
+                    .queryParam("first", 100);
+            if (cursor != null && !cursor.isBlank()) {
+                builder.queryParam("after", cursor);
+            }
+
+            try {
+                ResponseEntity<TwitchModeratorsResponse> response = restTemplate.exchange(
+                        builder.build(true).toUri(),
+                        HttpMethod.GET,
+                        new HttpEntity<>(headers),
+                        TwitchModeratorsResponse.class);
+
+                TwitchModeratorsResponse body = response.getBody();
+                if (body != null && body.data() != null) {
+                    body.data().stream()
+                            .filter(Objects::nonNull)
+                            .map(ModeratorData::userLogin)
+                            .filter(Objects::nonNull)
+                            .map(login -> login.toLowerCase(Locale.ROOT))
+                            .filter(login -> !skipLogins.contains(login))
+                            .forEach(moderatorLogins::add);
+                }
+
+                cursor = body != null && body.pagination() != null
+                        ? body.pagination().cursor()
+                        : null;
+            } catch (RestClientException ex) {
+                LOG.warn("Unable to fetch Twitch moderators for {}", broadcasterLogin, ex);
+                return List.of();
+            }
+        } while (cursor != null && !cursor.isBlank());
+
+        if (moderatorLogins.isEmpty()) {
+            return List.of();
+        }
+
+        return fetchProfiles(moderatorLogins, accessToken, clientId);
+    }
+
+    private TwitchUserProfile toProfile(String login, TwitchUserData data) {
+        if (data == null) {
+            return new TwitchUserProfile(login, login, null);
+        }
+        return new TwitchUserProfile(login, data.displayName(), data.profileImageUrl());
+    }
+
+    private Map<String, TwitchUserData> fetchUsers(Collection<String> logins, String accessToken, String clientId) {
+        if (logins == null || logins.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        List<String> normalizedLogins = logins.stream()
+                .filter(Objects::nonNull)
+                .map(login -> login.toLowerCase(Locale.ROOT))
+                .distinct()
+                .toList();
+
+        if (accessToken == null || accessToken.isBlank() || clientId == null || clientId.isBlank()) {
+            return Collections.emptyMap();
         }
 
         HttpHeaders headers = new HttpHeaders();
@@ -70,31 +180,19 @@ public class TwitchUserLookupService {
                     entity,
                     TwitchUsersResponse.class);
 
-            Map<String, TwitchUserData> byLogin = response.getBody() == null
+            return response.getBody() == null
                     ? Collections.emptyMap()
                     : response.getBody().data().stream()
                     .filter(Objects::nonNull)
                     .collect(Collectors.toMap(
                             user -> user.login().toLowerCase(Locale.ROOT),
                             Function.identity(),
-                            (a, b) -> a));
-
-            return normalizedLogins.stream()
-                    .map(login -> toProfile(login, byLogin.get(login)))
-                    .toList();
+                            (a, b) -> a,
+                            HashMap::new));
         } catch (RestClientException ex) {
             LOG.warn("Unable to fetch Twitch user profiles", ex);
-            return normalizedLogins.stream()
-                    .map(login -> new TwitchUserProfile(login, login, null))
-                    .toList();
+            return Collections.emptyMap();
         }
-    }
-
-    private TwitchUserProfile toProfile(String login, TwitchUserData data) {
-        if (data == null) {
-            return new TwitchUserProfile(login, login, null);
-        }
-        return new TwitchUserProfile(login, data.displayName(), data.profileImageUrl());
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -103,8 +201,26 @@ public class TwitchUserLookupService {
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     private record TwitchUserData(
+            String id,
             String login,
             @JsonProperty("display_name") String displayName,
             @JsonProperty("profile_image_url") String profileImageUrl) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    private record TwitchModeratorsResponse(
+            List<ModeratorData> data,
+            Pagination pagination) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    private record ModeratorData(
+            @JsonProperty("user_id") String userId,
+            @JsonProperty("user_login") String userLogin,
+            @JsonProperty("user_name") String userName) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    private record Pagination(String cursor) {
     }
 }
