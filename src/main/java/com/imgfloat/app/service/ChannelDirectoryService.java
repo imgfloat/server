@@ -125,13 +125,18 @@ public class ChannelDirectoryService {
                 .orElse("Asset " + System.currentTimeMillis());
 
         String dataUrl = "data:" + optimized.mediaType() + ";base64," + Base64.getEncoder().encodeToString(optimized.bytes());
-        double width = optimized.width() > 0 ? optimized.width() : 640;
-        double height = optimized.height() > 0 ? optimized.height() : 360;
+        double width = optimized.width() > 0 ? optimized.width() : (optimized.mediaType().startsWith("audio/") ? 400 : 640);
+        double height = optimized.height() > 0 ? optimized.height() : (optimized.mediaType().startsWith("audio/") ? 80 : 360);
         Asset asset = new Asset(channel.getBroadcaster(), name, dataUrl, width, height);
         asset.setOriginalMediaType(mediaType);
         asset.setMediaType(optimized.mediaType());
         asset.setSpeed(1.0);
         asset.setMuted(optimized.mediaType().startsWith("video/"));
+        asset.setAudioLoop(false);
+        asset.setAudioDelayMillis(0);
+        asset.setAudioSpeed(1.0);
+        asset.setAudioPitch(1.0);
+        asset.setAudioVolume(1.0);
         asset.setZIndex(nextZIndex(channel.getBroadcaster()));
 
         assetRepository.save(asset);
@@ -158,6 +163,22 @@ public class ChannelDirectoryService {
                     }
                     if (request.getMuted() != null && asset.isVideo()) {
                         asset.setMuted(request.getMuted());
+                    }
+                    if (request.getAudioLoop() != null) {
+                        asset.setAudioLoop(request.getAudioLoop());
+                    }
+                    if (request.getAudioDelayMillis() != null && request.getAudioDelayMillis() >= 0) {
+                        asset.setAudioDelayMillis(request.getAudioDelayMillis());
+                    }
+                    if (request.getAudioSpeed() != null && request.getAudioSpeed() >= 0) {
+                        asset.setAudioSpeed(request.getAudioSpeed());
+                    }
+                    if (request.getAudioPitch() != null && request.getAudioPitch() > 0) {
+                        asset.setAudioPitch(request.getAudioPitch());
+                    }
+                    if (request.getAudioVolume() != null && request.getAudioVolume() >= 0) {
+                        double clamped = Math.max(0.0, Math.min(1.0, request.getAudioVolume()));
+                        asset.setAudioVolume(clamped);
                     }
                     assetRepository.save(asset);
                     AssetView view = AssetView.from(normalized, asset);
@@ -289,6 +310,9 @@ public class ChannelDirectoryService {
                     case "mp4" -> "video/mp4";
                     case "webm" -> "video/webm";
                     case "mov" -> "video/quicktime";
+                    case "mp3" -> "audio/mpeg";
+                    case "wav" -> "audio/wav";
+                    case "ogg" -> "audio/ogg";
                     default -> "application/octet-stream";
                 })
                 .orElse("application/octet-stream");
@@ -322,6 +346,10 @@ public class ChannelDirectoryService {
         if (mediaType.startsWith("video/")) {
             var dimensions = extractVideoDimensions(bytes);
             return new OptimizedAsset(bytes, mediaType, dimensions.width(), dimensions.height());
+        }
+
+        if (mediaType.startsWith("audio/")) {
+            return new OptimizedAsset(bytes, mediaType, 0, 0);
         }
 
         BufferedImage image = ImageIO.read(new ByteArrayInputStream(bytes));

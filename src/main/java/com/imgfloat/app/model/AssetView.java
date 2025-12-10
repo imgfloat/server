@@ -17,6 +17,11 @@ public record AssetView(
         String mediaType,
         String originalMediaType,
         Integer zIndex,
+        Boolean audioLoop,
+        Integer audioDelayMillis,
+        Double audioSpeed,
+        Double audioPitch,
+        Double audioVolume,
         boolean hidden,
         Instant createdAt
 ) {
@@ -36,6 +41,11 @@ public record AssetView(
                 asset.getMediaType(),
                 asset.getOriginalMediaType(),
                 asset.getZIndex(),
+                asset.isAudioLoop(),
+                asset.getAudioDelayMillis(),
+                asset.getAudioSpeed(),
+                asset.getAudioPitch(),
+                asset.getAudioVolume(),
                 asset.isHidden(),
                 asset.getCreatedAt()
         );

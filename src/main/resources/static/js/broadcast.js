@@ -7,7 +7,9 @@ const assets = new Map();
 const mediaCache = new Map();
 const renderStates = new Map();
 const animatedCache = new Map();
+const audioControllers = new Map();
 let animationFrameId = null;
+const audioPlaceholder = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="320" height="80"><rect width="100%" height="100%" fill="#0f172a" rx="8"/><g fill="#22d3ee" transform="translate(20 20)"><circle cx="15" cy="20" r="6"/><rect x="28" y="5" width="12" height="30" rx="2"/><rect x="45" y="10" width="140" height="5" fill="#a5f3fc"/><rect x="45" y="23" width="110" height="5" fill="#a5f3fc"/></g><text x="20" y="70" fill="#e5e7eb" font-family="sans-serif" font-size="14">Audio</text></svg>');
 
 function connect() {
     const socket = new SockJS('/ws');
@@ -61,6 +63,9 @@ function handleEvent(event) {
         const payload = { ...event.payload, zIndex: Math.max(1, event.payload.zIndex ?? 1) };
         assets.set(payload.id, payload);
         ensureMedia(payload);
+        if (isAudioAsset(payload)) {
+            playAudioImmediately(payload);
+        }
     } else if (event.payload && event.payload.hidden) {
         assets.delete(event.payload.id);
         clearMedia(event.payload.id);
@@ -97,9 +102,16 @@ function drawAsset(asset) {
 
     const media = ensureMedia(asset);
     const drawSource = media?.isAnimated ? media.bitmap : media;
-    const ready = isDrawable(media);
-    if (ready) {
+    const ready = isAudioAsset(asset) || isDrawable(media);
+    if (isAudioAsset(asset)) {
+        autoStartAudio(asset);
+    }
+    if (ready && drawSource) {
         ctx.drawImage(drawSource, -halfWidth, -halfHeight, renderState.width, renderState.height);
+    }
+
+    if (isAudioAsset(asset)) {
+        drawAudioIndicators(asset, halfWidth, halfHeight);
     }
 
     ctx.restore();
@@ -132,12 +144,69 @@ function isVideoAsset(asset) {
     return asset?.mediaType?.startsWith('video/');
 }
 
+function isAudioAsset(asset) {
+    return asset?.mediaType?.startsWith('audio/');
+}
+
 function isVideoElement(element) {
     return element && element.tagName === 'VIDEO';
 }
 
 function isGifAsset(asset) {
     return asset?.mediaType?.toLowerCase() === 'image/gif';
+}
+
+function drawAudioIndicators(asset, halfWidth, halfHeight) {
+    const controller = audioControllers.get(asset.id);
+    const isPlaying = controller && !controller.element.paused && !controller.element.ended;
+    const hasDelay = !!(controller && controller.delayTimeout);
+    if (!isPlaying && !hasDelay) {
+        return;
+    }
+    const indicatorSize = 18;
+    const padding = 8;
+    let x = -halfWidth + padding + indicatorSize / 2;
+    const y = -halfHeight + padding + indicatorSize / 2;
+
+    ctx.save();
+    ctx.setLineDash([]);
+    if (isPlaying) {
+        ctx.fillStyle = 'rgba(34, 197, 94, 0.9)';
+        ctx.strokeStyle = '#020617';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(x, y, indicatorSize / 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#020617';
+        ctx.beginPath();
+        const radius = indicatorSize * 0.22;
+        ctx.moveTo(x - radius, y - radius * 1.1);
+        ctx.lineTo(x + radius * 1.2, y);
+        ctx.lineTo(x - radius, y + radius * 1.1);
+        ctx.closePath();
+        ctx.fill();
+        x += indicatorSize + 4;
+    }
+
+    if (hasDelay) {
+        ctx.fillStyle = 'rgba(234, 179, 8, 0.9)';
+        ctx.strokeStyle = '#020617';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(x, y, indicatorSize / 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.strokeStyle = '#020617';
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x, y - indicatorSize * 0.22);
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + indicatorSize * 0.22, y);
+        ctx.stroke();
+    }
+    ctx.restore();
 }
 
 function isDrawable(element) {
@@ -166,6 +235,104 @@ function clearMedia(assetId) {
         animated.decoder?.close?.();
         animatedCache.delete(assetId);
     }
+    const audio = audioControllers.get(assetId);
+    if (audio) {
+        if (audio.delayTimeout) {
+            clearTimeout(audio.delayTimeout);
+        }
+        audio.element.pause();
+        audio.element.currentTime = 0;
+        audioControllers.delete(assetId);
+    }
+}
+
+function ensureAudioController(asset) {
+    const cached = audioControllers.get(asset.id);
+    if (cached && cached.src === asset.url) {
+        applyAudioSettings(cached, asset);
+        return cached;
+    }
+
+    if (cached) {
+        clearMedia(asset.id);
+    }
+
+    const element = new Audio(asset.url);
+    element.preload = 'auto';
+    element.controls = false;
+    const controller = {
+        id: asset.id,
+        src: asset.url,
+        element,
+        delayTimeout: null,
+        loopEnabled: false,
+        delayMs: 0,
+        baseDelayMs: 0
+    };
+    element.onended = () => handleAudioEnded(asset.id);
+    audioControllers.set(asset.id, controller);
+    applyAudioSettings(controller, asset, true);
+    return controller;
+}
+
+function applyAudioSettings(controller, asset, resetPosition = false) {
+    controller.loopEnabled = !!asset.audioLoop;
+    controller.baseDelayMs = Math.max(0, asset.audioDelayMillis || 0);
+    controller.delayMs = controller.baseDelayMs;
+    const speed = Math.max(0.25, asset.audioSpeed || 1);
+    const pitch = Math.max(0.5, asset.audioPitch || 1);
+    controller.element.playbackRate = speed * pitch;
+    const volume = Math.max(0, Math.min(1, asset.audioVolume ?? 1));
+    controller.element.volume = volume;
+    if (resetPosition) {
+        controller.element.currentTime = 0;
+        controller.element.pause();
+    }
+}
+
+function handleAudioEnded(assetId) {
+    const controller = audioControllers.get(assetId);
+    if (!controller) return;
+    controller.element.currentTime = 0;
+    if (controller.delayTimeout) {
+        clearTimeout(controller.delayTimeout);
+    }
+    if (controller.loopEnabled) {
+        controller.delayTimeout = setTimeout(() => {
+            controller.element.play().catch(() => {});
+        }, controller.delayMs);
+    } else {
+        controller.element.pause();
+    }
+}
+
+function playAudioImmediately(asset) {
+    const controller = ensureAudioController(asset);
+    if (controller.delayTimeout) {
+        clearTimeout(controller.delayTimeout);
+        controller.delayTimeout = null;
+    }
+    controller.element.currentTime = 0;
+    const originalDelay = controller.delayMs;
+    controller.delayMs = 0;
+    controller.element.play().catch(() => {});
+    controller.delayMs = controller.baseDelayMs ?? originalDelay ?? 0;
+}
+
+function autoStartAudio(asset) {
+    if (!isAudioAsset(asset) || asset.hidden) {
+        return;
+    }
+    const controller = ensureAudioController(asset);
+    if (!controller.element.paused && !controller.element.ended) {
+        return;
+    }
+    if (controller.delayTimeout) {
+        return;
+    }
+    controller.delayTimeout = setTimeout(() => {
+        controller.element.play().catch(() => {});
+    }, controller.delayMs);
 }
 
 function ensureMedia(asset) {
@@ -173,6 +340,14 @@ function ensureMedia(asset) {
     if (cached && cached.src === asset.url) {
         applyMediaSettings(cached, asset);
         return cached;
+    }
+
+    if (isAudioAsset(asset)) {
+        ensureAudioController(asset);
+        const placeholder = new Image();
+        placeholder.src = audioPlaceholder;
+        mediaCache.set(asset.id, placeholder);
+        return placeholder;
     }
 
     if (isGifAsset(asset) && 'ImageDecoder' in window) {

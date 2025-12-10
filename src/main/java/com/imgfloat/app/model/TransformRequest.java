@@ -9,6 +9,11 @@ public class TransformRequest {
     private Double speed;
     private Boolean muted;
     private Integer zIndex;
+    private Boolean audioLoop;
+    private Integer audioDelayMillis;
+    private Double audioSpeed;
+    private Double audioPitch;
+    private Double audioVolume;
 
     public double getX() {
         return x;
@@ -72,5 +77,45 @@ public class TransformRequest {
 
     public void setZIndex(Integer zIndex) {
         this.zIndex = zIndex;
+    }
+
+    public Boolean getAudioLoop() {
+        return audioLoop;
+    }
+
+    public void setAudioLoop(Boolean audioLoop) {
+        this.audioLoop = audioLoop;
+    }
+
+    public Integer getAudioDelayMillis() {
+        return audioDelayMillis;
+    }
+
+    public void setAudioDelayMillis(Integer audioDelayMillis) {
+        this.audioDelayMillis = audioDelayMillis;
+    }
+
+    public Double getAudioSpeed() {
+        return audioSpeed;
+    }
+
+    public void setAudioSpeed(Double audioSpeed) {
+        this.audioSpeed = audioSpeed;
+    }
+
+    public Double getAudioPitch() {
+        return audioPitch;
+    }
+
+    public void setAudioPitch(Double audioPitch) {
+        this.audioPitch = audioPitch;
+    }
+
+    public Double getAudioVolume() {
+        return audioVolume;
+    }
+
+    public void setAudioVolume(Double audioVolume) {
+        this.audioVolume = audioVolume;
     }
 }

@@ -35,6 +35,11 @@ public class Asset {
     private String mediaType;
     private String originalMediaType;
     private Integer zIndex;
+    private Boolean audioLoop;
+    private Integer audioDelayMillis;
+    private Double audioSpeed;
+    private Double audioPitch;
+    private Double audioVolume;
     private boolean hidden;
     private Instant createdAt;
 
@@ -79,6 +84,21 @@ public class Asset {
         }
         if (this.zIndex == null || this.zIndex < 1) {
             this.zIndex = 1;
+        }
+        if (this.audioLoop == null) {
+            this.audioLoop = Boolean.FALSE;
+        }
+        if (this.audioDelayMillis == null) {
+            this.audioDelayMillis = 0;
+        }
+        if (this.audioSpeed == null) {
+            this.audioSpeed = 1.0;
+        }
+        if (this.audioPitch == null) {
+            this.audioPitch = 1.0;
+        }
+        if (this.audioVolume == null) {
+            this.audioVolume = 1.0;
         }
     }
 
@@ -208,6 +228,46 @@ public class Asset {
 
     public void setZIndex(Integer zIndex) {
         this.zIndex = zIndex == null ? null : Math.max(1, zIndex);
+    }
+
+    public boolean isAudioLoop() {
+        return audioLoop != null && audioLoop;
+    }
+
+    public void setAudioLoop(Boolean audioLoop) {
+        this.audioLoop = audioLoop;
+    }
+
+    public Integer getAudioDelayMillis() {
+        return audioDelayMillis == null ? 0 : Math.max(0, audioDelayMillis);
+    }
+
+    public void setAudioDelayMillis(Integer audioDelayMillis) {
+        this.audioDelayMillis = audioDelayMillis;
+    }
+
+    public double getAudioSpeed() {
+        return audioSpeed == null ? 1.0 : Math.max(0.1, audioSpeed);
+    }
+
+    public void setAudioSpeed(Double audioSpeed) {
+        this.audioSpeed = audioSpeed;
+    }
+
+    public double getAudioPitch() {
+        return audioPitch == null ? 1.0 : Math.max(0.5, audioPitch);
+    }
+
+    public void setAudioPitch(Double audioPitch) {
+        this.audioPitch = audioPitch;
+    }
+
+    public double getAudioVolume() {
+        return audioVolume == null ? 1.0 : Math.max(0.0, Math.min(1.0, audioVolume));
+    }
+
+    public void setAudioVolume(Double audioVolume) {
+        this.audioVolume = audioVolume;
     }
 
     private static String normalize(String value) {

@@ -28,11 +28,11 @@
             <h3>Overlay assets</h3>
             <p>Upload overlay visuals and adjust them inline.</p>
             <div class="upload-row">
-                <input id="asset-file" class="file-input-field" type="file" accept="image/*,video/*" onchange="handleFileSelection(this)" />
+                <input id="asset-file" class="file-input-field" type="file" accept="image/*,video/*,audio/*" onchange="handleFileSelection(this)" />
                 <label for="asset-file" class="file-input-trigger">
                     <span class="file-input-icon"><i class="fa-solid fa-cloud-arrow-up"></i></span>
                     <span class="file-input-copy">
-                        <strong>Select an image, GIF, or video</strong>
+                        <strong>Select an image, GIF, video, or audio</strong>
                         <small id="asset-file-name">No file chosen</small>
                     </span>
                 </label>
@@ -92,6 +92,37 @@
                             <input id="asset-muted" type="checkbox" />
                             Mute
                         </label>
+                    </div>
+                </div>
+
+                <div class="panel-section hidden" id="audio-section">
+                    <div class="section-header">
+                        <h5>Audio</h5>
+                    </div>
+                    <div class="control-grid condensed three-col">
+                        <label class="checkbox-inline">
+                            <input id="asset-audio-loop" type="checkbox" />
+                            Loop
+                        </label>
+                        <label>
+                            Delay (ms)
+                            <input id="asset-audio-delay" class="number-input" type="number" min="0" step="100" />
+                        </label>
+                        <label>
+                            Pitch (%)
+                            <input id="asset-audio-pitch" class="range-input" type="range" min="50" max="200" step="5" value="100" />
+                        </label>
+                        <label>
+                            Volume (%)
+                            <input id="asset-audio-volume" class="range-input" type="range" min="0" max="100" step="1" value="100" />
+                        </label>
+                    </div>
+                    <div class="control-grid condensed">
+                        <label>
+                            Playback speed
+                            <input id="asset-audio-speed" class="range-input" type="range" min="25" max="400" step="5" value="100" />
+                        </label>
+                        <div class="range-meta"><span>0.25x</span><span>4x</span></div>
                     </div>
                 </div>
             </div>
