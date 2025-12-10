@@ -36,7 +36,19 @@ function connect() {
             const body = JSON.parse(payload.body);
             handleEvent(body);
         });
-        fetch(`/api/channels/${broadcaster}/assets/visible`).then(r => r.json()).then(renderAssets);
+        fetch(`/api/channels/${broadcaster}/assets/visible`)
+            .then((r) => {
+                if (!r.ok) {
+                    throw new Error('Failed to load assets');
+                }
+                return r.json();
+            })
+            .then(renderAssets)
+            .catch(() => {
+                if (typeof showToast === 'function') {
+                    showToast('Unable to load overlay assets. Retrying may help.', 'error');
+                }
+            });
     });
 }
 
@@ -51,12 +63,22 @@ function renderAssets(list) {
 
 function fetchCanvasSettings() {
     return fetch(`/api/channels/${broadcaster}/canvas`)
-        .then((r) => r.json())
+        .then((r) => {
+            if (!r.ok) {
+                throw new Error('Failed to load canvas');
+            }
+            return r.json();
+        })
         .then((settings) => {
             canvasSettings = settings;
             resizeCanvas();
         })
-        .catch(() => resizeCanvas());
+        .catch(() => {
+            resizeCanvas();
+            if (typeof showToast === 'function') {
+                showToast('Using default canvas size. Unable to load saved settings.', 'warning');
+            }
+        });
 }
 
 function resizeCanvas() {

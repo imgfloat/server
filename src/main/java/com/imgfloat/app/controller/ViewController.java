@@ -1,6 +1,8 @@
 package com.imgfloat.app.controller;
 
 import com.imgfloat.app.service.ChannelDirectoryService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -10,6 +12,7 @@ import static org.springframework.http.HttpStatus.FORBIDDEN;
 
 @Controller
 public class ViewController {
+    private static final Logger LOG = LoggerFactory.getLogger(ViewController.class);
     private final ChannelDirectoryService channelDirectoryService;
 
     public ViewController(ChannelDirectoryService channelDirectoryService) {
@@ -20,6 +23,7 @@ public class ViewController {
     public String home(OAuth2AuthenticationToken authentication, Model model) {
         if (authentication != null) {
             String login = TwitchUser.from(authentication).login();
+            LOG.info("Rendering dashboard for {}", login);
             model.addAttribute("username", login);
             model.addAttribute("channel", login);
             model.addAttribute("adminChannels", channelDirectoryService.adminChannelsFor(login));
@@ -35,8 +39,10 @@ public class ViewController {
         String login = TwitchUser.from(authentication).login();
         if (!channelDirectoryService.isBroadcaster(broadcaster, login)
                 && !channelDirectoryService.isAdmin(broadcaster, login)) {
+            LOG.warn("Unauthorized admin console access attempt for {} by {}", broadcaster, login);
             throw new ResponseStatusException(FORBIDDEN, "Not authorized for admin tools");
         }
+        LOG.info("Rendering admin console for {} (requested by {})", broadcaster, login);
         model.addAttribute("broadcaster", broadcaster.toLowerCase());
         model.addAttribute("username", login);
         return "admin";
@@ -45,6 +51,7 @@ public class ViewController {
     @org.springframework.web.bind.annotation.GetMapping("/view/{broadcaster}/broadcast")
     public String broadcastView(@org.springframework.web.bind.annotation.PathVariable("broadcaster") String broadcaster,
                                  Model model) {
+        LOG.debug("Rendering broadcast overlay for {}", broadcaster);
         model.addAttribute("broadcaster", broadcaster.toLowerCase());
         return "broadcast";
     }

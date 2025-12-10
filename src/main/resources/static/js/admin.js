@@ -154,21 +154,48 @@ function connect() {
             handleEvent(body);
         });
         fetchAssets();
+    }, (error) => {
+        console.warn('WebSocket connection issue', error);
+        if (typeof showToast === 'function') {
+            showToast('Live updates connection interrupted. Retrying may be necessary.', 'warning');
+        }
     });
 }
 
 function fetchAssets() {
-    fetch(`/api/channels/${broadcaster}/assets`).then((r) => r.json()).then(renderAssets);
+    fetch(`/api/channels/${broadcaster}/assets`)
+        .then((r) => {
+            if (!r.ok) {
+                throw new Error('Failed to load assets');
+            }
+            return r.json();
+        })
+        .then(renderAssets)
+        .catch(() => {
+            if (typeof showToast === 'function') {
+                showToast('Unable to load assets. Please refresh.', 'error');
+            }
+        });
 }
 
 function fetchCanvasSettings() {
     return fetch(`/api/channels/${broadcaster}/canvas`)
-        .then((r) => r.json())
+        .then((r) => {
+            if (!r.ok) {
+                throw new Error('Failed to load canvas');
+            }
+            return r.json();
+        })
         .then((settings) => {
             canvasSettings = settings;
             resizeCanvas();
         })
-        .catch(() => resizeCanvas());
+        .catch(() => {
+            resizeCanvas();
+            if (typeof showToast === 'function') {
+                showToast('Using default canvas size. Unable to load saved settings.', 'warning');
+            }
+        });
 }
 
 function resizeCanvas() {
@@ -1350,29 +1377,58 @@ function updateVisibility(asset, hidden) {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ hidden })
-    }).then((r) => r.json()).then((updated) => {
+    }).then((r) => {
+        if (!r.ok) {
+            throw new Error('Failed to update visibility');
+        }
+        return r.json();
+    }).then((updated) => {
         storeAsset(updated);
         if (updated.hidden) {
             stopAudio(updated.id);
+            if (typeof showToast === 'function') {
+                showToast('Asset hidden from broadcast.', 'info');
+            }
         } else if (isAudioAsset(updated)) {
             playAudioFromCanvas(updated, true);
+            if (typeof showToast === 'function') {
+                showToast('Asset is now visible and active.', 'success');
+            }
+        } else if (typeof showToast === 'function') {
+            showToast('Asset is now visible.', 'success');
         }
         updateRenderState(updated);
         drawAndList();
+    }).catch(() => {
+        if (typeof showToast === 'function') {
+            showToast('Unable to change visibility right now.', 'error');
+        }
     });
 }
 
 function deleteAsset(asset) {
-    fetch(`/api/channels/${broadcaster}/assets/${asset.id}`, { method: 'DELETE' }).then(() => {
-        clearMedia(asset.id);
-        assets.delete(asset.id);
-        renderStates.delete(asset.id);
-        zOrderDirty = true;
-        if (selectedAssetId === asset.id) {
-            selectedAssetId = null;
-        }
-        drawAndList();
-    });
+    fetch(`/api/channels/${broadcaster}/assets/${asset.id}`, { method: 'DELETE' })
+        .then((response) => {
+            if (!response.ok) {
+                throw new Error('Failed to delete asset');
+            }
+            clearMedia(asset.id);
+            assets.delete(asset.id);
+            renderStates.delete(asset.id);
+            zOrderDirty = true;
+            if (selectedAssetId === asset.id) {
+                selectedAssetId = null;
+            }
+            drawAndList();
+            if (typeof showToast === 'function') {
+                showToast('Asset deleted.', 'info');
+            }
+        })
+        .catch(() => {
+            if (typeof showToast === 'function') {
+                showToast('Unable to delete asset. Please try again.', 'error');
+            }
+        });
 }
 
 function handleFileSelection(input) {
@@ -1391,7 +1447,9 @@ function uploadAsset(file = null) {
     const fileInput = document.getElementById('asset-file');
     const selectedFile = file || (fileInput?.files && fileInput.files.length ? fileInput.files[0] : null);
     if (!selectedFile) {
-        alert('Please choose an image, GIF, video, or audio file to upload.');
+        if (typeof showToast === 'function') {
+            showToast('Choose an image, GIF, video, or audio file to upload.', 'info');
+        }
         return;
     }
     const data = new FormData();
@@ -1402,14 +1460,23 @@ function uploadAsset(file = null) {
     fetch(`/api/channels/${broadcaster}/assets`, {
         method: 'POST',
         body: data
-    }).then(() => {
+    }).then((response) => {
+        if (!response.ok) {
+            throw new Error('Upload failed');
+        }
         if (fileInput) {
             fileInput.value = '';
             handleFileSelection(fileInput);
         }
+        if (typeof showToast === 'function') {
+            showToast('Asset uploaded successfully.', 'success');
+        }
     }).catch(() => {
         if (fileNameLabel) {
             fileNameLabel.textContent = 'Upload failed';
+        }
+        if (typeof showToast === 'function') {
+            showToast('Upload failed. Please try again with a supported file.', 'error');
         }
     });
 }
@@ -1462,11 +1529,20 @@ function persistTransform(asset, silent = false) {
             audioPitch: asset.audioPitch,
             audioVolume: asset.audioVolume
         })
-    }).then((r) => r.json()).then((updated) => {
+    }).then((r) => {
+        if (!r.ok) {
+            throw new Error('Transform failed');
+        }
+        return r.json();
+    }).then((updated) => {
         storeAsset(updated);
         updateRenderState(updated);
         if (!silent) {
             drawAndList();
+        }
+    }).catch(() => {
+        if (!silent && typeof showToast === 'function') {
+            showToast('Unable to save changes. Please retry.', 'error');
         }
     });
 }

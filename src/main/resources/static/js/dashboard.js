@@ -57,23 +57,44 @@ function renderAdmins(list) {
 
 function fetchAdmins() {
     fetch(`/api/channels/${broadcaster}/admins`)
-        .then((r) => r.json())
+        .then((r) => {
+            if (!r.ok) {
+                throw new Error('Failed to load admins');
+            }
+            return r.json();
+        })
         .then(renderAdmins)
-        .catch(() => renderAdmins([]));
+        .catch(() => {
+            renderAdmins([]);
+            if (typeof showToast === 'function') {
+                showToast('Unable to load admins right now. Please try again.', 'error');
+            }
+        });
 }
 
 function removeAdmin(username) {
     if (!username) return;
     fetch(`/api/channels/${broadcaster}/admins/${encodeURIComponent(username)}`, {
         method: 'DELETE'
-    }).then(fetchAdmins);
+    }).then((response) => {
+        if (!response.ok && typeof showToast === 'function') {
+            showToast('Failed to remove admin. Please retry.', 'error');
+        }
+        fetchAdmins();
+    }).catch(() => {
+        if (typeof showToast === 'function') {
+            showToast('Failed to remove admin. Please retry.', 'error');
+        }
+    });
 }
 
 function addAdmin() {
     const input = document.getElementById('new-admin');
     const username = input.value.trim();
     if (!username) {
-        alert('Enter a Twitch username to add as an admin.');
+        if (typeof showToast === 'function') {
+            showToast('Enter a Twitch username to add as an admin.', 'info');
+        }
         return;
     }
 
@@ -82,9 +103,20 @@ function addAdmin() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username })
     })
-        .then(() => {
+        .then((response) => {
+            if (!response.ok) {
+                throw new Error('Add admin failed');
+            }
             input.value = '';
+            if (typeof showToast === 'function') {
+                showToast(`Added @${username} as an admin.`, 'success');
+            }
             fetchAdmins();
+        })
+        .catch(() => {
+            if (typeof showToast === 'function') {
+                showToast('Unable to add admin right now. Please try again.', 'error');
+            }
         });
 }
 
@@ -97,9 +129,19 @@ function renderCanvasSettings(settings) {
 
 function fetchCanvasSettings() {
     fetch(`/api/channels/${broadcaster}/canvas`)
-        .then((r) => r.json())
+        .then((r) => {
+            if (!r.ok) {
+                throw new Error('Failed to load canvas settings');
+            }
+            return r.json();
+        })
         .then(renderCanvasSettings)
-        .catch(() => renderCanvasSettings({ width: 1920, height: 1080 }));
+        .catch(() => {
+            renderCanvasSettings({ width: 1920, height: 1080 });
+            if (typeof showToast === 'function') {
+                showToast('Using default canvas size. Unable to load saved settings.', 'warning');
+            }
+        });
 }
 
 function saveCanvasSettings() {
@@ -109,7 +151,9 @@ function saveCanvasSettings() {
     const width = parseFloat(widthInput?.value) || 0;
     const height = parseFloat(heightInput?.value) || 0;
     if (width <= 0 || height <= 0) {
-        alert('Please enter a valid width and height.');
+        if (typeof showToast === 'function') {
+            showToast('Please enter a valid width and height.', 'info');
+        }
         return;
     }
     if (status) status.textContent = 'Saving...';
@@ -118,16 +162,27 @@ function saveCanvasSettings() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ width, height })
     })
-        .then((r) => r.json())
+        .then((r) => {
+            if (!r.ok) {
+                throw new Error('Failed to save canvas');
+            }
+            return r.json();
+        })
         .then((settings) => {
             renderCanvasSettings(settings);
             if (status) status.textContent = 'Saved.';
+            if (typeof showToast === 'function') {
+                showToast('Canvas size saved successfully.', 'success');
+            }
             setTimeout(() => {
                 if (status) status.textContent = '';
             }, 2000);
         })
         .catch(() => {
             if (status) status.textContent = 'Unable to save right now.';
+            if (typeof showToast === 'function') {
+                showToast('Unable to save canvas size. Please retry.', 'error');
+            }
         });
 }
 

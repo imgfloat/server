@@ -10,6 +10,8 @@ import com.imgfloat.app.service.ChannelDirectoryService;
 import com.imgfloat.app.service.TwitchUserLookupService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.MediaType;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
@@ -40,6 +42,7 @@ import static org.springframework.http.HttpStatus.BAD_REQUEST;
 @RequestMapping("/api/channels/{broadcaster}")
 @SecurityRequirement(name = "twitchOAuth")
 public class ChannelApiController {
+    private static final Logger LOG = LoggerFactory.getLogger(ChannelApiController.class);
     private final ChannelDirectoryService channelDirectoryService;
     private final OAuth2AuthorizedClientService authorizedClientService;
     private final TwitchUserLookupService twitchUserLookupService;
@@ -58,7 +61,11 @@ public class ChannelApiController {
                                       OAuth2AuthenticationToken authentication) {
         String login = TwitchUser.from(authentication).login();
         ensureBroadcaster(broadcaster, login);
+        LOG.info("User {} adding admin {} to {}", login, request.getUsername(), broadcaster);
         boolean added = channelDirectoryService.addAdmin(broadcaster, request.getUsername());
+        if (!added) {
+            LOG.info("User {} already admin for {} or could not be added", request.getUsername(), broadcaster);
+        }
         return ResponseEntity.ok().body(added);
     }
 
@@ -67,6 +74,7 @@ public class ChannelApiController {
                                                     OAuth2AuthenticationToken authentication) {
         String login = TwitchUser.from(authentication).login();
         ensureBroadcaster(broadcaster, login);
+        LOG.debug("Listing admins for {} by {}", broadcaster, login);
         var channel = channelDirectoryService.getOrCreateChannel(broadcaster);
         List<String> admins = channel.getAdmins().stream()
                 .sorted(Comparator.naturalOrder())
@@ -91,6 +99,7 @@ public class ChannelApiController {
                                          OAuth2AuthenticationToken authentication) {
         String login = TwitchUser.from(authentication).login();
         ensureBroadcaster(broadcaster, login);
+        LOG.info("User {} removing admin {} from {}", login, username, broadcaster);
         boolean removed = channelDirectoryService.removeAdmin(broadcaster, username);
         return ResponseEntity.ok().body(removed);
     }
@@ -101,8 +110,10 @@ public class ChannelApiController {
         String login = TwitchUser.from(authentication).login();
         if (!channelDirectoryService.isBroadcaster(broadcaster, login)
                 && !channelDirectoryService.isAdmin(broadcaster, login)) {
+            LOG.warn("Unauthorized asset listing attempt for {} by {}", broadcaster, login);
             throw new ResponseStatusException(FORBIDDEN, "Not authorized");
         }
+        LOG.info("Listing assets for {} requested by {}", broadcaster, login);
         return channelDirectoryService.getAssetsForAdmin(broadcaster);
     }
 
@@ -113,6 +124,7 @@ public class ChannelApiController {
 
     @GetMapping("/canvas")
     public CanvasSettingsRequest getCanvas(@PathVariable("broadcaster") String broadcaster) {
+        LOG.debug("Fetching canvas settings for {}", broadcaster);
         return channelDirectoryService.getCanvasSettings(broadcaster);
     }
 
@@ -122,6 +134,7 @@ public class ChannelApiController {
                                               OAuth2AuthenticationToken authentication) {
         String login = TwitchUser.from(authentication).login();
         ensureBroadcaster(broadcaster, login);
+        LOG.info("Updating canvas for {} by {}: {}x{}", broadcaster, login, request.getWidth(), request.getHeight());
         return channelDirectoryService.updateCanvasSettings(broadcaster, request);
     }
 
@@ -132,13 +145,16 @@ public class ChannelApiController {
         String login = TwitchUser.from(authentication).login();
         ensureAuthorized(broadcaster, login);
         if (file == null || file.isEmpty()) {
+            LOG.warn("User {} attempted to upload empty file to {}", login, broadcaster);
             throw new ResponseStatusException(BAD_REQUEST, "Asset file is required");
         }
         try {
+            LOG.info("User {} uploading asset {} to {}", login, file.getOriginalFilename(), broadcaster);
             return channelDirectoryService.createAsset(broadcaster, file)
                     .map(ResponseEntity::ok)
                     .orElseThrow(() -> new ResponseStatusException(BAD_REQUEST, "Unable to read image"));
         } catch (IOException e) {
+            LOG.error("Failed to process asset upload for {} by {}", broadcaster, login, e);
             throw new ResponseStatusException(BAD_REQUEST, "Failed to process image", e);
         }
     }
@@ -150,9 +166,13 @@ public class ChannelApiController {
                                                OAuth2AuthenticationToken authentication) {
         String login = TwitchUser.from(authentication).login();
         ensureAuthorized(broadcaster, login);
+        LOG.debug("Applying transform to asset {} on {} by {}", assetId, broadcaster, login);
         return channelDirectoryService.updateTransform(broadcaster, assetId, request)
                 .map(ResponseEntity::ok)
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Asset not found"));
+                .orElseThrow(() -> {
+                    LOG.warn("Transform request for missing asset {} on {} by {}", assetId, broadcaster, login);
+                    return new ResponseStatusException(NOT_FOUND, "Asset not found");
+                });
     }
 
     @PutMapping("/assets/{assetId}/visibility")
@@ -162,9 +182,13 @@ public class ChannelApiController {
                                                 OAuth2AuthenticationToken authentication) {
         String login = TwitchUser.from(authentication).login();
         ensureAuthorized(broadcaster, login);
+        LOG.info("Updating visibility for asset {} on {} by {} to hidden={} ", assetId, broadcaster, login, request.isHidden());
         return channelDirectoryService.updateVisibility(broadcaster, assetId, request)
                 .map(ResponseEntity::ok)
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Asset not found"));
+                .orElseThrow(() -> {
+                    LOG.warn("Visibility update for missing asset {} on {} by {}", assetId, broadcaster, login);
+                    return new ResponseStatusException(NOT_FOUND, "Asset not found");
+                });
     }
 
     @GetMapping("/assets/{assetId}/content")
@@ -179,6 +203,7 @@ public class ChannelApiController {
         }
 
         if (authorized) {
+            LOG.debug("Serving asset {} for broadcaster {} to authenticated user {}", assetId, broadcaster, authentication.getName());
             return channelDirectoryService.getAssetContent(broadcaster, assetId)
                     .map(content -> ResponseEntity.ok()
                             .contentType(MediaType.parseMediaType(content.mediaType()))
@@ -201,13 +226,16 @@ public class ChannelApiController {
         ensureAuthorized(broadcaster, login);
         boolean removed = channelDirectoryService.deleteAsset(broadcaster, assetId);
         if (!removed) {
+            LOG.warn("Attempt to delete missing asset {} on {} by {}", assetId, broadcaster, login);
             throw new ResponseStatusException(NOT_FOUND, "Asset not found");
         }
+        LOG.info("Asset {} deleted on {} by {}", assetId, broadcaster, login);
         return ResponseEntity.ok().build();
     }
 
     private void ensureBroadcaster(String broadcaster, String login) {
         if (!channelDirectoryService.isBroadcaster(broadcaster, login)) {
+            LOG.warn("Access denied for broadcaster-only action on {} by {}", broadcaster, login);
             throw new ResponseStatusException(FORBIDDEN, "Only broadcasters can manage admins");
         }
     }
@@ -215,6 +243,7 @@ public class ChannelApiController {
     private void ensureAuthorized(String broadcaster, String login) {
         if (!channelDirectoryService.isBroadcaster(broadcaster, login)
                 && !channelDirectoryService.isAdmin(broadcaster, login)) {
+            LOG.warn("Unauthorized access to channel {} by {}", broadcaster, login);
             throw new ResponseStatusException(FORBIDDEN, "No permission for channel");
         }
     }
