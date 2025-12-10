@@ -1,4 +1,7 @@
 const canvas = document.getElementById('broadcast-canvas');
+const obsBrowser = !!window.obsstudio;
+const supportsAnimatedDecode = typeof ImageDecoder !== 'undefined' && typeof createImageBitmap === 'function' && !obsBrowser;
+const canPlayProbe = document.createElement('video');
 const ctx = canvas.getContext('2d');
 let canvasSettings = { width: 1920, height: 1080 };
 canvas.width = canvasSettings.width;
@@ -313,6 +316,11 @@ function isDrawable(element) {
 }
 
 function clearMedia(assetId) {
+    const element = mediaCache.get(assetId);
+    if (isVideoElement(element)) {
+        element.src = '';
+        element.remove();
+    }
     mediaCache.delete(assetId);
     const animated = animatedCache.get(assetId);
     if (animated) {
@@ -335,6 +343,8 @@ function clearMedia(assetId) {
         }
         audio.element.pause();
         audio.element.currentTime = 0;
+        audio.element.src = '';
+        audio.element.remove();
         audioControllers.delete(assetId);
     }
 }
@@ -398,7 +408,6 @@ function getAssetVolume(asset) {
 function applyMediaVolume(element, asset) {
     if (!element) return 1;
     const volume = getAssetVolume(asset);
-    element.muted = volume === 0;
     element.volume = Math.min(volume, 1);
     return volume;
 }
@@ -509,7 +518,7 @@ function ensureMedia(asset) {
         return null;
     }
 
-    if (isGifAsset(asset) && 'ImageDecoder' in window) {
+    if (isGifAsset(asset) && supportsAnimatedDecode) {
         const animated = ensureAnimatedImage(asset);
         if (animated) {
             mediaCache.set(asset.id, animated);
@@ -521,6 +530,9 @@ function ensureMedia(asset) {
     element.dataset.sourceUrl = asset.url;
     element.crossOrigin = 'anonymous';
     if (isVideoElement(element)) {
+        if (!canPlayVideoType(asset.mediaType)) {
+            return null;
+        }
         element.loop = true;
         element.playsInline = true;
         element.autoplay = true;
@@ -529,9 +541,8 @@ function ensureMedia(asset) {
         element.onloadedmetadata = () => recordDuration(asset.id, element.duration);
         element.preload = 'auto';
         element.addEventListener('error', () => clearMedia(asset.id));
-        const volume = applyMediaVolume(element, asset);
-        element.defaultMuted = volume === 0;
-        element.muted = element.defaultMuted;
+        applyMediaVolume(element, asset);
+        element.muted = true;
         setVideoSource(element, asset);
     } else {
         element.onload = draw;
@@ -611,6 +622,11 @@ function fetchAssetBlob(asset) {
 }
 
 function setVideoSource(element, asset) {
+    if (!shouldUseBlobUrl(asset)) {
+        applyVideoSource(element, asset.url, asset);
+        return;
+    }
+
     const cached = blobCache.get(asset.id);
     if (cached?.url === asset.url && cached.objectUrl) {
         applyVideoSource(element, cached.objectUrl, asset);
@@ -629,6 +645,18 @@ function setVideoSource(element, asset) {
 function applyVideoSource(element, objectUrl, asset) {
     element.src = objectUrl;
     startVideoPlayback(element, asset);
+}
+
+function shouldUseBlobUrl(asset) {
+    return !obsBrowser && asset?.mediaType && canPlayVideoType(asset.mediaType);
+}
+
+function canPlayVideoType(mediaType) {
+    if (!mediaType) {
+        return true;
+    }
+    const support = canPlayProbe.canPlayType(mediaType);
+    return support === 'probably' || support === 'maybe';
 }
 
 function getCachedSource(element) {
@@ -687,33 +715,25 @@ function startVideoPlayback(element, asset) {
         element.playbackRate = effectiveSpeed;
     }
     const volume = applyMediaVolume(element, asset);
-    element.defaultMuted = volume === 0;
-    element.muted = element.defaultMuted;
+    const shouldUnmute = volume > 0;
+    element.muted = true;
 
     if (effectiveSpeed === 0) {
         element.pause();
         return;
     }
 
-    const attemptPlay = (allowFallback) => {
-        const playPromise = element.play();
-        if (playPromise?.then) {
-            playPromise.then(() => {
-                if (volume > 0) {
-                    element.muted = false;
-                }
-            }).catch(() => {
-                if (!allowFallback) {
-                    queueAudioForUnlock({ element });
-                    return;
-                }
-                element.muted = true;
-                element.play().catch(() => queueAudioForUnlock({ element }));
-            });
-        }
-    };
+    element.play();
 
-    attemptPlay(true);
+    if (shouldUnmute) {
+        if (!element.paused && element.readyState >= 2) {
+            element.muted = false;
+        } else {
+            element.addEventListener('playing', () => {
+                element.muted = false;
+            }, { once: true });
+        }
+    }
 }
 
 function startRenderLoop() {
