@@ -46,6 +46,8 @@ const audioDelayInput = document.getElementById('asset-audio-delay');
 const audioSpeedInput = document.getElementById('asset-audio-speed');
 const audioSpeedLabel = document.getElementById('asset-audio-speed-label');
 const audioPitchInput = document.getElementById('asset-audio-pitch');
+const audioDelayLabel = document.getElementById('asset-audio-delay-label');
+const audioPitchLabel = document.getElementById('asset-audio-pitch-label');
 const controlsPlaceholder = document.getElementById('asset-controls-placeholder');
 const fileNameLabel = document.getElementById('asset-file-name');
 const assetInspector = document.getElementById('asset-inspector');
@@ -56,6 +58,8 @@ const selectedAssetIdLabel = document.getElementById('selected-asset-id');
 const selectedAssetBadges = document.getElementById('selected-asset-badges');
 const selectedVisibilityBtn = document.getElementById('selected-asset-visibility');
 const selectedDeleteBtn = document.getElementById('selected-asset-delete');
+const assetActionRow = document.getElementById('asset-actions');
+const assetActionButtons = Array.from(assetActionRow?.querySelectorAll('button') ?? []);
 const canvasResolutionLabel = document.getElementById('canvas-resolution');
 const canvasScaleLabel = document.getElementById('canvas-scale');
 const aspectLockState = new Map();
@@ -174,6 +178,27 @@ function setAudioSpeedLabel(percentValue) {
     audioSpeedLabel.textContent = `${formatted}x`;
 }
 
+function formatDelayLabel(ms) {
+    const numeric = Math.max(0, parseInt(ms, 10) || 0);
+    if (numeric >= 1000) {
+        const seconds = numeric / 1000;
+        const decimals = Number.isInteger(seconds) ? 0 : 1;
+        return `${seconds.toFixed(decimals)}s`;
+    }
+    return `${numeric}ms`;
+}
+
+function setAudioDelayLabel(value) {
+    if (!audioDelayLabel) return;
+    audioDelayLabel.textContent = formatDelayLabel(value);
+}
+
+function setAudioPitchLabel(percentValue) {
+    if (!audioPitchLabel) return;
+    const numeric = Math.round(Math.max(0, percentValue));
+    audioPitchLabel.textContent = `${numeric}%`;
+}
+
 function clamp(value, min, max) {
     return Math.min(max, Math.max(min, value));
 }
@@ -226,9 +251,18 @@ if (heightInput) heightInput.addEventListener('change', () => commitSizeChange()
 if (speedInput) speedInput.addEventListener('input', updatePlaybackFromInputs);
 if (volumeInput) volumeInput.addEventListener('input', updateVolumeFromInput);
 if (audioLoopInput) audioLoopInput.addEventListener('change', updateAudioSettingsFromInputs);
-if (audioDelayInput) audioDelayInput.addEventListener('change', updateAudioSettingsFromInputs);
-if (audioSpeedInput) audioSpeedInput.addEventListener('change', updateAudioSettingsFromInputs);
-if (audioPitchInput) audioPitchInput.addEventListener('change', updateAudioSettingsFromInputs);
+if (audioDelayInput) audioDelayInput.addEventListener('input', () => {
+    setAudioDelayLabel(audioDelayInput.value);
+    updateAudioSettingsFromInputs();
+});
+if (audioSpeedInput) audioSpeedInput.addEventListener('input', () => {
+    setAudioSpeedLabel(audioSpeedInput.value);
+    updateAudioSettingsFromInputs();
+});
+if (audioPitchInput) audioPitchInput.addEventListener('input', () => {
+    setAudioPitchLabel(audioPitchInput.value);
+    updateAudioSettingsFromInputs();
+});
 if (selectedVisibilityBtn) {
     selectedVisibilityBtn.addEventListener('click', () => {
         const asset = getSelectedAsset();
@@ -1411,13 +1445,21 @@ function updateSelectedAssetControls(asset = getSelectedAsset()) {
         aspectLockInput.checked = isAspectLocked(asset.id);
         aspectLockInput.onchange = () => setAspectLock(asset.id, aspectLockInput.checked);
     }
+    const hideLayout = isAudioAsset(asset);
     if (layoutSection) {
-        const hideLayout = isAudioAsset(asset);
         layoutSection.classList.toggle('hidden', hideLayout);
         const layoutControls = layoutSection.querySelectorAll('input, button');
         layoutControls.forEach((control) => {
             control.disabled = hideLayout;
             control.classList.toggle('disabled', hideLayout);
+        });
+    }
+    if (assetActionButtons.length) {
+        assetActionButtons.forEach((button) => {
+            const allowForAudio = button.dataset.audioEnabled === 'true';
+            const disableButton = hideLayout && !allowForAudio;
+            button.disabled = disableButton;
+            button.classList.toggle('disabled', disableButton);
         });
     }
     if (speedInput) {
@@ -1455,10 +1497,15 @@ function updateSelectedAssetControls(asset = getSelectedAsset()) {
         });
         if (showAudio) {
             audioLoopInput.checked = !!asset.audioLoop;
-            audioDelayInput.value = Math.max(0, asset.audioDelayMillis ?? 0);
-            audioSpeedInput.value = Math.round(Math.max(0.25, asset.audioSpeed ?? 1) * 100);
-            setAudioSpeedLabel(audioSpeedInput.value);
-            audioPitchInput.value = Math.round(Math.max(0.5, asset.audioPitch ?? 1) * 100);
+            const delayMs = clamp(Math.max(0, asset.audioDelayMillis ?? 0), 0, 30000);
+            audioDelayInput.value = delayMs;
+            setAudioDelayLabel(delayMs);
+            const audioSpeedPercent = clamp(Math.round(Math.max(0.25, asset.audioSpeed ?? 1) * 100), 25, 400);
+            audioSpeedInput.value = audioSpeedPercent;
+            setAudioSpeedLabel(audioSpeedPercent);
+            const pitchPercent = clamp(Math.round(Math.max(0.5, asset.audioPitch ?? 1) * 100), 50, 200);
+            audioPitchInput.value = pitchPercent;
+            setAudioPitchLabel(pitchPercent);
         }
     }
 }
@@ -1587,11 +1634,18 @@ function updateAudioSettingsFromInputs() {
     const asset = getSelectedAsset();
     if (!asset || !isAudioAsset(asset)) return;
     asset.audioLoop = !!audioLoopInput?.checked;
-    asset.audioDelayMillis = Math.max(0, parseInt(audioDelayInput?.value || '0', 10));
-    const nextAudioSpeedPercent = Math.max(25, parseInt(audioSpeedInput?.value || '100', 10));
+    const delayMs = clamp(Math.max(0, parseInt(audioDelayInput?.value || '0', 10)), 0, 30000);
+    asset.audioDelayMillis = delayMs;
+    setAudioDelayLabel(delayMs);
+    if (audioDelayInput) audioDelayInput.value = delayMs;
+    const nextAudioSpeedPercent = clamp(Math.max(25, parseInt(audioSpeedInput?.value || '100', 10)), 25, 400);
     setAudioSpeedLabel(nextAudioSpeedPercent);
+    if (audioSpeedInput) audioSpeedInput.value = nextAudioSpeedPercent;
     asset.audioSpeed = Math.max(0.25, (nextAudioSpeedPercent / 100));
-    asset.audioPitch = Math.max(0.5, (parseInt(audioPitchInput?.value || '100', 10) / 100));
+    const nextAudioPitchPercent = clamp(Math.max(50, parseInt(audioPitchInput?.value || '100', 10)), 50, 200);
+    setAudioPitchLabel(nextAudioPitchPercent);
+    if (audioPitchInput) audioPitchInput.value = nextAudioPitchPercent;
+    asset.audioPitch = Math.max(0.5, (nextAudioPitchPercent / 100));
     const controller = ensureAudioController(asset);
     applyAudioSettings(controller, asset);
     persistTransform(asset);

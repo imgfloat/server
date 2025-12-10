@@ -92,21 +92,6 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div class="control-actions compact unified-actions">
-                                    <button type="button" onclick="sendToBack()" class="secondary" title="Send to back"><i class="fa-solid fa-angles-down"></i></button>
-                                    <button type="button" onclick="bringBackward()" class="secondary" title="Move backward"><i class="fa-solid fa-arrow-down"></i></button>
-                                    <button type="button" onclick="bringForward()" class="secondary" title="Move forward"><i class="fa-solid fa-arrow-up"></i></button>
-                                    <button type="button" onclick="bringToFront()" class="secondary" title="Bring to front"><i class="fa-solid fa-angles-up"></i></button>
-                                    <button type="button" onclick="recenterSelectedAsset()" class="secondary" title="Center on canvas"><i class="fa-solid fa-bullseye"></i></button>
-                                    <button type="button" onclick="nudgeRotation(-5)" class="secondary" title="Rotate left"><i class="fa-solid fa-rotate-left"></i></button>
-                                    <button type="button" onclick="nudgeRotation(5)" class="secondary" title="Rotate right"><i class="fa-solid fa-rotate-right"></i></button>
-                                    <button id="selected-asset-visibility" class="secondary" type="button" title="Hide asset" disabled>
-                                        <i class="fa-solid fa-eye-slash"></i>
-                                    </button>
-                                    <button id="selected-asset-delete" class="secondary danger" type="button" title="Delete asset" disabled>
-                                        <i class="fa-solid fa-trash"></i>
-                                    </button>
-                                </div>
                             </div>
 
                             <div class="panel-section" id="playback-section">
@@ -151,10 +136,14 @@
                                             </span>
                                         </label>
                                     </div>
-                                    <div class="property-row">
-                                        <span class="property-label">Delay (ms)</span>
-                                        <input id="asset-audio-delay" class="number-input property-control" type="number" min="0" step="100"/>
+                                </div>
+                                <div class="stacked-field">
+                                    <div class="label-row">
+                                        <span>Delay</span>
+                                        <span class="value-hint" id="asset-audio-delay-label">0ms</span>
                                     </div>
+                                    <input id="asset-audio-delay" class="range-input property-control" type="range" min="0" max="30000" step="100" value="0" />
+                                    <div class="range-meta"><span>0ms</span><span>30s</span></div>
                                 </div>
                                 <div class="stacked-field">
                                     <div class="label-row">
@@ -164,12 +153,29 @@
                                     <input id="asset-audio-speed" class="range-input" type="range" min="25" max="400" step="5" value="100" />
                                     <div class="range-meta"><span>0.25x</span><span>4x</span></div>
                                 </div>
-                                <div class="property-list">
-                                    <div class="property-row">
-                                        <span class="property-label">Pitch (%)</span>
-                                        <input id="asset-audio-pitch" class="range-input property-control" type="range" min="50" max="200" step="5" value="100" />
+                                <div class="stacked-field">
+                                    <div class="label-row">
+                                        <span>Pitch</span>
+                                        <span class="value-hint" id="asset-audio-pitch-label">100%</span>
                                     </div>
+                                    <input id="asset-audio-pitch" class="range-input property-control" type="range" min="50" max="200" step="5" value="100" />
+                                    <div class="range-meta"><span>50%</span><span>200%</span></div>
                                 </div>
+                            </div>
+                            <div class="control-actions compact unified-actions" id="asset-actions">
+                                <button type="button" onclick="sendToBack()" class="secondary" title="Send to back"><i class="fa-solid fa-angles-down"></i></button>
+                                <button type="button" onclick="bringBackward()" class="secondary" title="Move backward"><i class="fa-solid fa-arrow-down"></i></button>
+                                <button type="button" onclick="bringForward()" class="secondary" title="Move forward"><i class="fa-solid fa-arrow-up"></i></button>
+                                <button type="button" onclick="bringToFront()" class="secondary" title="Bring to front"><i class="fa-solid fa-angles-up"></i></button>
+                                <button type="button" onclick="recenterSelectedAsset()" class="secondary" title="Center on canvas"><i class="fa-solid fa-bullseye"></i></button>
+                                <button type="button" onclick="nudgeRotation(-5)" class="secondary" title="Rotate left"><i class="fa-solid fa-rotate-left"></i></button>
+                                <button type="button" onclick="nudgeRotation(5)" class="secondary" title="Rotate right"><i class="fa-solid fa-rotate-right"></i></button>
+                                <button id="selected-asset-visibility" class="secondary" type="button" title="Hide asset" disabled data-audio-enabled="true">
+                                    <i class="fa-solid fa-eye-slash"></i>
+                                </button>
+                                <button id="selected-asset-delete" class="secondary danger" type="button" title="Delete asset" disabled data-audio-enabled="true">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
                             </div>
                         </div>
                     </div>
