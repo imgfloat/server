@@ -1185,16 +1185,6 @@ function renderAssetList() {
         meta.appendChild(name);
         meta.appendChild(details);
 
-        const badges = document.createElement('div');
-        badges.className = 'badge-row asset-detail';
-        const durationLabel = getDurationBadge(asset);
-        if (durationLabel) {
-            badges.appendChild(createBadge(durationLabel, 'subtle'));
-        }
-        if (badges.children.length > 0) {
-            meta.appendChild(badges);
-        }
-
         const actions = document.createElement('div');
         actions.className = 'actions';
 
@@ -1436,6 +1426,8 @@ function captureVideoFrame(asset) {
         video.playsInline = true;
         video.src = asset.url;
 
+        video.addEventListener('loadedmetadata', () => recordDuration(asset.id, video.duration), { once: true });
+
         const cleanup = () => {
             video.pause();
             video.removeAttribute('src');
@@ -1591,6 +1583,8 @@ function updateSelectedAssetSummary(asset) {
         assetInspector.classList.toggle('hidden', !asset && !assets.size);
     }
 
+    ensureDurationMetadata(asset);
+
     if (selectedAssetName) {
         selectedAssetName.textContent = asset ? (asset.name || `Asset ${asset.id.slice(0, 6)}`) : 'Choose an asset';
     }
@@ -1665,6 +1659,30 @@ function updateSelectedAssetSummary(asset) {
         selectedDeleteBtn.disabled = !asset;
         selectedDeleteBtn.title = asset ? 'Delete asset' : 'Delete asset';
     }
+}
+
+function ensureDurationMetadata(asset) {
+    if (!asset || hasDuration(asset) || (!isVideoAsset(asset) && !isAudioAsset(asset))) {
+        return;
+    }
+
+    const element = document.createElement(isVideoAsset(asset) ? 'video' : 'audio');
+    element.preload = 'metadata';
+    element.muted = true;
+    element.playsInline = true;
+    element.src = asset.url;
+
+    const cleanup = () => {
+        element.removeAttribute('src');
+        element.load();
+    };
+
+    element.addEventListener('loadedmetadata', () => {
+        recordDuration(asset.id, element.duration);
+        cleanup();
+    }, { once: true });
+
+    element.addEventListener('error', cleanup, { once: true });
 }
 
 function applyTransformFromInputs() {
