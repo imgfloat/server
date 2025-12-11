@@ -11,24 +11,19 @@ import com.imgfloat.app.service.ChannelDirectoryService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
-import org.springframework.core.task.TaskExecutor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.mock.web.MockMultipartFile;
 
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
-import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ConcurrentHashMap;
 
 import javax.imageio.ImageIO;
-import org.jcodec.api.awt.AWTSequenceEncoder;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -43,18 +38,14 @@ class ChannelDirectoryServiceTest {
     private SimpMessagingTemplate messagingTemplate;
     private ChannelRepository channelRepository;
     private AssetRepository assetRepository;
-    private RecordingTaskExecutor taskExecutor;
-    private Map<String, Channel> channels;
-    private Map<String, Asset> assets;
 
     @BeforeEach
     void setup() {
         messagingTemplate = mock(SimpMessagingTemplate.class);
         channelRepository = mock(ChannelRepository.class);
         assetRepository = mock(AssetRepository.class);
-        taskExecutor = new RecordingTaskExecutor();
         setupInMemoryPersistence();
-        service = new ChannelDirectoryService(channelRepository, assetRepository, messagingTemplate, taskExecutor);
+        service = new ChannelDirectoryService(channelRepository, assetRepository, messagingTemplate);
     }
 
     @Test
@@ -65,41 +56,6 @@ class ChannelDirectoryServiceTest {
         assertThat(created).isPresent();
         ArgumentCaptor<Object> captor = ArgumentCaptor.forClass(Object.class);
         verify(messagingTemplate).convertAndSend(org.mockito.ArgumentMatchers.contains("/topic/channel/caster"), captor.capture());
-    }
-
-    @Test
-    void asyncGifOptimizationSwitchesToVideo() throws Exception {
-        MockMultipartFile file = new MockMultipartFile("file", "image.gif", "image/gif", largeGif());
-
-        long start = System.currentTimeMillis();
-        AssetView created = service.createAsset("caster", file).orElseThrow();
-        long duration = System.currentTimeMillis() - start;
-
-        assertThat(duration).isLessThan(750L);
-        Asset placeholder = assets.get(created.id());
-        assertThat(placeholder.getMediaType()).isEqualTo("image/gif");
-        assertThat(placeholder.getPreview()).isNull();
-
-        taskExecutor.runAll();
-
-        Asset optimized = assets.get(created.id());
-        assertThat(optimized.getMediaType()).isEqualTo("video/mp4");
-        assertThat(optimized.getPreview()).isNotBlank();
-    }
-
-    @Test
-    void videoPreviewGeneratedInBackground() throws Exception {
-        MockMultipartFile file = new MockMultipartFile("file", "clip.mp4", "video/mp4", sampleVideo());
-
-        AssetView created = service.createAsset("caster", file).orElseThrow();
-        Asset placeholder = assets.get(created.id());
-        assertThat(placeholder.getPreview()).isNull();
-
-        taskExecutor.runAll();
-
-        Asset optimized = assets.get(created.id());
-        assertThat(optimized.getPreview()).isNotBlank();
-        assertThat(optimized.getMediaType()).isEqualTo("video/mp4");
     }
 
     @Test
@@ -129,33 +85,9 @@ class ChannelDirectoryServiceTest {
         return out.toByteArray();
     }
 
-    private byte[] largeGif() throws IOException {
-        BufferedImage image = new BufferedImage(256, 256, BufferedImage.TYPE_INT_ARGB);
-        try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-            ImageIO.write(image, "gif", out);
-            return out.toByteArray();
-        }
-    }
-
-    private byte[] sampleVideo() throws IOException {
-        File temp = File.createTempFile("sample", ".mp4");
-        temp.deleteOnExit();
-        try {
-            AWTSequenceEncoder encoder = AWTSequenceEncoder.createSequenceEncoder(temp, 10);
-            for (int i = 0; i < 15; i++) {
-                BufferedImage frame = new BufferedImage(64, 64, BufferedImage.TYPE_INT_RGB);
-                encoder.encodeImage(frame);
-            }
-            encoder.finish();
-            return java.nio.file.Files.readAllBytes(temp.toPath());
-        } finally {
-            temp.delete();
-        }
-    }
-
     private void setupInMemoryPersistence() {
-        channels = new ConcurrentHashMap<>();
-        assets = new ConcurrentHashMap<>();
+        Map<String, Channel> channels = new ConcurrentHashMap<>();
+        Map<String, Asset> assets = new ConcurrentHashMap<>();
 
         when(channelRepository.findById(anyString()))
                 .thenAnswer(invocation -> Optional.ofNullable(channels.get(invocation.getArgument(0))));
@@ -189,19 +121,5 @@ class ChannelDirectoryServiceTest {
                 .filter(asset -> asset.getBroadcaster().equalsIgnoreCase(broadcaster))
                 .filter(asset -> !onlyVisible || !asset.isHidden())
                 .toList();
-    }
-
-    private static class RecordingTaskExecutor implements TaskExecutor {
-        private final List<Runnable> queued = new CopyOnWriteArrayList<>();
-
-        @Override
-        public void execute(Runnable task) {
-            queued.add(task);
-        }
-
-        void runAll() {
-            new ArrayList<>(queued).forEach(Runnable::run);
-            queued.clear();
-        }
     }
 }

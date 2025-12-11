@@ -5,7 +5,6 @@ import jakarta.persistence.Column;
 import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
-import jakarta.persistence.Index;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.PrePersist;
@@ -19,17 +18,13 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 @Entity
-@Table(name = "channels", indexes = {
-        @Index(name = "idx_channels_broadcaster", columnList = "broadcaster")
-})
+@Table(name = "channels")
 public class Channel {
     @Id
     private String broadcaster;
 
     @ElementCollection(fetch = FetchType.EAGER)
-    @CollectionTable(name = "channel_admins",
-            joinColumns = @JoinColumn(name = "channel_id"),
-            indexes = @Index(name = "idx_channel_admins_username", columnList = "admin_username"))
+    @CollectionTable(name = "channel_admins", joinColumns = @JoinColumn(name = "channel_id"))
     @Column(name = "admin_username")
     private Set<String> admins = new HashSet<>();
 
