@@ -13,6 +13,7 @@ import dev.kruhlmann.imgfloat.repository.AssetRepository;
 import dev.kruhlmann.imgfloat.repository.ChannelRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -32,6 +33,7 @@ import dev.kruhlmann.imgfloat.service.media.MediaOptimizationService;
 import dev.kruhlmann.imgfloat.service.media.OptimizedAsset;
 
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
+import static org.springframework.http.HttpStatus.PAYLOAD_TOO_LARGE;
 
 @Service
 public class ChannelDirectoryService {
@@ -48,19 +50,22 @@ public class ChannelDirectoryService {
     private final AssetStorageService assetStorageService;
     private final MediaDetectionService mediaDetectionService;
     private final MediaOptimizationService mediaOptimizationService;
+    private final long maxUploadBytes;
 
     public ChannelDirectoryService(ChannelRepository channelRepository,
                                    AssetRepository assetRepository,
                                    SimpMessagingTemplate messagingTemplate,
                                    AssetStorageService assetStorageService,
                                    MediaDetectionService mediaDetectionService,
-                                   MediaOptimizationService mediaOptimizationService) {
+                                   MediaOptimizationService mediaOptimizationService,
+                                   @Value("${IMGFLOAT_UPLOAD_MAX_BYTES:26214400}") long maxUploadBytes) {
         this.channelRepository = channelRepository;
         this.assetRepository = assetRepository;
         this.messagingTemplate = messagingTemplate;
         this.assetStorageService = assetStorageService;
         this.mediaDetectionService = mediaDetectionService;
         this.mediaOptimizationService = mediaOptimizationService;
+        this.maxUploadBytes = maxUploadBytes;
     }
 
     public Channel getOrCreateChannel(String broadcaster) {
@@ -123,8 +128,18 @@ public class ChannelDirectoryService {
 
     public Optional<AssetView> createAsset(String broadcaster, MultipartFile file) throws IOException {
         Channel channel = getOrCreateChannel(broadcaster);
+        long reportedSize = file.getSize();
+        if (reportedSize > 0 && reportedSize > maxUploadBytes) {
+            throw new ResponseStatusException(PAYLOAD_TOO_LARGE, "Upload exceeds limit");
+        }
+
         byte[] bytes = file.getBytes();
-        String mediaType = mediaDetectionService.detectMediaType(file, bytes);
+        if (bytes.length > maxUploadBytes) {
+            throw new ResponseStatusException(PAYLOAD_TOO_LARGE, "Upload exceeds limit");
+        }
+
+        String mediaType = mediaDetectionService.detectAllowedMediaType(file, bytes)
+                .orElseThrow(() -> new ResponseStatusException(BAD_REQUEST, "Unsupported media type"));
 
         OptimizedAsset optimized = mediaOptimizationService.optimizeAsset(bytes, mediaType);
         if (optimized == null) {

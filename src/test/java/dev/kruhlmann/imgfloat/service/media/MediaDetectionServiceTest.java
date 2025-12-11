@@ -11,24 +11,24 @@ class MediaDetectionServiceTest {
     private final MediaDetectionService service = new MediaDetectionService();
 
     @Test
-    void prefersProvidedContentType() throws IOException {
-        MockMultipartFile file = new MockMultipartFile("file", "image.png", "image/png", new byte[]{1, 2, 3});
-
-        assertThat(service.detectMediaType(file, file.getBytes())).isEqualTo("image/png");
-    }
-
-    @Test
-    void fallsBackToFilenameAndStream() throws IOException {
+    void acceptsMagicBytesOverDeclaredType() throws IOException {
         byte[] png = new byte[]{(byte) 0x89, 0x50, 0x4E, 0x47};
-        MockMultipartFile file = new MockMultipartFile("file", "picture.png", null, png);
+        MockMultipartFile file = new MockMultipartFile("file", "image.png", "text/plain", png);
 
-        assertThat(service.detectMediaType(file, file.getBytes())).isEqualTo("image/png");
+        assertThat(service.detectAllowedMediaType(file, file.getBytes())).contains("image/png");
     }
 
     @Test
-    void returnsOctetStreamForUnknownType() throws IOException {
+    void fallsBackToFilenameAllowlist() throws IOException {
+        MockMultipartFile file = new MockMultipartFile("file", "picture.png", null, new byte[]{1, 2, 3});
+
+        assertThat(service.detectAllowedMediaType(file, file.getBytes())).contains("image/png");
+    }
+
+    @Test
+    void rejectsUnknownTypes() throws IOException {
         MockMultipartFile file = new MockMultipartFile("file", "unknown.bin", null, new byte[]{1, 2, 3});
 
-        assertThat(service.detectMediaType(file, file.getBytes())).isEqualTo("application/octet-stream");
+        assertThat(service.detectAllowedMediaType(file, file.getBytes())).isEmpty();
     }
 }

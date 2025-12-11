@@ -11,7 +11,7 @@ build:
 
 .PHONY: run
 run:
-	test -f .env && . ./.env; mvn spring-boot:run
+	test -f .env && . ./.env; IMGFLOAT_UPLOAD_MAX_BYTES=16777216 mvn spring-boot:run
 
 .PHONY: watch
 watch:

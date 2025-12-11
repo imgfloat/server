@@ -61,7 +61,7 @@ class ChannelDirectoryServiceTest {
         MediaOptimizationService mediaOptimizationService = new MediaOptimizationService(mediaPreviewService);
         MediaDetectionService mediaDetectionService = new MediaDetectionService();
         service = new ChannelDirectoryService(channelRepository, assetRepository, messagingTemplate,
-                assetStorageService, mediaDetectionService, mediaOptimizationService);
+                assetStorageService, mediaDetectionService, mediaOptimizationService, 26214400L);
     }
 
     @Test

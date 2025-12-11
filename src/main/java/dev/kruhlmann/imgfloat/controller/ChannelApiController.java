@@ -13,8 +13,9 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClientService;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
@@ -248,6 +249,8 @@ public class ChannelApiController {
             LOG.debug("Serving asset {} for broadcaster {} to authenticated user {}", assetId, broadcaster, authentication.getName());
             return channelDirectoryService.getAssetContent(broadcaster, assetId)
                     .map(content -> ResponseEntity.ok()
+                            .header("X-Content-Type-Options", "nosniff")
+                            .header(HttpHeaders.CONTENT_DISPOSITION, contentDispositionFor(content.mediaType()))
                             .contentType(MediaType.parseMediaType(content.mediaType()))
                             .body(content.bytes()))
                     .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Asset not found"));
@@ -255,6 +258,8 @@ public class ChannelApiController {
 
         return channelDirectoryService.getVisibleAssetContent(broadcaster, assetId)
                 .map(content -> ResponseEntity.ok()
+                        .header("X-Content-Type-Options", "nosniff")
+                        .header(HttpHeaders.CONTENT_DISPOSITION, contentDispositionFor(content.mediaType()))
                         .contentType(MediaType.parseMediaType(content.mediaType()))
                         .body(content.bytes()))
                 .orElseThrow(() -> new ResponseStatusException(FORBIDDEN, "Asset not available"));
@@ -275,6 +280,7 @@ public class ChannelApiController {
             LOG.debug("Serving preview for asset {} for broadcaster {}", assetId, broadcaster);
             return channelDirectoryService.getAssetPreview(broadcaster, assetId, true)
                     .map(content -> ResponseEntity.ok()
+                            .header("X-Content-Type-Options", "nosniff")
                             .contentType(MediaType.parseMediaType(content.mediaType()))
                             .body(content.bytes()))
                     .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Preview not found"));
@@ -282,9 +288,17 @@ public class ChannelApiController {
 
         return channelDirectoryService.getAssetPreview(broadcaster, assetId, false)
                 .map(content -> ResponseEntity.ok()
+                        .header("X-Content-Type-Options", "nosniff")
                         .contentType(MediaType.parseMediaType(content.mediaType()))
                         .body(content.bytes()))
                 .orElseThrow(() -> new ResponseStatusException(FORBIDDEN, "Preview not available"));
+    }
+
+    private String contentDispositionFor(String mediaType) {
+        if (mediaType != null && dev.kruhlmann.imgfloat.service.media.MediaDetectionService.isInlineDisplayType(mediaType)) {
+            return "inline";
+        }
+        return "attachment";
     }
 
     @DeleteMapping("/assets/{assetId}")
