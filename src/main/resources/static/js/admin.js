@@ -1146,7 +1146,7 @@ function renderAssetList() {
             assetInspector.classList.add('hidden');
         }
         const empty = document.createElement('li');
-        empty.textContent = 'No assets yet. Upload to get started.';
+        empty.textContent = '';
         list.appendChild(empty);
         updateSelectedAssetControls();
         return;
