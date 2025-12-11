@@ -9,7 +9,7 @@
     "dist:mac": "electron-builder --mac"
   },
   "build": {
-    "appId": "com.imgfloat.overlay",
+    "appId": "dev.kruhlmann.imgfloat.overlay",
     "productName": "Imgfloat",
     "files": [
       "app.js"
