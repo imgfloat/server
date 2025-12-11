@@ -11,55 +11,30 @@ import com.imgfloat.app.model.TransformRequest;
 import com.imgfloat.app.model.VisibilityRequest;
 import com.imgfloat.app.repository.AssetRepository;
 import com.imgfloat.app.repository.ChannelRepository;
-import org.jcodec.api.FrameGrab;
-import org.jcodec.api.JCodecException;
-import org.jcodec.api.awt.AWTSequenceEncoder;
-import org.jcodec.common.io.ByteBufferSeekableByteChannel;
-import org.jcodec.common.model.Picture;
-import org.jcodec.scale.AWTUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.File;
 import java.io.IOException;
-import java.net.URLConnection;
-import java.nio.ByteBuffer;
-import java.nio.file.InvalidPathException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
 import java.util.Base64;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
-import javax.imageio.ImageIO;
-import javax.imageio.ImageReader;
-import javax.imageio.ImageWriteParam;
-import javax.imageio.ImageWriter;
-import javax.imageio.IIOImage;
-import javax.imageio.metadata.IIOMetadata;
-import javax.imageio.stream.ImageOutputStream;
-import javax.imageio.stream.ImageInputStream;
-import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
+
+import com.imgfloat.app.service.media.AssetContent;
+import com.imgfloat.app.service.media.MediaDetectionService;
+import com.imgfloat.app.service.media.MediaOptimizationService;
+import com.imgfloat.app.service.media.OptimizedAsset;
 
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 
 @Service
 public class ChannelDirectoryService {
-    private static final int MIN_GIF_DELAY_MS = 20;
-    private static final String PREVIEW_MEDIA_TYPE = "image/png";
     private static final double MAX_SPEED = 4.0;
     private static final double MIN_AUDIO_SPEED = 0.1;
     private static final double MAX_AUDIO_SPEED = 4.0;
@@ -70,19 +45,22 @@ public class ChannelDirectoryService {
     private final ChannelRepository channelRepository;
     private final AssetRepository assetRepository;
     private final SimpMessagingTemplate messagingTemplate;
-    private final Path assetRoot;
-    private final Path previewRoot;
+    private final AssetStorageService assetStorageService;
+    private final MediaDetectionService mediaDetectionService;
+    private final MediaOptimizationService mediaOptimizationService;
 
     public ChannelDirectoryService(ChannelRepository channelRepository,
                                    AssetRepository assetRepository,
                                    SimpMessagingTemplate messagingTemplate,
-                                   @Value("${IMGFLOAT_ASSETS_PATH:assets}") String assetRoot,
-                                   @Value("${IMGFLOAT_PREVIEWS_PATH:previews}") String previewRoot) {
+                                   AssetStorageService assetStorageService,
+                                   MediaDetectionService mediaDetectionService,
+                                   MediaOptimizationService mediaOptimizationService) {
         this.channelRepository = channelRepository;
         this.assetRepository = assetRepository;
         this.messagingTemplate = messagingTemplate;
-        this.assetRoot = Paths.get(assetRoot);
-        this.previewRoot = Paths.get(previewRoot);
+        this.assetStorageService = assetStorageService;
+        this.mediaDetectionService = mediaDetectionService;
+        this.mediaOptimizationService = mediaOptimizationService;
     }
 
     public Channel getOrCreateChannel(String broadcaster) {
@@ -146,9 +124,9 @@ public class ChannelDirectoryService {
     public Optional<AssetView> createAsset(String broadcaster, MultipartFile file) throws IOException {
         Channel channel = getOrCreateChannel(broadcaster);
         byte[] bytes = file.getBytes();
-        String mediaType = detectMediaType(file, bytes);
+        String mediaType = mediaDetectionService.detectMediaType(file, bytes);
 
-        OptimizedAsset optimized = optimizeAsset(bytes, mediaType);
+        OptimizedAsset optimized = mediaOptimizationService.optimizeAsset(bytes, mediaType);
         if (optimized == null) {
             return Optional.empty();
         }
@@ -163,8 +141,8 @@ public class ChannelDirectoryService {
         Asset asset = new Asset(channel.getBroadcaster(), name, "", width, height);
         asset.setOriginalMediaType(mediaType);
         asset.setMediaType(optimized.mediaType());
-        asset.setUrl(storeAsset(channel.getBroadcaster(), asset.getId(), optimized.bytes(), optimized.mediaType()));
-        asset.setPreview(storePreview(channel.getBroadcaster(), asset.getId(), optimized.previewBytes()));
+        asset.setUrl(assetStorageService.storeAsset(channel.getBroadcaster(), asset.getId(), optimized.bytes(), optimized.mediaType()));
+        asset.setPreview(assetStorageService.storePreview(channel.getBroadcaster(), asset.getId(), optimized.previewBytes()));
         asset.setSpeed(1.0);
         asset.setMuted(optimized.mediaType().startsWith("video/"));
         asset.setAudioLoop(false);
@@ -281,8 +259,8 @@ public class ChannelDirectoryService {
         return assetRepository.findById(assetId)
                 .filter(asset -> normalized.equals(asset.getBroadcaster()))
                 .map(asset -> {
-                    deleteAssetFile(asset.getUrl());
-                    deletePreviewFile(asset.getPreview());
+                    assetStorageService.deleteAssetFile(asset.getUrl());
+                    assetStorageService.deletePreviewFile(asset.getPreview());
                     assetRepository.delete(asset);
                     messagingTemplate.convertAndSend(topicFor(broadcaster), AssetEvent.deleted(broadcaster, assetId));
                     return true;
@@ -311,7 +289,7 @@ public class ChannelDirectoryService {
                 .filter(asset -> normalized.equals(asset.getBroadcaster()))
                 .filter(asset -> includeHidden || !asset.isHidden())
                 .map(asset -> {
-                    Optional<AssetContent> preview = loadPreview(asset.getPreview())
+                    Optional<AssetContent> preview = assetStorageService.loadPreview(asset.getPreview())
                             .or(() -> decodeDataUrl(asset.getPreview()));
                     if (preview.isPresent()) {
                         return preview.get();
@@ -363,7 +341,7 @@ public class ChannelDirectoryService {
     }
 
     private Optional<AssetContent> decodeAssetData(Asset asset) {
-        return loadAssetFile(asset.getUrl(), asset.getMediaType())
+        return assetStorageService.loadAssetFile(asset.getUrl(), asset.getMediaType())
                 .or(() -> decodeDataUrl(asset.getUrl()))
                 .or(() -> {
                     logger.warn("Unable to decode asset data for {}", asset.getId());
@@ -392,134 +370,6 @@ public class ChannelDirectoryService {
         }
     }
 
-    private Optional<AssetContent> loadPreview(String previewPath) {
-        if (previewPath == null || previewPath.isBlank()) {
-            return Optional.empty();
-        }
-        try {
-            Path path = Paths.get(previewPath);
-            if (!Files.exists(path)) {
-                return Optional.empty();
-            }
-            try {
-                return Optional.of(new AssetContent(Files.readAllBytes(path), PREVIEW_MEDIA_TYPE));
-            } catch (IOException e) {
-                logger.warn("Unable to read preview from {}", previewPath, e);
-                return Optional.empty();
-            }
-        } catch (InvalidPathException e) {
-            logger.debug("Preview path {} is not a file path; skipping", previewPath);
-            return Optional.empty();
-        }
-    }
-
-    private Optional<AssetContent> loadAssetFile(String assetPath, String mediaType) {
-        if (assetPath == null || assetPath.isBlank()) {
-            return Optional.empty();
-        }
-        try {
-            Path path = Paths.get(assetPath);
-            if (!Files.exists(path)) {
-                return Optional.empty();
-            }
-            try {
-                String resolvedMediaType = mediaType;
-                if (resolvedMediaType == null || resolvedMediaType.isBlank()) {
-                    resolvedMediaType = Files.probeContentType(path);
-                }
-                if (resolvedMediaType == null || resolvedMediaType.isBlank()) {
-                    resolvedMediaType = "application/octet-stream";
-                }
-                return Optional.of(new AssetContent(Files.readAllBytes(path), resolvedMediaType));
-            } catch (IOException e) {
-                logger.warn("Unable to read asset from {}", assetPath, e);
-                return Optional.empty();
-            }
-        } catch (InvalidPathException e) {
-            logger.debug("Asset path {} is not a file path; skipping", assetPath);
-            return Optional.empty();
-        }
-    }
-
-    private String storeAsset(String broadcaster, String assetId, byte[] assetBytes, String mediaType) throws IOException {
-        if (assetBytes == null || assetBytes.length == 0) {
-            throw new IOException("Asset content is empty");
-        }
-        Path directory = assetRoot.resolve(normalize(broadcaster));
-        Files.createDirectories(directory);
-        String extension = extensionForMediaType(mediaType);
-        Path assetFile = directory.resolve(assetId + extension);
-        Files.write(assetFile, assetBytes, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE);
-        return assetFile.toString();
-    }
-
-    private void deleteAssetFile(String assetPath) {
-        if (assetPath == null || assetPath.isBlank()) {
-            return;
-        }
-        try {
-            Path path = Paths.get(assetPath);
-            try {
-                Files.deleteIfExists(path);
-            } catch (IOException e) {
-                logger.warn("Unable to delete asset file {}", assetPath, e);
-            }
-        } catch (InvalidPathException e) {
-            logger.debug("Asset value {} is not a file path; nothing to delete", assetPath);
-        }
-    }
-
-    private String extensionForMediaType(String mediaType) {
-        if (mediaType == null || mediaType.isBlank()) {
-            return ".bin";
-        }
-        return switch (mediaType.toLowerCase(Locale.ROOT)) {
-            case "image/png" -> ".png";
-            case "image/jpeg", "image/jpg" -> ".jpg";
-            case "image/gif" -> ".gif";
-            case "video/mp4" -> ".mp4";
-            case "video/webm" -> ".webm";
-            case "video/quicktime" -> ".mov";
-            case "audio/mpeg" -> ".mp3";
-            case "audio/wav" -> ".wav";
-            case "audio/ogg" -> ".ogg";
-            default -> {
-                int slash = mediaType.indexOf('/');
-                if (slash > -1 && slash < mediaType.length() - 1) {
-                    yield "." + mediaType.substring(slash + 1).replaceAll("[^a-z0-9.+-]", "");
-                }
-                yield ".bin";
-            }
-        };
-    }
-
-    private String storePreview(String broadcaster, String assetId, byte[] previewBytes) throws IOException {
-        if (previewBytes == null || previewBytes.length == 0) {
-            return null;
-        }
-        Path directory = previewRoot.resolve(normalize(broadcaster));
-        Files.createDirectories(directory);
-        Path previewFile = directory.resolve(assetId + ".png");
-        Files.write(previewFile, previewBytes, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE);
-        return previewFile.toString();
-    }
-
-    private void deletePreviewFile(String previewPath) {
-        if (previewPath == null || previewPath.isBlank()) {
-            return;
-        }
-        try {
-            Path path = Paths.get(previewPath);
-            try {
-                Files.deleteIfExists(path);
-            } catch (IOException e) {
-                logger.warn("Unable to delete preview file {}", previewPath, e);
-            }
-        } catch (InvalidPathException e) {
-            logger.debug("Preview value {} is not a file path; nothing to delete", previewPath);
-        }
-    }
-
     private int nextZIndex(String broadcaster) {
         return assetRepository.findByBroadcaster(normalize(broadcaster)).stream()
                 .mapToInt(Asset::getZIndex)
@@ -527,244 +377,4 @@ public class ChannelDirectoryService {
                 .orElse(0) + 1;
     }
 
-    private String detectMediaType(MultipartFile file, byte[] bytes) {
-        String contentType = Optional.ofNullable(file.getContentType()).orElse("application/octet-stream");
-        if (!"application/octet-stream".equals(contentType) && !contentType.isBlank()) {
-            return contentType;
-        }
-
-        try (var stream = new ByteArrayInputStream(bytes)) {
-            String guessed = URLConnection.guessContentTypeFromStream(stream);
-            if (guessed != null && !guessed.isBlank()) {
-                return guessed;
-            }
-        } catch (IOException e) {
-            logger.warn("Unable to detect content type from stream", e);
-        }
-
-        return Optional.ofNullable(file.getOriginalFilename())
-                .map(name -> name.replaceAll("^.*\\.", "").toLowerCase())
-                .map(ext -> switch (ext) {
-                    case "png" -> "image/png";
-                    case "jpg", "jpeg" -> "image/jpeg";
-                    case "gif" -> "image/gif";
-                    case "mp4" -> "video/mp4";
-                    case "webm" -> "video/webm";
-                    case "mov" -> "video/quicktime";
-                    case "mp3" -> "audio/mpeg";
-                    case "wav" -> "audio/wav";
-                    case "ogg" -> "audio/ogg";
-                    default -> "application/octet-stream";
-                })
-                .orElse("application/octet-stream");
-    }
-
-    private OptimizedAsset optimizeAsset(byte[] bytes, String mediaType) throws IOException {
-        if ("image/gif".equalsIgnoreCase(mediaType)) {
-            OptimizedAsset transcoded = transcodeGifToVideo(bytes);
-            if (transcoded != null) {
-                return transcoded;
-            }
-        }
-
-        if (mediaType.startsWith("image/") && !"image/gif".equalsIgnoreCase(mediaType)) {
-            BufferedImage image = ImageIO.read(new ByteArrayInputStream(bytes));
-            if (image == null) {
-                return null;
-            }
-            byte[] compressed = compressPng(image);
-            return new OptimizedAsset(compressed, "image/png", image.getWidth(), image.getHeight(), null);
-        }
-
-        if (mediaType.startsWith("image/")) {
-            BufferedImage image = ImageIO.read(new ByteArrayInputStream(bytes));
-            if (image == null) {
-                return null;
-            }
-            return new OptimizedAsset(bytes, mediaType, image.getWidth(), image.getHeight(), null);
-        }
-
-        if (mediaType.startsWith("video/")) {
-            var dimensions = extractVideoDimensions(bytes);
-            byte[] preview = extractVideoPreview(bytes, mediaType);
-            return new OptimizedAsset(bytes, mediaType, dimensions.width(), dimensions.height(), preview);
-        }
-
-        if (mediaType.startsWith("audio/")) {
-            return new OptimizedAsset(bytes, mediaType, 0, 0, null);
-        }
-
-        BufferedImage image = ImageIO.read(new ByteArrayInputStream(bytes));
-        if (image != null) {
-            return new OptimizedAsset(bytes, mediaType, image.getWidth(), image.getHeight(), null);
-        }
-        return null;
-    }
-
-    private OptimizedAsset transcodeGifToVideo(byte[] bytes) {
-        try {
-            List<GifFrame> frames = readGifFrames(bytes);
-            if (frames.isEmpty()) {
-                return null;
-            }
-            int baseDelay = frames.stream()
-                    .mapToInt(frame -> normalizeDelay(frame.delayMs()))
-                    .reduce(this::greatestCommonDivisor)
-                    .orElse(100);
-            int fps = Math.max(1, (int) Math.round(1000.0 / baseDelay));
-            File temp = File.createTempFile("gif-convert", ".mp4");
-            temp.deleteOnExit();
-            try {
-                AWTSequenceEncoder encoder = AWTSequenceEncoder.createSequenceEncoder(temp, fps);
-                for (GifFrame frame : frames) {
-                    int repeats = Math.max(1, normalizeDelay(frame.delayMs()) / baseDelay);
-                    for (int i = 0; i < repeats; i++) {
-                        encoder.encodeImage(frame.image());
-                    }
-                }
-                encoder.finish();
-                BufferedImage cover = frames.get(0).image();
-                byte[] video = Files.readAllBytes(temp.toPath());
-                return new OptimizedAsset(video, "video/mp4", cover.getWidth(), cover.getHeight(), encodePreview(cover));
-            } finally {
-                Files.deleteIfExists(temp.toPath());
-            }
-        } catch (IOException e) {
-            logger.warn("Unable to transcode GIF to video", e);
-            return null;
-        }
-    }
-
-    private List<GifFrame> readGifFrames(byte[] bytes) throws IOException {
-        try (ImageInputStream stream = ImageIO.createImageInputStream(new ByteArrayInputStream(bytes))) {
-            var readers = ImageIO.getImageReadersByFormatName("gif");
-            if (!readers.hasNext()) {
-                return List.of();
-            }
-            ImageReader reader = readers.next();
-            try {
-                reader.setInput(stream, false, false);
-                int count = reader.getNumImages(true);
-                var frames = new java.util.ArrayList<GifFrame>(count);
-                for (int i = 0; i < count; i++) {
-                    BufferedImage image = reader.read(i);
-                    IIOMetadata metadata = reader.getImageMetadata(i);
-                    int delay = extractDelayMs(metadata);
-                    frames.add(new GifFrame(image, delay));
-                }
-                return frames;
-            } finally {
-                reader.dispose();
-            }
-        }
-    }
-
-    private int extractDelayMs(IIOMetadata metadata) {
-        if (metadata == null) {
-            return 100;
-        }
-        try {
-            String format = metadata.getNativeMetadataFormatName();
-            Node root = metadata.getAsTree(format);
-            NodeList children = root.getChildNodes();
-            for (int i = 0; i < children.getLength(); i++) {
-                Node node = children.item(i);
-                if ("GraphicControlExtension".equals(node.getNodeName()) && node.getAttributes() != null) {
-                    Node delay = node.getAttributes().getNamedItem("delayTime");
-                    if (delay != null) {
-                        int hundredths = Integer.parseInt(delay.getNodeValue());
-                        return Math.max(hundredths * 10, MIN_GIF_DELAY_MS);
-                    }
-                }
-            }
-        } catch (Exception e) {
-            logger.warn("Unable to parse GIF delay", e);
-        }
-        return 100;
-    }
-
-    private int normalizeDelay(int delayMs) {
-        return Math.max(delayMs, MIN_GIF_DELAY_MS);
-    }
-
-    private int greatestCommonDivisor(int a, int b) {
-        if (b == 0) {
-            return Math.max(a, 1);
-        }
-        return greatestCommonDivisor(b, a % b);
-    }
-
-    private byte[] compressPng(BufferedImage image) throws IOException {
-        var writers = ImageIO.getImageWritersByFormatName("png");
-        if (!writers.hasNext()) {
-            logger.warn("No PNG writer available; skipping compression");
-            try (ByteArrayOutputStream fallback = new ByteArrayOutputStream()) {
-                ImageIO.write(image, "png", fallback);
-                return fallback.toByteArray();
-            }
-        }
-        ImageWriter writer = writers.next();
-        try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
-             ImageOutputStream ios = ImageIO.createImageOutputStream(baos)) {
-            writer.setOutput(ios);
-            ImageWriteParam param = writer.getDefaultWriteParam();
-            if (param.canWriteCompressed()) {
-                param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
-                param.setCompressionQuality(1.0f);
-            }
-            writer.write(null, new IIOImage(image, null, null), param);
-            return baos.toByteArray();
-        } finally {
-            writer.dispose();
-        }
-    }
-
-    private byte[] encodePreview(BufferedImage image) {
-        if (image == null) {
-            return null;
-        }
-        try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
-            ImageIO.write(image, "png", baos);
-            return baos.toByteArray();
-        } catch (IOException e) {
-            logger.warn("Unable to encode preview image", e);
-            return null;
-        }
-    }
-
-    private Dimension extractVideoDimensions(byte[] bytes) {
-        try (var channel = new ByteBufferSeekableByteChannel(ByteBuffer.wrap(bytes), bytes.length)) {
-            FrameGrab grab = FrameGrab.createFrameGrab(channel);
-            Picture frame = grab.getNativeFrame();
-            if (frame != null) {
-                return new Dimension(frame.getWidth(), frame.getHeight());
-            }
-        } catch (IOException | JCodecException e) {
-            logger.warn("Unable to read video dimensions", e);
-        }
-        return new Dimension(640, 360);
-    }
-
-    private byte[] extractVideoPreview(byte[] bytes, String mediaType) {
-        try (var channel = new ByteBufferSeekableByteChannel(ByteBuffer.wrap(bytes), bytes.length)) {
-            FrameGrab grab = FrameGrab.createFrameGrab(channel);
-            Picture frame = grab.getNativeFrame();
-            if (frame == null) {
-                return null;
-            }
-            BufferedImage image = AWTUtil.toBufferedImage(frame);
-            return encodePreview(image);
-        } catch (IOException | JCodecException e) {
-            logger.warn("Unable to capture video preview frame for {}", mediaType, e);
-            return null;
-        }
-    }
-
-    public record AssetContent(byte[] bytes, String mediaType) { }
-
-    private record OptimizedAsset(byte[] bytes, String mediaType, int width, int height, byte[] previewBytes) { }
-
-    private record GifFrame(BufferedImage image, int delayMs) { }
-
-    private record Dimension(int width, int height) { }
 }

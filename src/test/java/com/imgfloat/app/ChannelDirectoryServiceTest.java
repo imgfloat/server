@@ -8,6 +8,10 @@ import com.imgfloat.app.model.Channel;
 import com.imgfloat.app.repository.AssetRepository;
 import com.imgfloat.app.repository.ChannelRepository;
 import com.imgfloat.app.service.ChannelDirectoryService;
+import com.imgfloat.app.service.AssetStorageService;
+import com.imgfloat.app.service.media.MediaDetectionService;
+import com.imgfloat.app.service.media.MediaOptimizationService;
+import com.imgfloat.app.service.media.MediaPreviewService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -52,8 +56,12 @@ class ChannelDirectoryServiceTest {
         setupInMemoryPersistence();
         Path assetRoot = Files.createTempDirectory("imgfloat-assets-test");
         Path previewRoot = Files.createTempDirectory("imgfloat-previews-test");
+        AssetStorageService assetStorageService = new AssetStorageService(assetRoot.toString(), previewRoot.toString());
+        MediaPreviewService mediaPreviewService = new MediaPreviewService();
+        MediaOptimizationService mediaOptimizationService = new MediaOptimizationService(mediaPreviewService);
+        MediaDetectionService mediaDetectionService = new MediaDetectionService();
         service = new ChannelDirectoryService(channelRepository, assetRepository, messagingTemplate,
-                assetRoot.toString(), previewRoot.toString());
+                assetStorageService, mediaDetectionService, mediaOptimizationService);
     }
 
     @Test
