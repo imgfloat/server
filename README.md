@@ -50,6 +50,32 @@ make docker-build
 TWITCH_CLIENT_ID=your_id TWITCH_CLIENT_SECRET=your_secret docker run -p 8080:8080 imgfloat:latest
 ```
 
+### Data storage configuration
+- `IMGFLOAT_DB_PATH` – filesystem location for the SQLite database (default: `imgfloat.db`).
+- `IMGFLOAT_ASSETS_PATH` – root directory where uploaded assets are persisted (default: `assets`).
+- `IMGFLOAT_PREVIEWS_PATH` – root directory for generated preview images (default: `previews`).
+
+### Docker Compose example with persistent storage
+```yaml
+services:
+  imgfloat:
+    image: imgfloat:latest
+    environment:
+      TWITCH_CLIENT_ID: your_id
+      TWITCH_CLIENT_SECRET: your_secret
+      TWITCH_REDIRECT_URI: https://yourdomain/login/oauth2/code/twitch
+      IMGFLOAT_DB_PATH: /var/lib/imgfloat/imgfloat.db
+      IMGFLOAT_ASSETS_PATH: /var/lib/imgfloat/assets
+      IMGFLOAT_PREVIEWS_PATH: /var/lib/imgfloat/previews
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data/db:/var/lib/imgfloat
+      - ./data/assets:/var/lib/imgfloat/assets
+      - ./data/previews:/var/lib/imgfloat/previews
+```
+The `volumes` map local folders into the container so database and uploaded files survive container restarts.
+
 ### OAuth configuration
 Spring Boot reads Twitch credentials from `TWITCH_CLIENT_ID` and `TWITCH_CLIENT_SECRET`. The redirect URI comes from `TWITCH_REDIRECT_URI` (defaulting to `{baseUrl}/login/oauth2/code/twitch`).
 

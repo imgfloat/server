@@ -17,6 +17,8 @@ import org.springframework.mock.web.MockMultipartFile;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -40,12 +42,15 @@ class ChannelDirectoryServiceTest {
     private AssetRepository assetRepository;
 
     @BeforeEach
-    void setup() {
+    void setup() throws Exception {
         messagingTemplate = mock(SimpMessagingTemplate.class);
         channelRepository = mock(ChannelRepository.class);
         assetRepository = mock(AssetRepository.class);
         setupInMemoryPersistence();
-        service = new ChannelDirectoryService(channelRepository, assetRepository, messagingTemplate);
+        Path assetRoot = Files.createTempDirectory("imgfloat-assets-test");
+        Path previewRoot = Files.createTempDirectory("imgfloat-previews-test");
+        service = new ChannelDirectoryService(channelRepository, assetRepository, messagingTemplate,
+                assetRoot.toString(), previewRoot.toString());
     }
 
     @Test

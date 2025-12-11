@@ -19,6 +19,7 @@ import org.jcodec.common.model.Picture;
 import org.jcodec.scale.AWTUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -57,19 +58,23 @@ import org.w3c.dom.NodeList;
 public class ChannelDirectoryService {
     private static final int MIN_GIF_DELAY_MS = 20;
     private static final String PREVIEW_MEDIA_TYPE = "image/png";
-    private static final Path ASSET_ROOT = Paths.get("assets");
-    private static final Path PREVIEW_ROOT = Paths.get("previews");
     private static final Logger logger = LoggerFactory.getLogger(ChannelDirectoryService.class);
     private final ChannelRepository channelRepository;
     private final AssetRepository assetRepository;
     private final SimpMessagingTemplate messagingTemplate;
+    private final Path assetRoot;
+    private final Path previewRoot;
 
     public ChannelDirectoryService(ChannelRepository channelRepository,
                                    AssetRepository assetRepository,
-                                   SimpMessagingTemplate messagingTemplate) {
+                                   SimpMessagingTemplate messagingTemplate,
+                                   @Value("${IMGFLOAT_ASSETS_PATH:assets}") String assetRoot,
+                                   @Value("${IMGFLOAT_PREVIEWS_PATH:previews}") String previewRoot) {
         this.channelRepository = channelRepository;
         this.assetRepository = assetRepository;
         this.messagingTemplate = messagingTemplate;
+        this.assetRoot = Paths.get(assetRoot);
+        this.previewRoot = Paths.get(previewRoot);
     }
 
     public Channel getOrCreateChannel(String broadcaster) {
@@ -408,7 +413,7 @@ public class ChannelDirectoryService {
         if (assetBytes == null || assetBytes.length == 0) {
             throw new IOException("Asset content is empty");
         }
-        Path directory = ASSET_ROOT.resolve(normalize(broadcaster));
+        Path directory = assetRoot.resolve(normalize(broadcaster));
         Files.createDirectories(directory);
         String extension = extensionForMediaType(mediaType);
         Path assetFile = directory.resolve(assetId + extension);
@@ -460,7 +465,7 @@ public class ChannelDirectoryService {
         if (previewBytes == null || previewBytes.length == 0) {
             return null;
         }
-        Path directory = PREVIEW_ROOT.resolve(normalize(broadcaster));
+        Path directory = previewRoot.resolve(normalize(broadcaster));
         Files.createDirectories(directory);
         Path previewFile = directory.resolve(assetId + ".png");
         Files.write(previewFile, previewBytes, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE);
