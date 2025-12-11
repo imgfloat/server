@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
@@ -28,6 +29,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import javax.imageio.ImageIO;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
@@ -69,12 +71,7 @@ class ChannelDirectoryServiceTest {
         String channel = "caster";
         String id = service.createAsset(channel, file).orElseThrow().id();
 
-        TransformRequest transform = new TransformRequest();
-        transform.setX(10);
-        transform.setY(20);
-        transform.setWidth(200);
-        transform.setHeight(150);
-        transform.setRotation(45);
+        TransformRequest transform = validTransform();
 
         assertThat(service.updateTransform(channel, id, transform)).isPresent();
 
@@ -83,11 +80,82 @@ class ChannelDirectoryServiceTest {
         assertThat(service.updateVisibility(channel, id, visibilityRequest)).isPresent();
     }
 
+    @Test
+    void rejectsInvalidTransformDimensions() throws Exception {
+        String channel = "caster";
+        String id = createSampleAsset(channel);
+
+        TransformRequest transform = validTransform();
+        transform.setWidth(0);
+
+        assertThatThrownBy(() -> service.updateTransform(channel, id, transform))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("Width must be greater than 0");
+    }
+
+    @Test
+    void rejectsOutOfRangePlaybackValues() throws Exception {
+        String channel = "caster";
+        String id = createSampleAsset(channel);
+
+        TransformRequest speedTransform = validTransform();
+        speedTransform.setSpeed(5.0);
+
+        assertThatThrownBy(() -> service.updateTransform(channel, id, speedTransform))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("Playback speed must be between 0 and 4.0");
+
+        TransformRequest volumeTransform = validTransform();
+        volumeTransform.setAudioVolume(1.5);
+
+        assertThatThrownBy(() -> service.updateTransform(channel, id, volumeTransform))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("Audio volume must be between 0 and 1.0");
+    }
+
+    @Test
+    void appliesBoundaryValues() throws Exception {
+        String channel = "caster";
+        String id = createSampleAsset(channel);
+
+        TransformRequest transform = validTransform();
+        transform.setSpeed(0.0);
+        transform.setAudioSpeed(0.1);
+        transform.setAudioPitch(0.5);
+        transform.setAudioVolume(1.0);
+        transform.setAudioDelayMillis(0);
+        transform.setZIndex(1);
+
+        AssetView view = service.updateTransform(channel, id, transform).orElseThrow();
+
+        assertThat(view.speed()).isEqualTo(0.0);
+        assertThat(view.audioSpeed()).isEqualTo(0.1);
+        assertThat(view.audioPitch()).isEqualTo(0.5);
+        assertThat(view.audioVolume()).isEqualTo(1.0);
+        assertThat(view.audioDelayMillis()).isEqualTo(0);
+        assertThat(view.zIndex()).isEqualTo(1);
+    }
+
     private byte[] samplePng() throws IOException {
         BufferedImage image = new BufferedImage(2, 2, BufferedImage.TYPE_INT_ARGB);
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         ImageIO.write(image, "png", out);
         return out.toByteArray();
+    }
+
+    private String createSampleAsset(String channel) throws Exception {
+        MockMultipartFile file = new MockMultipartFile("file", "image.png", "image/png", samplePng());
+        return service.createAsset(channel, file).orElseThrow().id();
+    }
+
+    private TransformRequest validTransform() {
+        TransformRequest transform = new TransformRequest();
+        transform.setX(10);
+        transform.setY(20);
+        transform.setWidth(200);
+        transform.setHeight(150);
+        transform.setRotation(45);
+        return transform;
     }
 
     private void setupInMemoryPersistence() {

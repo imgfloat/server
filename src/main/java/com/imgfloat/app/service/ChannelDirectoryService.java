@@ -23,6 +23,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
@@ -54,10 +55,18 @@ import javax.imageio.stream.ImageInputStream;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
+import static org.springframework.http.HttpStatus.BAD_REQUEST;
+
 @Service
 public class ChannelDirectoryService {
     private static final int MIN_GIF_DELAY_MS = 20;
     private static final String PREVIEW_MEDIA_TYPE = "image/png";
+    private static final double MAX_SPEED = 4.0;
+    private static final double MIN_AUDIO_SPEED = 0.1;
+    private static final double MAX_AUDIO_SPEED = 4.0;
+    private static final double MIN_AUDIO_PITCH = 0.5;
+    private static final double MAX_AUDIO_PITCH = 2.0;
+    private static final double MAX_AUDIO_VOLUME = 1.0;
     private static final Logger logger = LoggerFactory.getLogger(ChannelDirectoryService.class);
     private final ChannelRepository channelRepository;
     private final AssetRepository assetRepository;
@@ -180,6 +189,7 @@ public class ChannelDirectoryService {
         return assetRepository.findById(assetId)
                 .filter(asset -> normalized.equals(asset.getBroadcaster()))
                 .map(asset -> {
+                    validateTransform(request);
                     asset.setX(request.getX());
                     asset.setY(request.getY());
                     asset.setWidth(request.getWidth());
@@ -188,7 +198,7 @@ public class ChannelDirectoryService {
                     if (request.getZIndex() != null) {
                         asset.setZIndex(request.getZIndex());
                     }
-                    if (request.getSpeed() != null && request.getSpeed() >= 0) {
+                    if (request.getSpeed() != null) {
                         asset.setSpeed(request.getSpeed());
                     }
                     if (request.getMuted() != null && asset.isVideo()) {
@@ -197,18 +207,17 @@ public class ChannelDirectoryService {
                     if (request.getAudioLoop() != null) {
                         asset.setAudioLoop(request.getAudioLoop());
                     }
-                    if (request.getAudioDelayMillis() != null && request.getAudioDelayMillis() >= 0) {
+                    if (request.getAudioDelayMillis() != null) {
                         asset.setAudioDelayMillis(request.getAudioDelayMillis());
                     }
-                    if (request.getAudioSpeed() != null && request.getAudioSpeed() >= 0) {
+                    if (request.getAudioSpeed() != null) {
                         asset.setAudioSpeed(request.getAudioSpeed());
                     }
-                    if (request.getAudioPitch() != null && request.getAudioPitch() > 0) {
+                    if (request.getAudioPitch() != null) {
                         asset.setAudioPitch(request.getAudioPitch());
                     }
-                    if (request.getAudioVolume() != null && request.getAudioVolume() >= 0) {
-                        double clamped = Math.max(0.0, Math.min(2.0, request.getAudioVolume()));
-                        asset.setAudioVolume(clamped);
+                    if (request.getAudioVolume() != null) {
+                        asset.setAudioVolume(request.getAudioVolume());
                     }
                     assetRepository.save(asset);
                     AssetView view = AssetView.from(normalized, asset);
@@ -216,6 +225,33 @@ public class ChannelDirectoryService {
                     messagingTemplate.convertAndSend(topicFor(broadcaster), AssetEvent.updated(broadcaster, patch));
                     return view;
                 });
+    }
+
+    private void validateTransform(TransformRequest request) {
+        if (request.getWidth() <= 0) {
+            throw new ResponseStatusException(BAD_REQUEST, "Width must be greater than 0");
+        }
+        if (request.getHeight() <= 0) {
+            throw new ResponseStatusException(BAD_REQUEST, "Height must be greater than 0");
+        }
+        if (request.getSpeed() != null && (request.getSpeed() < 0 || request.getSpeed() > MAX_SPEED)) {
+            throw new ResponseStatusException(BAD_REQUEST, "Playback speed must be between 0 and " + MAX_SPEED);
+        }
+        if (request.getZIndex() != null && request.getZIndex() < 1) {
+            throw new ResponseStatusException(BAD_REQUEST, "zIndex must be at least 1");
+        }
+        if (request.getAudioDelayMillis() != null && request.getAudioDelayMillis() < 0) {
+            throw new ResponseStatusException(BAD_REQUEST, "Audio delay must be zero or greater");
+        }
+        if (request.getAudioSpeed() != null && (request.getAudioSpeed() < MIN_AUDIO_SPEED || request.getAudioSpeed() > MAX_AUDIO_SPEED)) {
+            throw new ResponseStatusException(BAD_REQUEST, "Audio speed must be between " + MIN_AUDIO_SPEED + " and " + MAX_AUDIO_SPEED + "x");
+        }
+        if (request.getAudioPitch() != null && (request.getAudioPitch() < MIN_AUDIO_PITCH || request.getAudioPitch() > MAX_AUDIO_PITCH)) {
+            throw new ResponseStatusException(BAD_REQUEST, "Audio pitch must be between " + MIN_AUDIO_PITCH + " and " + MAX_AUDIO_PITCH + "x");
+        }
+        if (request.getAudioVolume() != null && (request.getAudioVolume() < 0 || request.getAudioVolume() > MAX_AUDIO_VOLUME)) {
+            throw new ResponseStatusException(BAD_REQUEST, "Audio volume must be between 0 and " + MAX_AUDIO_VOLUME);
+        }
     }
 
     public Optional<AssetView> triggerPlayback(String broadcaster, String assetId, PlaybackRequest request) {

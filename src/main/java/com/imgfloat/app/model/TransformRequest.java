@@ -1,18 +1,45 @@
 package com.imgfloat.app.model;
 
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PositiveOrZero;
+
 public class TransformRequest {
     private double x;
     private double y;
+
+    @Positive(message = "Width must be greater than 0")
     private double width;
+
+    @Positive(message = "Height must be greater than 0")
     private double height;
+
     private double rotation;
+
+    @DecimalMin(value = "0.0", message = "Playback speed cannot be negative")
+    @DecimalMax(value = "4.0", message = "Playback speed cannot exceed 4.0")
     private Double speed;
+
     private Boolean muted;
+
+    @Positive(message = "zIndex must be at least 1")
     private Integer zIndex;
     private Boolean audioLoop;
+
+    @PositiveOrZero(message = "Audio delay must be zero or greater")
     private Integer audioDelayMillis;
+
+    @DecimalMin(value = "0.1", message = "Audio speed must be at least 0.1x")
+    @DecimalMax(value = "4.0", message = "Audio speed cannot exceed 4.0x")
     private Double audioSpeed;
+
+    @DecimalMin(value = "0.5", message = "Audio pitch must be at least 0.5x")
+    @DecimalMax(value = "2.0", message = "Audio pitch cannot exceed 2.0x")
     private Double audioPitch;
+
+    @DecimalMin(value = "0.0", message = "Audio volume cannot be negative")
+    @DecimalMax(value = "1.0", message = "Audio volume cannot exceed 1.0")
     private Double audioVolume;
 
     public double getX() {
