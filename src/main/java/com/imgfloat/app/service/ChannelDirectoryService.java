@@ -19,6 +19,8 @@ import org.jcodec.common.model.Picture;
 import org.jcodec.scale.AWTUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.core.task.TaskExecutor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -28,6 +30,8 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.URI;
 import java.net.URLConnection;
 import java.nio.ByteBuffer;
 import java.nio.file.InvalidPathException;
@@ -35,12 +39,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.nio.file.StandardCopyOption;
 import java.util.Base64;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
-import java.util.Objects;
 import java.util.Optional;
 import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
@@ -58,17 +62,21 @@ public class ChannelDirectoryService {
     private static final int MIN_GIF_DELAY_MS = 20;
     private static final String PREVIEW_MEDIA_TYPE = "image/png";
     private static final Path PREVIEW_ROOT = Paths.get("previews");
+    private static final Path ASSET_ROOT = Paths.get("assets");
     private static final Logger logger = LoggerFactory.getLogger(ChannelDirectoryService.class);
     private final ChannelRepository channelRepository;
     private final AssetRepository assetRepository;
     private final SimpMessagingTemplate messagingTemplate;
+    private final TaskExecutor assetTaskExecutor;
 
     public ChannelDirectoryService(ChannelRepository channelRepository,
                                    AssetRepository assetRepository,
-                                   SimpMessagingTemplate messagingTemplate) {
+                                   SimpMessagingTemplate messagingTemplate,
+                                   @Qualifier("assetTaskExecutor") TaskExecutor assetTaskExecutor) {
         this.channelRepository = channelRepository;
         this.assetRepository = assetRepository;
         this.messagingTemplate = messagingTemplate;
+        this.assetTaskExecutor = assetTaskExecutor;
     }
 
     public Channel getOrCreateChannel(String broadcaster) {
@@ -79,13 +87,13 @@ public class ChannelDirectoryService {
 
     public List<String> searchBroadcasters(String query) {
         String normalizedQuery = normalize(query);
-        return channelRepository.findAll().stream()
+        if (normalizedQuery == null || normalizedQuery.isBlank()) {
+            return channelRepository.findTop50ByOrderByBroadcasterAsc().stream()
+                    .map(Channel::getBroadcaster)
+                    .toList();
+        }
+        return channelRepository.findTop50ByBroadcasterContainingIgnoreCaseOrderByBroadcasterAsc(normalizedQuery).stream()
                 .map(Channel::getBroadcaster)
-                .map(this::normalize)
-                .filter(Objects::nonNull)
-                .filter(name -> normalizedQuery == null || normalizedQuery.isBlank() || name.contains(normalizedQuery))
-                .sorted()
-                .limit(50)
                 .toList();
     }
 
@@ -134,39 +142,139 @@ public class ChannelDirectoryService {
 
     public Optional<AssetView> createAsset(String broadcaster, MultipartFile file) throws IOException {
         Channel channel = getOrCreateChannel(broadcaster);
-        byte[] bytes = file.getBytes();
-        String mediaType = detectMediaType(file, bytes);
-
-        OptimizedAsset optimized = optimizeAsset(bytes, mediaType);
-        if (optimized == null) {
-            return Optional.empty();
+        byte[] bytes;
+        try (InputStream stream = file.getInputStream()) {
+            bytes = stream.readAllBytes();
         }
+        String mediaType = detectMediaType(file, bytes);
 
         String name = Optional.ofNullable(file.getOriginalFilename())
                 .map(filename -> filename.replaceAll("^.*[/\\\\]", ""))
                 .filter(s -> !s.isBlank())
                 .orElse("Asset " + System.currentTimeMillis());
+        Asset asset = buildPlaceholderAsset(channel, name, bytes, mediaType);
+        if (asset == null) {
+            return Optional.empty();
+        }
+        if (!shouldOptimizeAsync(mediaType)) {
+            OptimizedAsset optimized = optimizeAsset(bytes, mediaType);
+            if (optimized == null) {
+                return Optional.empty();
+            }
+            applyOptimizedAsset(channel.getBroadcaster(), asset, optimized);
+        }
 
-        String dataUrl = "data:" + optimized.mediaType() + ";base64," + Base64.getEncoder().encodeToString(optimized.bytes());
-        double width = optimized.width() > 0 ? optimized.width() : (optimized.mediaType().startsWith("audio/") ? 400 : 640);
-        double height = optimized.height() > 0 ? optimized.height() : (optimized.mediaType().startsWith("audio/") ? 80 : 360);
-        Asset asset = new Asset(channel.getBroadcaster(), name, dataUrl, width, height);
+        assetRepository.save(asset);
+        AssetView view = AssetView.from(channel.getBroadcaster(), asset);
+        messagingTemplate.convertAndSend(topicFor(broadcaster), AssetEvent.created(broadcaster, view));
+
+        if (shouldOptimizeAsync(mediaType)) {
+            enqueueOptimization(channel.getBroadcaster(), asset.getId(), bytes, mediaType);
+        }
+
+        return Optional.of(view);
+    }
+
+    private Asset buildPlaceholderAsset(Channel channel, String name, byte[] bytes, String mediaType) {
+        Dimension dimension = inferDimensions(bytes, mediaType);
+        double width = dimension.width() > 0 ? dimension.width() : (mediaType.startsWith("audio/") ? 400 : 640);
+        double height = dimension.height() > 0 ? dimension.height() : (mediaType.startsWith("audio/") ? 80 : 360);
+        Asset asset = new Asset(channel.getBroadcaster(), name, "", width, height);
         asset.setOriginalMediaType(mediaType);
         asset.setMediaType(optimized.mediaType());
-        asset.setPreview(storePreview(channel.getBroadcaster(), asset.getId(), optimized.previewBytes()));
+        asset.setPreview(null);
+        asset.setUrl(storeAsset(channel.getBroadcaster(), asset.getId(), optimized.bytes(), optimized.mediaType()));
         asset.setSpeed(1.0);
-        asset.setMuted(optimized.mediaType().startsWith("video/"));
+        asset.setMuted(mediaType.startsWith("video/"));
         asset.setAudioLoop(false);
         asset.setAudioDelayMillis(0);
         asset.setAudioSpeed(1.0);
         asset.setAudioPitch(1.0);
         asset.setAudioVolume(1.0);
         asset.setZIndex(nextZIndex(channel.getBroadcaster()));
+        return asset;
+    }
 
-        assetRepository.save(asset);
-        AssetView view = AssetView.from(channel.getBroadcaster(), asset);
-        messagingTemplate.convertAndSend(topicFor(broadcaster), AssetEvent.created(broadcaster, view));
-        return Optional.of(view);
+    private boolean shouldOptimizeAsync(String mediaType) {
+        return "image/gif".equalsIgnoreCase(mediaType) || mediaType.startsWith("video/");
+    }
+
+    private void enqueueOptimization(String broadcaster, String assetId, byte[] bytes, String mediaType) {
+        assetTaskExecutor.execute(() -> {
+            try {
+                OptimizedAsset optimized = optimizeAsset(bytes, mediaType);
+                if (optimized == null) {
+                    return;
+                }
+                assetRepository.findById(assetId)
+                        .filter(asset -> broadcaster.equals(asset.getBroadcaster()))
+                        .ifPresent(asset -> {
+                            boolean changed = applyOptimizedAsset(broadcaster, asset, optimized);
+                            if (changed) {
+                                assetRepository.save(asset);
+                                AssetView view = AssetView.from(broadcaster, asset);
+                                messagingTemplate.convertAndSend(topicFor(broadcaster), AssetEvent.updated(broadcaster, view));
+                            }
+                        });
+            } catch (Exception e) {
+                logger.warn("Unable to optimize asset {}", assetId, e);
+            }
+        });
+    }
+
+    private boolean applyOptimizedAsset(String broadcaster, Asset asset, OptimizedAsset optimized) {
+        if (optimized == null) {
+            return false;
+        }
+        boolean changed = false;
+        String optimizedUrl = toDataUrl(optimized.bytes(), optimized.mediaType());
+        if (!optimizedUrl.equals(asset.getUrl())) {
+            asset.setUrl(optimizedUrl);
+            changed = true;
+        }
+        if (!Objects.equals(asset.getMediaType(), optimized.mediaType())) {
+            asset.setMediaType(optimized.mediaType());
+            changed = true;
+        }
+        if (optimized.width() > 0 && optimized.height() > 0) {
+            asset.setWidth(optimized.width());
+            asset.setHeight(optimized.height());
+            changed = true;
+        }
+        asset.setMuted(optimized.mediaType().startsWith("video/"));
+
+        String previousPreview = asset.getPreview();
+        try {
+            asset.setPreview(storePreview(broadcaster, asset.getId(), optimized.previewBytes()));
+            if (!Objects.equals(previousPreview, asset.getPreview())) {
+                deletePreviewFile(previousPreview);
+                changed = changed || asset.getPreview() != null;
+            }
+        } catch (IOException e) {
+            logger.warn("Unable to store preview for asset {}", asset.getId(), e);
+        }
+        return changed;
+    }
+
+    private Dimension inferDimensions(byte[] bytes, String mediaType) {
+        try {
+            if (mediaType.startsWith("video/")) {
+                return extractVideoDimensions(bytes);
+            }
+            if (mediaType.startsWith("image/")) {
+                BufferedImage image = ImageIO.read(new ByteArrayInputStream(bytes));
+                if (image != null) {
+                    return new Dimension(image.getWidth(), image.getHeight());
+                }
+            }
+        } catch (IOException e) {
+            logger.warn("Unable to infer dimensions for {}", mediaType, e);
+        }
+        return new Dimension(0, 0);
+    }
+
+    private String toDataUrl(byte[] bytes, String mediaType) {
+        return "data:" + mediaType + ";base64," + Base64.getEncoder().encodeToString(bytes);
     }
 
     public Optional<AssetView> updateTransform(String broadcaster, String assetId, TransformRequest request) {
@@ -244,6 +352,7 @@ public class ChannelDirectoryService {
                 .filter(asset -> normalized.equals(asset.getBroadcaster()))
                 .map(asset -> {
                     deletePreviewFile(asset.getPreview());
+                    deleteAssetFile(asset.getUrl());
                     assetRepository.delete(asset);
                     messagingTemplate.convertAndSend(topicFor(broadcaster), AssetEvent.deleted(broadcaster, assetId));
                     return true;
@@ -301,8 +410,7 @@ public class ChannelDirectoryService {
             return List.of();
         }
         String login = username.toLowerCase();
-        return channelRepository.findAll().stream()
-                .filter(channel -> channel.getAdmins().contains(login))
+        return channelRepository.findByAdminsContaining(login).stream()
                 .map(Channel::getBroadcaster)
                 .toList();
     }
@@ -324,9 +432,18 @@ public class ChannelDirectoryService {
     }
 
     private Optional<AssetContent> decodeAssetData(Asset asset) {
-        return decodeDataUrl(asset.getUrl())
+        if (asset.getUrl() == null) {
+            return Optional.empty();
+        }
+
+        if (asset.getUrl().startsWith("data:")) {
+            return decodeDataUrl(asset.getUrl())
+                    .flatMap(content -> backfillAssetStorage(asset, content));
+        }
+
+        return loadAssetFromStore(asset)
                 .or(() -> {
-                    logger.warn("Unable to decode asset data for {}", asset.getId());
+                    logger.warn("Unable to read asset data for {}", asset.getId());
                     return Optional.empty();
                 });
     }
@@ -370,6 +487,88 @@ public class ChannelDirectoryService {
         } catch (InvalidPathException e) {
             logger.debug("Preview path {} is not a file path; skipping", previewPath);
             return Optional.empty();
+        }
+    }
+
+    private String storeAsset(String broadcaster, String assetId, byte[] bytes, String mediaType) throws IOException {
+        Path directory = ASSET_ROOT.resolve(normalize(broadcaster));
+        Files.createDirectories(directory);
+        String extension = extensionFor(mediaType);
+        Path assetFile = directory.resolve(assetId + (extension == null ? "" : ("." + extension)));
+        try (InputStream in = new ByteArrayInputStream(bytes)) {
+            Files.copy(in, assetFile, StandardCopyOption.REPLACE_EXISTING);
+        }
+        return assetFile.toUri().toString();
+    }
+
+    private Optional<AssetContent> loadAssetFromStore(Asset asset) {
+        String location = asset.getUrl();
+        if (location == null || location.isBlank()) {
+            return Optional.empty();
+        }
+        try {
+            URI uri = URI.create(location);
+            Path path;
+            if (uri.getScheme() == null) {
+                path = Paths.get(location);
+            } else if ("file".equalsIgnoreCase(uri.getScheme())) {
+                path = Paths.get(uri);
+            } else {
+                logger.warn("Unsupported asset URI scheme {} for {}", uri.getScheme(), asset.getId());
+                return Optional.empty();
+            }
+            if (path == null || !Files.exists(path)) {
+                logger.warn("Asset location {} is not readable", location);
+                return Optional.empty();
+            }
+            try (InputStream stream = Files.newInputStream(path)) {
+                byte[] bytes = stream.readAllBytes();
+                String mediaType = asset.getMediaType() == null ? "application/octet-stream" : asset.getMediaType();
+                return Optional.of(new AssetContent(bytes, mediaType));
+            }
+        } catch (IOException | IllegalArgumentException e) {
+            logger.warn("Unable to read asset data from {}", location, e);
+            return Optional.empty();
+        }
+    }
+
+    private Optional<AssetContent> backfillAssetStorage(Asset asset, AssetContent content) {
+        try {
+            String storedLocation = storeAsset(asset.getBroadcaster(), asset.getId(), content.bytes(),
+                    asset.getMediaType() == null ? content.mediaType() : asset.getMediaType());
+            asset.setUrl(storedLocation);
+            assetRepository.save(asset);
+            return Optional.of(new AssetContent(content.bytes(),
+                    asset.getMediaType() == null ? content.mediaType() : asset.getMediaType()));
+        } catch (IOException e) {
+            logger.warn("Unable to backfill storage for {}", asset.getId(), e);
+            return Optional.empty();
+        }
+    }
+
+    private void deleteAssetFile(String location) {
+        if (location == null || location.isBlank()) {
+            return;
+        }
+        try {
+            URI uri = URI.create(location);
+            Path path;
+            if (uri.getScheme() == null) {
+                path = Paths.get(location);
+            } else if ("file".equalsIgnoreCase(uri.getScheme())) {
+                path = Paths.get(uri);
+            } else {
+                return;
+            }
+            if (path != null) {
+                try {
+                    Files.deleteIfExists(path);
+                } catch (IOException e) {
+                    logger.warn("Unable to delete asset file {}", path, e);
+                }
+            }
+        } catch (IllegalArgumentException e) {
+            logger.debug("Asset location {} is not a file path; skipping delete", location);
         }
     }
 
@@ -437,6 +636,24 @@ public class ChannelDirectoryService {
                     default -> "application/octet-stream";
                 })
                 .orElse("application/octet-stream");
+    }
+
+    private String extensionFor(String mediaType) {
+        if (mediaType == null) {
+            return null;
+        }
+        return switch (mediaType.toLowerCase(Locale.ROOT)) {
+            case "image/png" -> "png";
+            case "image/jpeg" -> "jpg";
+            case "image/gif" -> "gif";
+            case "video/mp4" -> "mp4";
+            case "video/webm" -> "webm";
+            case "video/quicktime" -> "mov";
+            case "audio/mpeg" -> "mp3";
+            case "audio/wav" -> "wav";
+            case "audio/ogg" -> "ogg";
+            default -> null;
+        };
     }
 
     private OptimizedAsset optimizeAsset(byte[] bytes, String mediaType) throws IOException {

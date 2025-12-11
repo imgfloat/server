@@ -34,6 +34,15 @@ public class AssetEvent {
         return event;
     }
 
+    public static AssetEvent updated(String channel, AssetView asset) {
+        AssetEvent event = new AssetEvent();
+        event.type = Type.UPDATED;
+        event.channel = channel;
+        event.payload = asset;
+        event.assetId = asset.id();
+        return event;
+    }
+
     public static AssetEvent play(String channel, AssetView asset, boolean play) {
         AssetEvent event = new AssetEvent();
         event.type = Type.PLAY;
