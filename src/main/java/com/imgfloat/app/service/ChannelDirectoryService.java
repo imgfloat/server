@@ -42,7 +42,6 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
-import java.util.Objects;
 import java.util.Optional;
 import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
@@ -94,13 +93,10 @@ public class ChannelDirectoryService {
 
     public List<String> searchBroadcasters(String query) {
         String normalizedQuery = normalize(query);
-        return channelRepository.findAll().stream()
+        String searchTerm = normalizedQuery == null || normalizedQuery.isBlank() ? "" : normalizedQuery;
+        return channelRepository.findTop50ByBroadcasterContainingIgnoreCaseOrderByBroadcasterAsc(searchTerm)
+                .stream()
                 .map(Channel::getBroadcaster)
-                .map(this::normalize)
-                .filter(Objects::nonNull)
-                .filter(name -> normalizedQuery == null || normalizedQuery.isBlank() || name.contains(normalizedQuery))
-                .sorted()
-                .limit(50)
                 .toList();
     }
 

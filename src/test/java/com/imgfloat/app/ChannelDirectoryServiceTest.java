@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -172,6 +173,13 @@ class ChannelDirectoryServiceTest {
                 });
         when(channelRepository.findAll())
                 .thenAnswer(invocation -> List.copyOf(channels.values()));
+        when(channelRepository.findTop50ByBroadcasterContainingIgnoreCaseOrderByBroadcasterAsc(anyString()))
+                .thenAnswer(invocation -> channels.values().stream()
+                        .filter(channel -> Optional.ofNullable(channel.getBroadcaster()).orElse("")
+                                .contains(Optional.ofNullable(invocation.getArgument(0, String.class)).orElse("").toLowerCase()))
+                        .sorted(Comparator.comparing(Channel::getBroadcaster))
+                        .limit(50)
+                        .toList());
 
         when(assetRepository.save(any(Asset.class)))
                 .thenAnswer(invocation -> {
