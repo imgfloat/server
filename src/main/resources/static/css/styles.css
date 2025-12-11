@@ -1731,7 +1731,7 @@ body {
 
 .toast-success {
     border-color: rgba(34, 197, 94, 0.35);
-    background: rgba(16, 185, 129, 0.12);
+    background: rgba(16, 185, 129, 0.42);
 }
 
 .toast-success .toast-indicator {
@@ -1741,7 +1741,7 @@ body {
 
 .toast-error {
     border-color: rgba(239, 68, 68, 0.35);
-    background: rgba(248, 113, 113, 0.12);
+    background: rgba(248, 113, 113, 0.42);
 }
 
 .toast-error .toast-indicator {
@@ -1751,7 +1751,7 @@ body {
 
 .toast-warning {
     border-color: rgba(251, 191, 36, 0.35);
-    background: rgba(251, 191, 36, 0.12);
+    background: rgba(251, 191, 36, 0.42);
 }
 
 .toast-warning .toast-indicator {
