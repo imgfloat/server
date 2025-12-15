@@ -207,15 +207,8 @@
 <script th:inline="javascript">
     const broadcaster = /*[[${broadcaster}]]*/ '';
     const username = /*[[${username}]]*/ '';
-    const adminInputRestrictions = {
-        UPLOAD_MAX_BYTES: /*[[${uploadLimitBytes}]]*/ + 0,
-        MAX_SPEED: /*[[${maxSpeed}]]*/ + 0.0,
-        MIN_AUDIO_SPEED: /*[[${minAudioSpeed}]]*/ + 0.0,
-        MAX_AUDIO_SPEED: /*[[${maxAudioSpeed}]]*/ + 0.0,
-        MIN_AUDIO_PITCH: /*[[${minAudioPitch}]]*/ + 0.0,
-        MAX_AUDIO_PITCH: /*[[${maxAudioPitch}]]*/ + 0.0,
-        MAX_AUDIO_VOLUME: /*[[${maxAudioVolume}]]*/ + 0.0,
-    }
+    const UPLOAD_LIMIT_BYTES = /*[[${uploadLimitBytes}]]*/ 0;
+    const SETTINGS = /*[[${settingsJson}]]*/;
 </script>
 <script src="/js/toast.js"></script>
 <script src="/js/admin.js"></script>

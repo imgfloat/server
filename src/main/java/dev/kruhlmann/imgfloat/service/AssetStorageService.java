@@ -12,6 +12,8 @@ import java.nio.file.*;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Stream;
 
 @Service
 public class AssetStorageService {
@@ -137,15 +139,34 @@ public class AssetStorageService {
         }
     }
 
-    public void deletePreviewFile(String relativePath) {
-        if (relativePath == null || relativePath.isBlank()) return;
+    public void deleteOrphanedAssets(Set<String> referencedAssetIds) {
+        deleteOrphansUnder(assetRoot, referencedAssetIds);
+        deleteOrphansUnder(previewRoot, referencedAssetIds);
+    }
 
-        try {
-            Path file = safeJoin(previewRoot, relativePath);
-            Files.deleteIfExists(file);
-        } catch (Exception e) {
-            logger.warn("Failed to delete preview {}", relativePath, e);
+    private void deleteOrphansUnder(Path root, Set<String> referencedAssetIds) {
+        try (var paths = Files.walk(root)) {
+            paths.filter(Files::isRegularFile)
+                 .filter(p -> isOrphan(p, referencedAssetIds))
+                 .forEach(p -> {
+                     try {
+                         Files.delete(p);
+                         logger.warn("Deleted orphan file {}", p);
+                     } catch (IOException e) {
+                         logger.error("Failed to delete {}", p, e);
+                     }
+                 });
+        } catch (IOException e) {
+            logger.error("Failed to walk {}", root, e);
         }
+    }
+
+    private boolean isOrphan(Path file, Set<String> referencedAssetIds) {
+        String name = file.getFileName().toString();
+        int dot = name.indexOf('.');
+        if (dot == -1) return true;
+        String assetId = name.substring(0, dot);
+        return !referencedAssetIds.contains(assetId);
     }
 
     private String sanitizeUserSegment(String value) {

@@ -7,8 +7,10 @@ import dev.kruhlmann.imgfloat.model.PlaybackRequest;
 import dev.kruhlmann.imgfloat.model.TransformRequest;
 import dev.kruhlmann.imgfloat.model.TwitchUserProfile;
 import dev.kruhlmann.imgfloat.model.VisibilityRequest;
+import dev.kruhlmann.imgfloat.model.OauthSessionUser;
 import dev.kruhlmann.imgfloat.service.ChannelDirectoryService;
 import dev.kruhlmann.imgfloat.service.TwitchUserLookupService;
+import dev.kruhlmann.imgfloat.service.AuthorizationService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
@@ -49,22 +51,27 @@ public class ChannelApiController {
     private final ChannelDirectoryService channelDirectoryService;
     private final OAuth2AuthorizedClientService authorizedClientService;
     private final TwitchUserLookupService twitchUserLookupService;
+    private final AuthorizationService authorizationService;
 
-    public ChannelApiController(ChannelDirectoryService channelDirectoryService,
-                               OAuth2AuthorizedClientService authorizedClientService,
-                               TwitchUserLookupService twitchUserLookupService) {
+    public ChannelApiController(
+        ChannelDirectoryService channelDirectoryService,
+        OAuth2AuthorizedClientService authorizedClientService,
+        TwitchUserLookupService twitchUserLookupService,
+        AuthorizationService authorizationService
+    ) {
         this.channelDirectoryService = channelDirectoryService;
         this.authorizedClientService = authorizedClientService;
         this.twitchUserLookupService = twitchUserLookupService;
+        this.authorizationService = authorizationService;
     }
 
     @PostMapping("/admins")
     public ResponseEntity<?> addAdmin(@PathVariable("broadcaster") String broadcaster,
                                       @Valid @RequestBody AdminRequest request,
-                                      OAuth2AuthenticationToken authentication) {
-        String login = TwitchUser.from(authentication).login();
-        ensureBroadcaster(broadcaster, login);
-        LOG.info("User {} adding admin {} to {}", login, request.getUsername(), broadcaster);
+                                      OAuth2AuthenticationToken oauthToken) {
+        String sessionUsername = OauthSessionUser.from(oauthToken).login();
+        authorizationService.userMatchesSessionUsernameOrThrowHttpError(broadcaster, sessionUsername);
+        LOG.info("User {} adding admin {} to {}", sessionUsername, request.getUsername(), broadcaster);
         boolean added = channelDirectoryService.addAdmin(broadcaster, request.getUsername());
         if (!added) {
             LOG.info("User {} already admin for {} or could not be added", request.getUsername(), broadcaster);
@@ -74,16 +81,16 @@ public class ChannelApiController {
 
     @GetMapping("/admins")
     public Collection<TwitchUserProfile> listAdmins(@PathVariable("broadcaster") String broadcaster,
-                                                    OAuth2AuthenticationToken authentication,
+                                                    OAuth2AuthenticationToken oauthToken,
                                                     @RegisteredOAuth2AuthorizedClient("twitch") OAuth2AuthorizedClient authorizedClient) {
-        String login = TwitchUser.from(authentication).login();
-        ensureBroadcaster(broadcaster, login);
-        LOG.debug("Listing admins for {} by {}", broadcaster, login);
+        String sessionUsername = OauthSessionUser.from(oauthToken).login();
+        authorizationService.userMatchesSessionUsernameOrThrowHttpError(broadcaster, sessionUsername);
+        LOG.debug("Listing admins for {} by {}", broadcaster, sessionUsername);
         var channel = channelDirectoryService.getOrCreateChannel(broadcaster);
         List<String> admins = channel.getAdmins().stream()
                 .sorted(Comparator.naturalOrder())
                 .toList();
-        authorizedClient = resolveAuthorizedClient(authentication, authorizedClient);
+        authorizedClient = resolveAuthorizedClient(oauthToken, authorizedClient);
         String accessToken = Optional.ofNullable(authorizedClient)
                 .map(OAuth2AuthorizedClient::getAccessToken)
                 .map(token -> token.getTokenValue())
@@ -97,16 +104,16 @@ public class ChannelApiController {
 
     @GetMapping("/admins/suggestions")
     public Collection<TwitchUserProfile> listAdminSuggestions(@PathVariable("broadcaster") String broadcaster,
-                                                              OAuth2AuthenticationToken authentication,
+                                                              OAuth2AuthenticationToken oauthToken,
                                                               @RegisteredOAuth2AuthorizedClient("twitch") OAuth2AuthorizedClient authorizedClient) {
-        String login = TwitchUser.from(authentication).login();
-        ensureBroadcaster(broadcaster, login);
-        LOG.debug("Listing admin suggestions for {} by {}", broadcaster, login);
+        String sessionUsername = OauthSessionUser.from(oauthToken).login();
+        authorizationService.userMatchesSessionUsernameOrThrowHttpError(broadcaster, sessionUsername);
+        LOG.debug("Listing admin suggestions for {} by {}", broadcaster, sessionUsername);
         var channel = channelDirectoryService.getOrCreateChannel(broadcaster);
-        authorizedClient = resolveAuthorizedClient(authentication, authorizedClient);
+        authorizedClient = resolveAuthorizedClient(oauthToken, authorizedClient);
 
         if (authorizedClient == null) {
-            LOG.warn("No authorized Twitch client found for {} while fetching admin suggestions for {}", login, broadcaster);
+            LOG.warn("No authorized Twitch client found for {} while fetching admin suggestions for {}", sessionUsername, broadcaster);
             return List.of();
         }
         String accessToken = Optional.ofNullable(authorizedClient)
@@ -118,7 +125,7 @@ public class ChannelApiController {
                 .map(registration -> registration.getClientId())
                 .orElse(null);
         if (accessToken == null || accessToken.isBlank() || clientId == null || clientId.isBlank()) {
-            LOG.warn("Missing Twitch credentials for {} while fetching admin suggestions for {}", login, broadcaster);
+            LOG.warn("Missing Twitch credentials for {} while fetching admin suggestions for {}", sessionUsername, broadcaster);
             return List.of();
         }
         return twitchUserLookupService.fetchModerators(broadcaster, channel.getAdmins(), accessToken, clientId);
@@ -127,24 +134,16 @@ public class ChannelApiController {
     @DeleteMapping("/admins/{username}")
     public ResponseEntity<?> removeAdmin(@PathVariable("broadcaster") String broadcaster,
                                          @PathVariable("username") String username,
-                                         OAuth2AuthenticationToken authentication) {
-        String login = TwitchUser.from(authentication).login();
-        ensureBroadcaster(broadcaster, login);
-        LOG.info("User {} removing admin {} from {}", login, username, broadcaster);
+                                        OAuth2AuthenticationToken oauthToken) {
+        String sessionUsername = OauthSessionUser.from(oauthToken).login();
+        authorizationService.userMatchesSessionUsernameOrThrowHttpError(broadcaster, sessionUsername);
+        LOG.info("User {} removing admin {} from {}", sessionUsername, username, broadcaster);
         boolean removed = channelDirectoryService.removeAdmin(broadcaster, username);
         return ResponseEntity.ok().body(removed);
     }
 
     @GetMapping("/assets")
-    public Collection<AssetView> listAssets(@PathVariable("broadcaster") String broadcaster,
-                                            OAuth2AuthenticationToken authentication) {
-        String login = TwitchUser.from(authentication).login();
-        if (!channelDirectoryService.isBroadcaster(broadcaster, login)
-                && !channelDirectoryService.isAdmin(broadcaster, login)) {
-            LOG.warn("Unauthorized asset listing attempt for {} by {}", broadcaster, login);
-            throw new ResponseStatusException(FORBIDDEN, "Not authorized");
-        }
-        LOG.info("Listing assets for {} requested by {}", broadcaster, login);
+    public Collection<AssetView> listAssets(@PathVariable("broadcaster") String broadcaster) {
         return channelDirectoryService.getAssetsForAdmin(broadcaster);
     }
 
@@ -155,37 +154,36 @@ public class ChannelApiController {
 
     @GetMapping("/canvas")
     public CanvasSettingsRequest getCanvas(@PathVariable("broadcaster") String broadcaster) {
-        LOG.debug("Fetching canvas settings for {}", broadcaster);
         return channelDirectoryService.getCanvasSettings(broadcaster);
     }
 
     @PutMapping("/canvas")
     public CanvasSettingsRequest updateCanvas(@PathVariable("broadcaster") String broadcaster,
                                               @Valid @RequestBody CanvasSettingsRequest request,
-                                              OAuth2AuthenticationToken authentication) {
-        String login = TwitchUser.from(authentication).login();
-        ensureBroadcaster(broadcaster, login);
-        LOG.info("Updating canvas for {} by {}: {}x{}", broadcaster, login, request.getWidth(), request.getHeight());
+                                              OAuth2AuthenticationToken oauthToken) {
+        String sessionUsername = OauthSessionUser.from(oauthToken).login();
+        authorizationService.userMatchesSessionUsernameOrThrowHttpError(broadcaster, sessionUsername);
+        LOG.info("Updating canvas for {} by {}: {}x{}", broadcaster, sessionUsername, request.getWidth(), request.getHeight());
         return channelDirectoryService.updateCanvasSettings(broadcaster, request);
     }
 
     @PostMapping(value = "/assets", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<AssetView> createAsset(@PathVariable("broadcaster") String broadcaster,
                                              @org.springframework.web.bind.annotation.RequestPart("file") MultipartFile file,
-                                             OAuth2AuthenticationToken authentication) {
-        String login = TwitchUser.from(authentication).login();
-        ensureAuthorized(broadcaster, login);
+                                             OAuth2AuthenticationToken oauthToken) {
+        String sessionUsername = OauthSessionUser.from(oauthToken).login();
+        authorizationService.userIsBroadcasterOrChannelAdminForBroadcasterOrThrowHttpError(broadcaster, sessionUsername);
         if (file == null || file.isEmpty()) {
-            LOG.warn("User {} attempted to upload empty file to {}", login, broadcaster);
+            LOG.warn("User {} attempted to upload empty file to {}", sessionUsername, broadcaster);
             throw new ResponseStatusException(BAD_REQUEST, "Asset file is required");
         }
         try {
-            LOG.info("User {} uploading asset {} to {}", login, file.getOriginalFilename(), broadcaster);
+            LOG.info("User {} uploading asset {} to {}", sessionUsername, file.getOriginalFilename(), broadcaster);
             return channelDirectoryService.createAsset(broadcaster, file)
                     .map(ResponseEntity::ok)
                     .orElseThrow(() -> new ResponseStatusException(BAD_REQUEST, "Unable to read image"));
         } catch (IOException e) {
-            LOG.error("Failed to process asset upload for {} by {}", broadcaster, login, e);
+            LOG.error("Failed to process asset upload for {} by {}", broadcaster, sessionUsername, e);
             throw new ResponseStatusException(BAD_REQUEST, "Failed to process image", e);
         }
     }
@@ -194,14 +192,14 @@ public class ChannelApiController {
     public ResponseEntity<AssetView> transform(@PathVariable("broadcaster") String broadcaster,
                                                @PathVariable("assetId") String assetId,
                                                @Valid @RequestBody TransformRequest request,
-                                               OAuth2AuthenticationToken authentication) {
-        String login = TwitchUser.from(authentication).login();
-        ensureAuthorized(broadcaster, login);
-        LOG.debug("Applying transform to asset {} on {} by {}", assetId, broadcaster, login);
+                                               OAuth2AuthenticationToken oauthToken) {
+        String sessionUsername = OauthSessionUser.from(oauthToken).login();
+        authorizationService.userIsBroadcasterOrChannelAdminForBroadcasterOrThrowHttpError(broadcaster, sessionUsername);
+        LOG.debug("Applying transform to asset {} on {} by {}", assetId, broadcaster, sessionUsername);
         return channelDirectoryService.updateTransform(broadcaster, assetId, request)
                 .map(ResponseEntity::ok)
                 .orElseThrow(() -> {
-                    LOG.warn("Transform request for missing asset {} on {} by {}", assetId, broadcaster, login);
+                    LOG.warn("Transform request for missing asset {} on {} by {}", assetId, broadcaster, sessionUsername);
                     return new ResponseStatusException(NOT_FOUND, "Asset not found");
                 });
     }
@@ -210,9 +208,10 @@ public class ChannelApiController {
     public ResponseEntity<AssetView> play(@PathVariable("broadcaster") String broadcaster,
                                           @PathVariable("assetId") String assetId,
                                           @RequestBody(required = false) PlaybackRequest request,
-                                          OAuth2AuthenticationToken authentication) {
-        String login = TwitchUser.from(authentication).login();
-        ensureAuthorized(broadcaster, login);
+                                          OAuth2AuthenticationToken oauthToken) {
+        String sessionUsername = OauthSessionUser.from(oauthToken).login();
+        authorizationService.userIsBroadcasterOrChannelAdminForBroadcasterOrThrowHttpError(broadcaster, sessionUsername);
+        LOG.info("Triggering playback for asset {} on {} by {}", assetId, broadcaster, sessionUsername);
         return channelDirectoryService.triggerPlayback(broadcaster, assetId, request)
                 .map(ResponseEntity::ok)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Asset not found"));
@@ -222,76 +221,41 @@ public class ChannelApiController {
     public ResponseEntity<AssetView> visibility(@PathVariable("broadcaster") String broadcaster,
                                                 @PathVariable("assetId") String assetId,
                                                 @RequestBody VisibilityRequest request,
-                                                OAuth2AuthenticationToken authentication) {
-        String login = TwitchUser.from(authentication).login();
-        ensureAuthorized(broadcaster, login);
-        LOG.info("Updating visibility for asset {} on {} by {} to hidden={} ", assetId, broadcaster, login, request.isHidden());
+                                                OAuth2AuthenticationToken oauthToken) {
+        String sessionUsername = OauthSessionUser.from(oauthToken).login();
+        authorizationService.userIsBroadcasterOrChannelAdminForBroadcasterOrThrowHttpError(broadcaster, sessionUsername);
+        LOG.info("Updating visibility for asset {} on {} by {} to hidden={} ", assetId, broadcaster, sessionUsername , request.isHidden());
         return channelDirectoryService.updateVisibility(broadcaster, assetId, request)
                 .map(ResponseEntity::ok)
                 .orElseThrow(() -> {
-                    LOG.warn("Visibility update for missing asset {} on {} by {}", assetId, broadcaster, login);
+                    LOG.warn("Visibility update for missing asset {} on {} by {}", assetId, broadcaster, sessionUsername);
                     return new ResponseStatusException(NOT_FOUND, "Asset not found");
                 });
     }
 
     @GetMapping("/assets/{assetId}/content")
     public ResponseEntity<byte[]> getAssetContent(@PathVariable("broadcaster") String broadcaster,
-                                                  @PathVariable("assetId") String assetId,
-                                                  OAuth2AuthenticationToken authentication) {
-        boolean authorized = false;
-        if (authentication != null) {
-            String login = TwitchUser.from(authentication).login();
-            authorized = channelDirectoryService.isBroadcaster(broadcaster, login)
-                    || channelDirectoryService.isAdmin(broadcaster, login);
-        }
-
-        if (authorized) {
-            LOG.debug("Serving asset {} for broadcaster {} to authenticated user {}", assetId, broadcaster, authentication.getName());
-            return channelDirectoryService.getAssetContent(assetId)
-                    .map(content -> ResponseEntity.ok()
-                            .header("X-Content-Type-Options", "nosniff")
-                            .header(HttpHeaders.CONTENT_DISPOSITION, contentDispositionFor(content.mediaType()))
-                            .contentType(MediaType.parseMediaType(content.mediaType()))
-                            .body(content.bytes()))
-                    .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Asset not found"));
-        }
-
-        return channelDirectoryService.getVisibleAssetContent(assetId)
-                .map(content -> ResponseEntity.ok()
-                        .header("X-Content-Type-Options", "nosniff")
-                        .header(HttpHeaders.CONTENT_DISPOSITION, contentDispositionFor(content.mediaType()))
-                        .contentType(MediaType.parseMediaType(content.mediaType()))
-                        .body(content.bytes()))
-                .orElseThrow(() -> new ResponseStatusException(FORBIDDEN, "Asset not available"));
+                                                  @PathVariable("assetId") String assetId) {
+        LOG.debug("Serving asset {} for broadcaster {}", assetId, broadcaster);
+        return channelDirectoryService.getAssetContent(assetId)
+            .map(content -> ResponseEntity.ok()
+                    .header("X-Content-Type-Options", "nosniff")
+                    .header(HttpHeaders.CONTENT_DISPOSITION, contentDispositionFor(content.mediaType()))
+                    .contentType(MediaType.parseMediaType(content.mediaType()))
+                    .body(content.bytes()))
+            .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Asset not found"));
     }
 
     @GetMapping("/assets/{assetId}/preview")
     public ResponseEntity<byte[]> getAssetPreview(@PathVariable("broadcaster") String broadcaster,
-                                                  @PathVariable("assetId") String assetId,
-                                                  OAuth2AuthenticationToken authentication) {
-        boolean authorized = false;
-        if (authentication != null) {
-            String login = TwitchUser.from(authentication).login();
-            authorized = channelDirectoryService.isBroadcaster(broadcaster, login)
-                    || channelDirectoryService.isAdmin(broadcaster, login);
-        }
-
-        if (authorized) {
-            LOG.debug("Serving preview for asset {} for broadcaster {}", assetId, broadcaster);
-            return channelDirectoryService.getAssetPreview(assetId, true)
-                    .map(content -> ResponseEntity.ok()
-                            .header("X-Content-Type-Options", "nosniff")
-                            .contentType(MediaType.parseMediaType(content.mediaType()))
-                            .body(content.bytes()))
-                    .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Preview not found"));
-        }
-
-        return channelDirectoryService.getAssetPreview(assetId, false)
-                .map(content -> ResponseEntity.ok()
-                        .header("X-Content-Type-Options", "nosniff")
-                        .contentType(MediaType.parseMediaType(content.mediaType()))
-                        .body(content.bytes()))
-                .orElseThrow(() -> new ResponseStatusException(FORBIDDEN, "Preview not available"));
+                                                  @PathVariable("assetId") String assetId) {
+        LOG.debug("Serving preview for asset {} for broadcaster {}", assetId, broadcaster);
+        return channelDirectoryService.getAssetPreview(assetId, true)
+            .map(content -> ResponseEntity.ok()
+                    .header("X-Content-Type-Options", "nosniff")
+                    .contentType(MediaType.parseMediaType(content.mediaType()))
+                    .body(content.bytes()))
+            .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Preview not found"));
     }
 
     private String contentDispositionFor(String mediaType) {
@@ -304,43 +268,26 @@ public class ChannelApiController {
     @DeleteMapping("/assets/{assetId}")
     public ResponseEntity<?> delete(@PathVariable("broadcaster") String broadcaster,
                                     @PathVariable("assetId") String assetId,
-                                    OAuth2AuthenticationToken authentication) {
-        String login = TwitchUser.from(authentication).login();
-        ensureAuthorized(broadcaster, login);
+                                    OAuth2AuthenticationToken oauthToken) {
+        String sessionUsername = OauthSessionUser.from(oauthToken).login();
+        authorizationService.userIsBroadcasterOrChannelAdminForBroadcasterOrThrowHttpError(broadcaster, sessionUsername);
         boolean removed = channelDirectoryService.deleteAsset(assetId);
         if (!removed) {
-            LOG.warn("Attempt to delete missing asset {} on {} by {}", assetId, broadcaster, login);
+            LOG.warn("Attempt to delete missing asset {} on {} by {}", assetId, broadcaster, sessionUsername);
             throw new ResponseStatusException(NOT_FOUND, "Asset not found");
         }
-        LOG.info("Asset {} deleted on {} by {}", assetId, broadcaster, login);
+        LOG.info("Asset {} deleted on {} by {}", assetId, broadcaster, sessionUsername);
         return ResponseEntity.ok().build();
     }
 
-    private void ensureBroadcaster(String broadcaster, String login) {
-        if (!channelDirectoryService.isBroadcaster(broadcaster, login)) {
-            LOG.warn("Access denied for broadcaster-only action on {} by {}", broadcaster, login);
-            throw new ResponseStatusException(FORBIDDEN, "Only broadcasters can manage admins");
-        }
-    }
-
-    private void ensureAuthorized(String broadcaster, String login) {
-        if (!channelDirectoryService.isBroadcaster(broadcaster, login)
-                && !channelDirectoryService.isAdmin(broadcaster, login)) {
-            LOG.warn("Unauthorized access to channel {} by {}", broadcaster, login);
-            throw new ResponseStatusException(FORBIDDEN, "No permission for channel");
-        }
-    }
-
-    private OAuth2AuthorizedClient resolveAuthorizedClient(OAuth2AuthenticationToken authentication,
+    private OAuth2AuthorizedClient resolveAuthorizedClient(OAuth2AuthenticationToken oauthToken,
                                                            OAuth2AuthorizedClient authorizedClient) {
         if (authorizedClient != null) {
             return authorizedClient;
         }
-        if (authentication == null) {
+        if (oauthToken == null) {
             return null;
         }
-        return authorizedClientService.loadAuthorizedClient(
-                authentication.getAuthorizedClientRegistrationId(),
-                authentication.getName());
+        return authorizedClientService.loadAuthorizedClient(oauthToken.getAuthorizedClientRegistrationId(), oauthToken.getName());
     }
 }

@@ -26,20 +26,10 @@ public class SystemEnvironmentValidator {
     private String assetsPath;
     @Value("${IMGFLOAT_PREVIEWS_PATH:#{null}}")
     private String previewsPath;
-    @Value("${IMGFLOAT_DB_PATH}")
+    @Value("${IMGFLOAT_DB_PATH:#{null}}")
     private String dbPath;
-    @Value("${IMGFLOAT_MAX_SPEED}")
-    private double maxSpeed;
-    @Value("${IMGFLOAT_MIN_AUDIO_SPEED}")
-    private double minAudioSpeed;
-    @Value("${IMGFLOAT_MAX_AUDIO_SPEED}")
-    private double maxAudioSpeed;
-    @Value("${IMGFLOAT_MIN_AUDIO_PITCH}")
-    private double minAudioPitch;
-    @Value("${IMGFLOAT_MAX_AUDIO_PITCH}")
-    private double maxAudioPitch;
-    @Value("${IMGFLOAT_MAX_AUDIO_VOLUME}")
-    private double maxAudioVolume;
+    @Value("${IMGFLOAT_INITIAL_TWITCH_USERNAME_SYSADMIN:#{null}}")
+    private String initialSysadmin;
 
     private long maxUploadBytes;
     private long maxRequestBytes;
@@ -52,13 +42,8 @@ public class SystemEnvironmentValidator {
         maxRequestBytes = DataSize.parse(springMaxRequestSize).toBytes();
         checkUnsignedNumeric(maxUploadBytes, "SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE", missing);
         checkUnsignedNumeric(maxRequestBytes, "SPRING_SERVLET_MULTIPART_MAX_REQUEST_SIZE", missing);
-        checkUnsignedNumeric(maxSpeed, "IMGFLOAT_MAX_SPEED", missing);;
-        checkUnsignedNumeric(minAudioSpeed, "IMGFLOAT_MIN_AUDIO_SPEED", missing);;
-        checkUnsignedNumeric(maxAudioSpeed, "IMGFLOAT_MAX_AUDIO_SPEED", missing);;
-        checkUnsignedNumeric(minAudioPitch, "IMGFLOAT_MIN_AUDIO_PITCH", missing);;
-        checkUnsignedNumeric(maxAudioPitch, "IMGFLOAT_MAX_AUDIO_PITCH", missing);;
-        checkUnsignedNumeric(maxAudioVolume, "IMGFLOAT_MAX_AUDIO_VOLUME", missing);;
         checkString(twitchClientId, "TWITCH_CLIENT_ID", missing);
+        checkString(initialSysadmin, "IMGFLOAT_INITIAL_TWITCH_USERNAME_SYSADMIN", missing);
         checkString(dbPath, "IMGFLOAT_DB_PATH", missing);
         checkString(twitchClientSecret, "TWITCH_CLIENT_SECRET", missing);
         checkString(assetsPath, "IMGFLOAT_ASSETS_PATH", missing);
@@ -78,15 +63,10 @@ public class SystemEnvironmentValidator {
                 springMaxFileSize, maxUploadBytes);
         log.info(" - SPRING_SERVLET_MULTIPART_MAX_REQUEST_SIZE: {} ({} bytes)",
                 springMaxRequestSize, maxRequestBytes);
+        log.info(" - IMGFLOAT_DB_PATH: {}", dbPath);
+        log.info(" - IMGFLOAT_INITIAL_TWITCH_USERNAME_SYSADMIN: {}", initialSysadmin);
         log.info(" - IMGFLOAT_ASSETS_PATH: {}", assetsPath);
         log.info(" - IMGFLOAT_PREVIEWS_PATH: {}", previewsPath);
-        log.info(" - IMGFLOAT_DB_PATH: {}", dbPath);
-        log.info(" - IMGFLOAT_MAX_SPEED: {}", maxSpeed);
-        log.info(" - IMGFLOAT_MIN_AUDIO_SPEED: {}", minAudioSpeed);
-        log.info(" - IMGFLOAT_MAX_AUDIO_SPEED: {}", maxAudioSpeed);
-        log.info(" - IMGFLOAT_MIN_AUDIO_PITCH: {}", minAudioPitch);
-        log.info(" - IMGFLOAT_MAX_AUDIO_PITCH: {}", maxAudioPitch);
-        log.info(" - IMGFLOAT_MAX_AUDIO_VOLUME: {}", maxAudioVolume);
     }
 
     private void checkString(String value, String name, StringBuilder missing) {

@@ -1,4 +1,3 @@
-let stompClient;
 const canvas = document.getElementById('admin-canvas');
 const ctx = canvas.getContext('2d');
 const overlay = document.getElementById('admin-overlay');
@@ -6,7 +5,6 @@ let canvasSettings = { width: 1920, height: 1080 };
 canvas.width = canvasSettings.width;
 canvas.height = canvasSettings.height;
 const assets = new Map();
-let pendingUploads = [];
 const mediaCache = new Map();
 const renderStates = new Map();
 const animatedCache = new Map();
@@ -15,21 +13,13 @@ const pendingAudioUnlock = new Set();
 const loopPlaybackState = new Map();
 const previewCache = new Map();
 const previewImageCache = new Map();
-let drawPending = false;
-let layerOrder = [];
-let selectedAssetId = null;
-let interactionState = null;
-let lastSizeInputChanged = null;
+const pendingTransformSaves = new Map();
 const HANDLE_SIZE = 10;
 const ROTATE_HANDLE_OFFSET = 32;
-const MAX_VOLUME = adminInputRestrictions.MAX_AUDIO_VOLUME;
-const VOLUME_SLIDER_MAX = adminInputRestrictions.MAX_AUDIO_VOLUME * 100;
+const VOLUME_SLIDER_MAX = SETTINGS.maxAssetVolumeFraction * 100;
 const VOLUME_CURVE_STRENGTH = -0.6;
-const pendingTransformSaves = new Map();
 const KEYBOARD_NUDGE_STEP = 5;
 const KEYBOARD_NUDGE_FAST_STEP = 20;
-
-
 const controlsPanel = document.getElementById('asset-controls');
 const widthInput = document.getElementById('asset-width');
 const heightInput = document.getElementById('asset-height');
@@ -67,6 +57,14 @@ const canvasScaleLabel = document.getElementById('canvas-scale');
 const aspectLockState = new Map();
 const commitSizeChange = debounce(() => applyTransformFromInputs(), 180);
 const audioUnlockEvents = ['pointerdown', 'keydown', 'touchstart'];
+
+let drawPending = false;
+let layerOrder = [];
+let pendingUploads = [];
+let selectedAssetId = null;
+let interactionState = null;
+let lastSizeInputChanged = null;
+let stompClient;
 
 audioUnlockEvents.forEach((eventName) => {
     window.addEventListener(eventName, () => {
@@ -294,16 +292,16 @@ function clamp(value, min, max) {
 function sliderToVolume(sliderValue) {
     const normalized = clamp(sliderValue, 0, VOLUME_SLIDER_MAX) / VOLUME_SLIDER_MAX;
     const curved = normalized + VOLUME_CURVE_STRENGTH * normalized * (1 - normalized) * (1 - 2 * normalized);
-    return clamp(curved * MAX_VOLUME, 0, MAX_VOLUME);
+    return clamp(curved * SETTINGS.maxAssetVolumeFraction, SETTINGS.minAssetVolumeFraction, SETTINGS.maxAssetVolumeFraction);
 }
 
 function volumeToSlider(volumeValue) {
-    const target = clamp(volumeValue ?? 1, 0, MAX_VOLUME) / MAX_VOLUME;
+    const target = clamp(volumeValue ?? 1, SETTINGS.minAssetVolumeFraction, SETTINGS.maxAssetVolumeFraction) / SETTINGS.maxAssetVolumeFraction;
     let low = 0;
     let high = VOLUME_SLIDER_MAX;
     for (let i = 0; i < 24; i += 1) {
         const mid = (low + high) / 2;
-        const midNormalized = sliderToVolume(mid) / MAX_VOLUME;
+        const midNormalized = sliderToVolume(mid) / SETTINGS.maxAssetVolumeFraction;
         if (midNormalized < target) {
             low = mid;
         } else {
@@ -983,7 +981,7 @@ function applyAudioSettings(controller, asset, resetPosition = false) {
     const speed = Math.max(0.25, asset.audioSpeed || 1);
     const pitch = Math.max(0.5, asset.audioPitch || 1);
     controller.element.playbackRate = speed * pitch;
-    const volume = clamp(asset.audioVolume ?? 1, 0, MAX_VOLUME);
+    const volume = clamp(asset.audioVolume ?? 1, SETTINGS.minAssetVolumeFraction, SETTINGS.maxAssetVolumeFraction);
     controller.element.volume = volume;
     if (resetPosition) {
         controller.element.currentTime = 0;
@@ -1058,7 +1056,7 @@ function ensureMedia(asset) {
     element.crossOrigin = 'anonymous';
     if (isVideoElement(element)) {
         element.loop = true;
-        const volume = clamp(asset.audioVolume ?? 1, 0, MAX_VOLUME);
+        const volume = clamp(asset.audioVolume ?? 1, SETTINGS.minAssetVolumeFraction, SETTINGS.maxAssetVolumeFraction);
         element.muted = volume === 0;
         element.volume = Math.min(volume, 1);
         element.playsInline = true;
@@ -1164,7 +1162,7 @@ function applyMediaSettings(element, asset) {
     if (element.playbackRate !== effectiveSpeed) {
         element.playbackRate = effectiveSpeed;
     }
-    const volume = clamp(asset.audioVolume ?? 1, 0, MAX_VOLUME);
+    const volume = clamp(asset.audioVolume ?? 1, SETTINGS.minAssetVolumeFraction, SETTINGS.maxAssetVolumeFraction);
     element.muted = volume === 0;
     element.volume = Math.min(volume, 1);
     if (nextSpeed === 0) {
@@ -2023,8 +2021,8 @@ function uploadAsset(file = null) {
         showToast('Choose an image, GIF, video, or audio file to upload.', 'info');
         return;
     }
-    if (selectedFile.size > adminInputRestrictions.UPLOAD_MAX_BYTES) {
-        showToast(`File is too large. Maximum upload size is ${adminInputRestrictions.UPLOAD_MAX_BYTES / 1024 / 1024} MB.`, 'error');
+    if (selectedFile.size > UPLOAD_LIMIT_BYTES) {
+        showToast(`File is too large. Maximum upload size is ${UPLOAD_MAX_BYTES / 1024 / 1024} MB.`, 'error');
         return;
     }
 
