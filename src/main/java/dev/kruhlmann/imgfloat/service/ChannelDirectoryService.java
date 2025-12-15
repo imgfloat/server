@@ -35,12 +35,6 @@ import static org.springframework.http.HttpStatus.PAYLOAD_TOO_LARGE;
 @Service
 public class ChannelDirectoryService {
     private static final Logger logger = LoggerFactory.getLogger(ChannelDirectoryService.class);
-    private static final double MAX_SPEED = 4.0;
-    private static final double MIN_AUDIO_SPEED = 0.1;
-    private static final double MAX_AUDIO_SPEED = 4.0;
-    private static final double MIN_AUDIO_PITCH = 0.5;
-    private static final double MAX_AUDIO_PITCH = 2.0;
-    private static final double MAX_AUDIO_VOLUME = 1.0;
     private static final Pattern SAFE_FILENAME = Pattern.compile("[^a-zA-Z0-9._ -]");
 
     private final ChannelRepository channelRepository;
@@ -53,13 +47,26 @@ public class ChannelDirectoryService {
     @Autowired
     private long uploadLimitBytes;
 
+    private double maxSpeed;
+    private double minAudioSpeed;
+    private double maxAudioSpeed;
+    private double minAudioPitch;
+    private double maxAudioPitch;
+    private double maxAudioVolume;
+
     public ChannelDirectoryService(
             ChannelRepository channelRepository,
             AssetRepository assetRepository,
             SimpMessagingTemplate messagingTemplate,
             AssetStorageService assetStorageService,
             MediaDetectionService mediaDetectionService,
-            MediaOptimizationService mediaOptimizationService
+            MediaOptimizationService mediaOptimizationService,
+            @Value("${IMGFLOAT_MAX_SPEED}") double maxSpeed,
+            @Value("${IMGFLOAT_MIN_AUDIO_SPEED}") double minAudioSpeed,
+            @Value("${IMGFLOAT_MAX_AUDIO_SPEED}") double maxAudioSpeed,
+            @Value("${IMGFLOAT_MIN_AUDIO_PITCH}") double minAudioPitch,
+            @Value("${IMGFLOAT_MAX_AUDIO_PITCH}") double maxAudioPitch,
+            @Value("${IMGFLOAT_MAX_AUDIO_VOLUME}") double maxAudioVolume
     ) {
         this.channelRepository = channelRepository;
         this.assetRepository = assetRepository;
@@ -67,6 +74,12 @@ public class ChannelDirectoryService {
         this.assetStorageService = assetStorageService;
         this.mediaDetectionService = mediaDetectionService;
         this.mediaOptimizationService = mediaOptimizationService;
+        this.maxSpeed = maxSpeed;
+        this.minAudioSpeed = minAudioSpeed;
+        this.maxAudioSpeed = maxAudioSpeed;
+        this.minAudioPitch = minAudioPitch;
+        this.maxAudioPitch = maxAudioPitch;
+        this.maxAudioVolume = maxAudioVolume;
     }
 
 
@@ -244,17 +257,17 @@ public class ChannelDirectoryService {
     private void validateTransform(TransformRequest req) {
         if (req.getWidth() <= 0) throw new ResponseStatusException(BAD_REQUEST, "Width must be > 0");
         if (req.getHeight() <= 0) throw new ResponseStatusException(BAD_REQUEST, "Height must be > 0");
-        if (req.getSpeed() != null && (req.getSpeed() < 0 || req.getSpeed() > MAX_SPEED))
-            throw new ResponseStatusException(BAD_REQUEST, "Speed must be between 0 and " + MAX_SPEED);
+        if (req.getSpeed() != null && (req.getSpeed() < 0 || req.getSpeed() > maxSpeed))
+            throw new ResponseStatusException(BAD_REQUEST, "Speed must be between 0 and " + maxSpeed);
         if (req.getZIndex() != null && req.getZIndex() < 1)
             throw new ResponseStatusException(BAD_REQUEST, "zIndex must be >= 1");
         if (req.getAudioDelayMillis() != null && req.getAudioDelayMillis() < 0)
             throw new ResponseStatusException(BAD_REQUEST, "Audio delay >= 0");
-        if (req.getAudioSpeed() != null && (req.getAudioSpeed() < MIN_AUDIO_SPEED || req.getAudioSpeed() > MAX_AUDIO_SPEED))
+        if (req.getAudioSpeed() != null && (req.getAudioSpeed() < minAudioSpeed || req.getAudioSpeed() > maxAudioSpeed))
             throw new ResponseStatusException(BAD_REQUEST, "Audio speed out of range");
-        if (req.getAudioPitch() != null && (req.getAudioPitch() < MIN_AUDIO_PITCH || req.getAudioPitch() > MAX_AUDIO_PITCH))
+        if (req.getAudioPitch() != null && (req.getAudioPitch() < minAudioPitch || req.getAudioPitch() > maxAudioPitch))
             throw new ResponseStatusException(BAD_REQUEST, "Audio pitch out of range");
-        if (req.getAudioVolume() != null && (req.getAudioVolume() < 0 || req.getAudioVolume() > MAX_AUDIO_VOLUME))
+        if (req.getAudioVolume() != null && (req.getAudioVolume() < 0 || req.getAudioVolume() > maxAudioVolume))
             throw new ResponseStatusException(BAD_REQUEST, "Audio volume out of range");
     }
 

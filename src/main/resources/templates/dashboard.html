@@ -69,7 +69,7 @@
             </div>
             <div class="card-section">
                 <div class="section-header">
-                    <h4 class="list-title">Admins</h4>
+                    <h4 class="list-title">Channel Admins</h4>
                     <p class="muted">Users who can currently modify your overlay.</p>
                 </div>
                 <ul id="admin-list" class="stacked-list"></ul>
@@ -97,7 +97,7 @@
             <li th:each="channelName : ${adminChannels}" class="stacked-list-item">
                 <div>
                     <p class="list-title" th:text="${channelName}">channel</p>
-                    <p class="muted">Admin access</p>
+                    <p class="muted">Channel admin access</p>
                 </div>
                 <a class="button ghost" th:href="@{'/view/' + ${channelName} + '/admin'}">Open</a>
             </li>

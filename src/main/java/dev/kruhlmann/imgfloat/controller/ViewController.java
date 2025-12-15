@@ -5,6 +5,7 @@ import dev.kruhlmann.imgfloat.service.VersionService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -22,9 +23,31 @@ public class ViewController {
     @Autowired
     private long uploadLimitBytes;
 
-    public ViewController(ChannelDirectoryService channelDirectoryService, VersionService versionService) {
+    private double maxSpeed;
+    private double minAudioSpeed;
+    private double maxAudioSpeed;
+    private double minAudioPitch;
+    private double maxAudioPitch;
+    private double maxAudioVolume;
+
+    public ViewController(
+        ChannelDirectoryService channelDirectoryService,
+        VersionService versionService,
+        @Value("${IMGFLOAT_MAX_SPEED}") double maxSpeed,
+        @Value("${IMGFLOAT_MIN_AUDIO_SPEED}") double minAudioSpeed,
+        @Value("${IMGFLOAT_MAX_AUDIO_SPEED}") double maxAudioSpeed,
+        @Value("${IMGFLOAT_MIN_AUDIO_PITCH}") double minAudioPitch,
+        @Value("${IMGFLOAT_MAX_AUDIO_PITCH}") double maxAudioPitch,
+        @Value("${IMGFLOAT_MAX_AUDIO_VOLUME}") double maxAudioVolume
+    ) {
         this.channelDirectoryService = channelDirectoryService;
         this.versionService = versionService;
+        this.maxSpeed = maxSpeed;
+        this.minAudioSpeed = minAudioSpeed;
+        this.maxAudioSpeed = maxAudioSpeed;
+        this.minAudioPitch = minAudioPitch;
+        this.maxAudioPitch = maxAudioPitch;
+        this.maxAudioVolume = maxAudioVolume;
     }
 
     @org.springframework.web.bind.annotation.GetMapping("/")
@@ -61,6 +84,13 @@ public class ViewController {
         model.addAttribute("broadcaster", broadcaster.toLowerCase());
         model.addAttribute("username", login);
         model.addAttribute("uploadLimitBytes", uploadLimitBytes);
+
+        model.addAttribute("maxSpeed", maxSpeed);
+        model.addAttribute("minAudioSpeed", minAudioSpeed);
+        model.addAttribute("maxAudioSpeed", maxAudioSpeed);
+        model.addAttribute("minAudioPitch", minAudioPitch);
+        model.addAttribute("maxAudioPitch", maxAudioPitch);
+        model.addAttribute("maxAudioVolume", maxAudioVolume);
 
         return "admin";
     }

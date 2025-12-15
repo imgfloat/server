@@ -22,8 +22,8 @@ let interactionState = null;
 let lastSizeInputChanged = null;
 const HANDLE_SIZE = 10;
 const ROTATE_HANDLE_OFFSET = 32;
-const MAX_VOLUME = 2;
-const VOLUME_SLIDER_MAX = 200;
+const MAX_VOLUME = adminInputRestrictions.MAX_AUDIO_VOLUME;
+const VOLUME_SLIDER_MAX = adminInputRestrictions.MAX_AUDIO_VOLUME * 100;
 const VOLUME_CURVE_STRENGTH = -0.6;
 const pendingTransformSaves = new Map();
 const KEYBOARD_NUDGE_STEP = 5;
@@ -2023,8 +2023,8 @@ function uploadAsset(file = null) {
         showToast('Choose an image, GIF, video, or audio file to upload.', 'info');
         return;
     }
-    if (selectedFile.size > upload_limit_bytes) {
-        showToast(`File is too large. Maximum upload size is ${upload_limit_bytes / 1024 / 1024} MB.`, 'error');
+    if (selectedFile.size > adminInputRestrictions.UPLOAD_MAX_BYTES) {
+        showToast(`File is too large. Maximum upload size is ${adminInputRestrictions.UPLOAD_MAX_BYTES / 1024 / 1024} MB.`, 'error');
         return;
     }
 

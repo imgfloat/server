@@ -5,7 +5,6 @@
     <title>Imgfloat Admin</title>
     <link rel="stylesheet" href="/css/styles.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
 </head>
@@ -14,7 +13,7 @@
     <header class="admin-topbar">
         <div class="topbar-left">
             <div class="admin-identity">
-                <p class="eyebrow subtle">Admin</p>
+                <p class="eyebrow subtle">CHANNEL ADMIN</p>
                 <h1 th:text="${broadcaster}"></h1>
             </div>
         </div>
@@ -208,7 +207,15 @@
 <script th:inline="javascript">
     const broadcaster = /*[[${broadcaster}]]*/ '';
     const username = /*[[${username}]]*/ '';
-    const upload_limit_bytes = /*[[${uploadLimitBytes}]]*/ + 0;
+    const adminInputRestrictions = {
+        UPLOAD_MAX_BYTES: /*[[${uploadLimitBytes}]]*/ + 0,
+        MAX_SPEED: /*[[${maxSpeed}]]*/ + 0.0,
+        MIN_AUDIO_SPEED: /*[[${minAudioSpeed}]]*/ + 0.0,
+        MAX_AUDIO_SPEED: /*[[${maxAudioSpeed}]]*/ + 0.0,
+        MIN_AUDIO_PITCH: /*[[${minAudioPitch}]]*/ + 0.0,
+        MAX_AUDIO_PITCH: /*[[${maxAudioPitch}]]*/ + 0.0,
+        MAX_AUDIO_VOLUME: /*[[${maxAudioVolume}]]*/ + 0.0,
+    }
 </script>
 <script src="/js/toast.js"></script>
 <script src="/js/admin.js"></script>

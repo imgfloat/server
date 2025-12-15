@@ -28,6 +28,18 @@ public class SystemEnvironmentValidator {
     private String previewsPath;
     @Value("${IMGFLOAT_DB_PATH}")
     private String dbPath;
+    @Value("${IMGFLOAT_MAX_SPEED}")
+    private double maxSpeed;
+    @Value("${IMGFLOAT_MIN_AUDIO_SPEED}")
+    private double minAudioSpeed;
+    @Value("${IMGFLOAT_MAX_AUDIO_SPEED}")
+    private double maxAudioSpeed;
+    @Value("${IMGFLOAT_MIN_AUDIO_PITCH}")
+    private double minAudioPitch;
+    @Value("${IMGFLOAT_MAX_AUDIO_PITCH}")
+    private double maxAudioPitch;
+    @Value("${IMGFLOAT_MAX_AUDIO_VOLUME}")
+    private double maxAudioVolume;
 
     private long maxUploadBytes;
     private long maxRequestBytes;
@@ -38,8 +50,14 @@ public class SystemEnvironmentValidator {
 
         maxUploadBytes = DataSize.parse(springMaxFileSize).toBytes();
         maxRequestBytes = DataSize.parse(springMaxRequestSize).toBytes();
-        checkLong(maxUploadBytes, "SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE", missing);
-        checkLong(maxRequestBytes, "SPRING_SERVLET_MULTIPART_MAX_REQUEST_SIZE", missing);
+        checkUnsignedNumeric(maxUploadBytes, "SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE", missing);
+        checkUnsignedNumeric(maxRequestBytes, "SPRING_SERVLET_MULTIPART_MAX_REQUEST_SIZE", missing);
+        checkUnsignedNumeric(maxSpeed, "IMGFLOAT_MAX_SPEED", missing);;
+        checkUnsignedNumeric(minAudioSpeed, "IMGFLOAT_MIN_AUDIO_SPEED", missing);;
+        checkUnsignedNumeric(maxAudioSpeed, "IMGFLOAT_MAX_AUDIO_SPEED", missing);;
+        checkUnsignedNumeric(minAudioPitch, "IMGFLOAT_MIN_AUDIO_PITCH", missing);;
+        checkUnsignedNumeric(maxAudioPitch, "IMGFLOAT_MAX_AUDIO_PITCH", missing);;
+        checkUnsignedNumeric(maxAudioVolume, "IMGFLOAT_MAX_AUDIO_VOLUME", missing);;
         checkString(twitchClientId, "TWITCH_CLIENT_ID", missing);
         checkString(dbPath, "IMGFLOAT_DB_PATH", missing);
         checkString(twitchClientSecret, "TWITCH_CLIENT_SECRET", missing);
@@ -57,15 +75,18 @@ public class SystemEnvironmentValidator {
         log.info(" - TWITCH_CLIENT_ID: {}", redact(twitchClientId));
         log.info(" - TWITCH_CLIENT_SECRET: {}", redact(twitchClientSecret));
         log.info(" - SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE: {} ({} bytes)",
-            springMaxFileSize,
-            maxUploadBytes
-        );
+                springMaxFileSize, maxUploadBytes);
         log.info(" - SPRING_SERVLET_MULTIPART_MAX_REQUEST_SIZE: {} ({} bytes)",
-            springMaxRequestSize,
-            maxRequestBytes
-        );
+                springMaxRequestSize, maxRequestBytes);
         log.info(" - IMGFLOAT_ASSETS_PATH: {}", assetsPath);
         log.info(" - IMGFLOAT_PREVIEWS_PATH: {}", previewsPath);
+        log.info(" - IMGFLOAT_DB_PATH: {}", dbPath);
+        log.info(" - IMGFLOAT_MAX_SPEED: {}", maxSpeed);
+        log.info(" - IMGFLOAT_MIN_AUDIO_SPEED: {}", minAudioSpeed);
+        log.info(" - IMGFLOAT_MAX_AUDIO_SPEED: {}", maxAudioSpeed);
+        log.info(" - IMGFLOAT_MIN_AUDIO_PITCH: {}", minAudioPitch);
+        log.info(" - IMGFLOAT_MAX_AUDIO_PITCH: {}", maxAudioPitch);
+        log.info(" - IMGFLOAT_MAX_AUDIO_VOLUME: {}", maxAudioVolume);
     }
 
     private void checkString(String value, String name, StringBuilder missing) {
@@ -74,44 +95,15 @@ public class SystemEnvironmentValidator {
         }
     }
 
-    private void checkLong(Long value, String name, StringBuilder missing) {
-        if (value == null || value <= 0) {
-            missing.append(" - ").append(name).append("\n");
+    private <T extends Number> void checkUnsignedNumeric(T value, String name, StringBuilder missing) {
+        if (value == null || value.doubleValue() <= 0) {
+            missing.append(" - ").append(name).append('\n');
         }
-    }
-
-    private String formatBytes(long bytes) {
-        if (bytes < 1024) return bytes + " B";
-
-        double kb = bytes / 1024.0;
-        if (kb < 1024) return String.format("%.2f KB", kb);
-
-        double mb = kb / 1024.0;
-        if (mb < 1024) return String.format("%.2f MB", mb);
-
-        double gb = mb / 1024.0;
-        return String.format("%.2f GB", gb);
     }
 
     private String redact(String value) {
         if (!StringUtils.hasText(value)) return "(missing)";
         if (value.length() <= 6) return "******";
         return value.substring(0, 2) + "****" + value.substring(value.length() - 2);
-    }
-
-    private long parseSizeToBytes(String value) {
-        if (value == null) return -1;
-
-        String v = value.trim().toUpperCase(Locale.ROOT);
-
-        try {
-            if (v.endsWith("GB")) return Long.parseLong(v.replace("GB", "")) * 1024 * 1024 * 1024;
-            if (v.endsWith("MB")) return Long.parseLong(v.replace("MB", "")) * 1024 * 1024;
-            if (v.endsWith("KB")) return Long.parseLong(v.replace("KB", "")) * 1024;
-            if (v.endsWith("B"))  return Long.parseLong(v.replace("B", ""));
-            return Long.parseLong(v);
-        } catch (NumberFormatException e) {
-            return -1;
-        }
     }
 }
