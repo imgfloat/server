@@ -23,19 +23,27 @@ public class SchemaMigration implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
-        cleanupSpringSessionTables();
+        ensureSessionAttributeUpsertTrigger();
         ensureChannelCanvasColumns();
         ensureAssetMediaColumns();
     }
 
-    private void cleanupSpringSessionTables() {
-        // try {
-        //     jdbcTemplate.execute("DELETE FROM SPRING_SESSION_ATTRIBUTES");
-        //     jdbcTemplate.execute("DELETE FROM SPRING_SESSION");
-        //     logger.info("Cleared persisted Spring Session tables on startup to avoid stale session conflicts");
-        // } catch (DataAccessException ex) {
-        //     logger.debug("Spring Session tables not available for cleanup", ex);
-        // }
+    private void ensureSessionAttributeUpsertTrigger() {
+        try {
+            jdbcTemplate.execute("""
+                CREATE TRIGGER IF NOT EXISTS SPRING_SESSION_ATTRIBUTES_UPSERT
+                BEFORE INSERT ON SPRING_SESSION_ATTRIBUTES
+                FOR EACH ROW
+                BEGIN
+                    DELETE FROM SPRING_SESSION_ATTRIBUTES
+                    WHERE SESSION_PRIMARY_ID = NEW.SESSION_PRIMARY_ID
+                      AND ATTRIBUTE_NAME = NEW.ATTRIBUTE_NAME;
+                END;
+                """);
+            logger.info("Ensured SPRING_SESSION_ATTRIBUTES upsert trigger exists");
+        } catch (DataAccessException ex) {
+            logger.warn("Unable to ensure SPRING_SESSION_ATTRIBUTES upsert trigger", ex);
+        }
     }
 
     private void ensureChannelCanvasColumns() {
@@ -94,4 +102,3 @@ public class SchemaMigration implements ApplicationRunner {
         }
     }
 }
-
