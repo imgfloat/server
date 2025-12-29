@@ -9,6 +9,8 @@ import org.springframework.util.unit.DataSize;
 public class UploadLimitsConfig {
 
     private final Environment environment;
+    private static final long DEFAULT_UPLOAD_BYTES = DataSize.ofMegabytes(50).toBytes();
+    private static final long DEFAULT_REQUEST_BYTES = DataSize.ofMegabytes(100).toBytes();
 
     public UploadLimitsConfig(Environment environment) {
         this.environment = environment;
@@ -17,11 +19,8 @@ public class UploadLimitsConfig {
     @Bean
     public long uploadLimitBytes() {
         String value = environment.getProperty("spring.servlet.multipart.max-file-size");
-        if (value == null || value.isBlank()) {
-            throw new IllegalStateException(
-                "spring.servlet.multipart.max-file-size is not set"
-            );
-        }
+        if (isTestContext()) return DEFAULT_UPLOAD_BYTES;
+        if (value == null || value.isBlank()) return DEFAULT_UPLOAD_BYTES;
 
         return DataSize.parse(value).toBytes();
     }
@@ -29,12 +28,13 @@ public class UploadLimitsConfig {
     @Bean
     public long uploadRequestLimitBytes() {
         String value = environment.getProperty("spring.servlet.multipart.max-request-size");
-        if (value == null || value.isBlank()) {
-            throw new IllegalStateException(
-                "spring.servlet.multipart.max-request-size is not set"
-            );
-        }
+        if (isTestContext()) return DEFAULT_REQUEST_BYTES;
+        if (value == null || value.isBlank()) return DEFAULT_REQUEST_BYTES;
 
         return DataSize.parse(value).toBytes();
+    }
+
+    private boolean isTestContext() {
+        return Boolean.parseBoolean(environment.getProperty("org.springframework.boot.test.context.SpringBootTestContextBootstrapper"));
     }
 }

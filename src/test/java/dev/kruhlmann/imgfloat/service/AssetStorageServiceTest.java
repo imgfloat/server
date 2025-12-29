@@ -1,6 +1,7 @@
 package dev.kruhlmann.imgfloat.service;
 
 import dev.kruhlmann.imgfloat.service.media.AssetContent;
+import dev.kruhlmann.imgfloat.model.Asset;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -33,25 +34,30 @@ class AssetStorageServiceTest {
     @Test
     void storesAndLoadsAssets() throws IOException {
         byte[] bytes = new byte[]{1, 2, 3};
+        Asset asset = new Asset("caster", "asset", "http://example.com", 10, 10);
+        asset.setMediaType("image/png");
 
-        String path = service.storeAsset("caster", "id", bytes, "image/png");
-        assertThat(Files.exists(Path.of(path))).isTrue();
+        service.storeAsset("caster", asset.getId(), bytes, "image/png");
 
-        AssetContent loaded = service.loadAssetFile(path, "image/png").orElseThrow();
+        AssetContent loaded = service.loadAssetFile(asset).orElseThrow();
         assertThat(loaded.bytes()).containsExactly(bytes);
         assertThat(loaded.mediaType()).isEqualTo("image/png");
+        assertThat(Files.exists(assets.resolve("caster").resolve(asset.getId() + ".png"))).isTrue();
     }
 
     @Test
     void ignoresEmptyPreview() throws IOException {
-        assertThat(service.storePreview("caster", "id", new byte[0])).isNull();
+        service.storePreview("caster", "id", new byte[0]);
+        assertThat(Files.list(previews).count()).isEqualTo(0);
     }
 
     @Test
     void storesAndLoadsPreviews() throws IOException {
         byte[] preview = new byte[]{9, 8, 7};
+        Asset asset = new Asset("caster", "asset", "http://example.com", 10, 10);
+        asset.setMediaType("image/png");
 
-        String path = service.storePreview("caster", "id", preview);
-        assertThat(service.loadPreview(path)).isPresent();
+        service.storePreview("caster", asset.getId(), preview);
+        assertThat(service.loadPreview(asset)).isPresent();
     }
 }

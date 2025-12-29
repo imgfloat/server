@@ -45,8 +45,21 @@ public class AssetStorageService {
             @Value("${IMGFLOAT_ASSETS_PATH:#{null}}") String assetRoot,
             @Value("${IMGFLOAT_PREVIEWS_PATH:#{null}}") String previewRoot
     ) {
-        this.assetRoot = Paths.get(assetRoot).normalize().toAbsolutePath();
-        this.previewRoot = Paths.get(previewRoot).normalize().toAbsolutePath();
+        String assetsBase = assetRoot != null
+                ? assetRoot
+                : Paths.get(System.getProperty("java.io.tmpdir"), "imgfloat-assets").toString();
+        String previewsBase = previewRoot != null
+                ? previewRoot
+                : Paths.get(System.getProperty("java.io.tmpdir"), "imgfloat-previews").toString();
+
+        this.assetRoot = Paths.get(assetsBase).normalize().toAbsolutePath();
+        this.previewRoot = Paths.get(previewsBase).normalize().toAbsolutePath();
+        try {
+            Files.createDirectories(this.assetRoot);
+            Files.createDirectories(this.previewRoot);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to create asset storage directories", e);
+        }
     }
 
     public void storeAsset(String broadcaster, String assetId, byte[] assetBytes, String mediaType)
@@ -145,6 +158,9 @@ public class AssetStorageService {
     }
 
     private void deleteOrphansUnder(Path root, Set<String> referencedAssetIds) {
+        if (!Files.exists(root)) {
+            return;
+        }
         try (var paths = Files.walk(root)) {
             paths.filter(Files::isRegularFile)
                  .filter(p -> isOrphan(p, referencedAssetIds))

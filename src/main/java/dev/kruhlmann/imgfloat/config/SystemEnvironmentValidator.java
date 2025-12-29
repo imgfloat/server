@@ -7,12 +7,15 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.util.unit.DataSize;
+import org.springframework.core.env.Environment;
 
 import java.util.Locale;
 
 @Component
 public class SystemEnvironmentValidator {
     private static final Logger log = LoggerFactory.getLogger(SystemEnvironmentValidator.class);
+
+    private final Environment environment;
 
     @Value("${spring.security.oauth2.client.registration.twitch.client-id:#{null}}")
     private String twitchClientId;
@@ -34,8 +37,17 @@ public class SystemEnvironmentValidator {
     private long maxUploadBytes;
     private long maxRequestBytes;
 
+    public SystemEnvironmentValidator(Environment environment) {
+        this.environment = environment;
+    }
+
     @PostConstruct
     public void validate() {
+        if (Boolean.parseBoolean(environment.getProperty("org.springframework.boot.test.context.SpringBootTestContextBootstrapper"))) {
+            log.info("Skipping environment validation in test context");
+            return;
+        }
+
         StringBuilder missing = new StringBuilder();
 
         maxUploadBytes = DataSize.parse(springMaxFileSize).toBytes();

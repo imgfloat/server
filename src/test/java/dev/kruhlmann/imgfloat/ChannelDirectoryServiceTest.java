@@ -12,11 +12,14 @@ import dev.kruhlmann.imgfloat.service.AssetStorageService;
 import dev.kruhlmann.imgfloat.service.media.MediaDetectionService;
 import dev.kruhlmann.imgfloat.service.media.MediaOptimizationService;
 import dev.kruhlmann.imgfloat.service.media.MediaPreviewService;
+import dev.kruhlmann.imgfloat.service.SettingsService;
+import dev.kruhlmann.imgfloat.model.Settings;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.awt.image.BufferedImage;
@@ -47,12 +50,15 @@ class ChannelDirectoryServiceTest {
     private SimpMessagingTemplate messagingTemplate;
     private ChannelRepository channelRepository;
     private AssetRepository assetRepository;
+    private SettingsService settingsService;
 
     @BeforeEach
     void setup() throws Exception {
         messagingTemplate = mock(SimpMessagingTemplate.class);
         channelRepository = mock(ChannelRepository.class);
         assetRepository = mock(AssetRepository.class);
+        settingsService = mock(SettingsService.class);
+        when(settingsService.get()).thenReturn(Settings.defaults());
         setupInMemoryPersistence();
         Path assetRoot = Files.createTempDirectory("imgfloat-assets-test");
         Path previewRoot = Files.createTempDirectory("imgfloat-previews-test");
@@ -61,7 +67,8 @@ class ChannelDirectoryServiceTest {
         MediaOptimizationService mediaOptimizationService = new MediaOptimizationService(mediaPreviewService);
         MediaDetectionService mediaDetectionService = new MediaDetectionService();
         service = new ChannelDirectoryService(channelRepository, assetRepository, messagingTemplate,
-                assetStorageService, mediaDetectionService, mediaOptimizationService);
+                assetStorageService, mediaDetectionService, mediaOptimizationService, settingsService);
+        ReflectionTestUtils.setField(service, "uploadLimitBytes", 5_000_000L);
     }
 
     @Test
@@ -99,7 +106,7 @@ class ChannelDirectoryServiceTest {
 
         assertThatThrownBy(() -> service.updateTransform(channel, id, transform))
                 .isInstanceOf(ResponseStatusException.class)
-                .hasMessageContaining("Width must be greater than 0");
+                .hasMessageContaining("Canvas width out of range");
     }
 
     @Test
@@ -112,14 +119,14 @@ class ChannelDirectoryServiceTest {
 
         assertThatThrownBy(() -> service.updateTransform(channel, id, speedTransform))
                 .isInstanceOf(ResponseStatusException.class)
-                .hasMessageContaining("Playback speed must be between 0 and 4.0");
+                .hasMessageContaining("Speed out of range");
 
         TransformRequest volumeTransform = validTransform();
-        volumeTransform.setAudioVolume(1.5);
+        volumeTransform.setAudioVolume(6.5);
 
         assertThatThrownBy(() -> service.updateTransform(channel, id, volumeTransform))
                 .isInstanceOf(ResponseStatusException.class)
-                .hasMessageContaining("Audio volume must be between 0 and 1.0");
+                .hasMessageContaining("Audio volume out of range");
     }
 
     @Test
@@ -128,19 +135,19 @@ class ChannelDirectoryServiceTest {
         String id = createSampleAsset(channel);
 
         TransformRequest transform = validTransform();
-        transform.setSpeed(0.0);
+        transform.setSpeed(0.1);
         transform.setAudioSpeed(0.1);
-        transform.setAudioPitch(0.5);
-        transform.setAudioVolume(1.0);
+        transform.setAudioPitch(0.1);
+        transform.setAudioVolume(0.01);
         transform.setAudioDelayMillis(0);
         transform.setZIndex(1);
 
         AssetView view = service.updateTransform(channel, id, transform).orElseThrow();
 
-        assertThat(view.speed()).isEqualTo(0.0);
+        assertThat(view.speed()).isEqualTo(0.1);
         assertThat(view.audioSpeed()).isEqualTo(0.1);
-        assertThat(view.audioPitch()).isEqualTo(0.5);
-        assertThat(view.audioVolume()).isEqualTo(1.0);
+        assertThat(view.audioPitch()).isEqualTo(0.1);
+        assertThat(view.audioVolume()).isEqualTo(0.01);
         assertThat(view.audioDelayMillis()).isEqualTo(0);
         assertThat(view.zIndex()).isEqualTo(1);
     }

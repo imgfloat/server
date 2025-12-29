@@ -263,7 +263,7 @@ public class Asset {
     }
 
     public double getAudioPitch() {
-        return audioPitch == null ? 1.0 : Math.max(0.5, audioPitch);
+        return audioPitch == null ? 1.0 : Math.max(0.1, audioPitch);
     }
 
     public void setAudioPitch(Double audioPitch) {

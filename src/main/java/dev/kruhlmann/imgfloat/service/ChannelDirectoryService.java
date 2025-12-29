@@ -183,6 +183,7 @@ public class ChannelDirectoryService {
                 asset.getId(),
                 optimized.previewBytes()
         );
+        asset.setPreview(optimized.previewBytes() != null ? asset.getId() + ".png" : "");
 
         asset.setSpeed(1.0);
         asset.setMuted(optimized.mediaType().startsWith("video/"));
@@ -288,9 +289,10 @@ public class ChannelDirectoryService {
                 .map(asset -> {
                     asset.setHidden(request.isHidden());
                     assetRepository.save(asset);
+                    AssetView view = AssetView.from(normalized, asset);
                     AssetPatch patch = AssetPatch.fromVisibility(asset);
-                    messagingTemplate.convertAndSend(topicFor(broadcaster), AssetEvent.visibility(broadcaster, patch));
-                    return AssetView.from(normalized, asset);
+                    messagingTemplate.convertAndSend(topicFor(broadcaster), AssetEvent.visibility(broadcaster, patch, view));
+                    return view;
                 });
     }
 

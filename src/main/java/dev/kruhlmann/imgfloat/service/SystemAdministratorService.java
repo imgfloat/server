@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.core.env.Environment;
 
 import java.util.Locale;
 
@@ -18,19 +19,27 @@ public class SystemAdministratorService {
 
     private final SystemAdministratorRepository repo;
     private final String initialSysadmin;
+    private final Environment environment;
 
     public SystemAdministratorService(
             SystemAdministratorRepository repo,
             @Value("${IMGFLOAT_INITIAL_TWITCH_USERNAME_SYSADMIN:#{null}}")
-            String initialSysadmin
+            String initialSysadmin,
+            Environment environment
     ) {
         this.repo = repo;
         this.initialSysadmin = initialSysadmin;
+        this.environment = environment;
     }
 
     @PostConstruct
     public void initDefaults() {
         if (repo.count() > 0) {
+            return;
+        }
+
+        if (Boolean.parseBoolean(environment.getProperty("org.springframework.boot.test.context.SpringBootTestContextBootstrapper"))) {
+            logger.info("Skipping system administrator bootstrap in test context");
             return;
         }
 

@@ -33,7 +33,9 @@ public record AssetView(
                 asset.getBroadcaster(),
                 asset.getName(),
                 "/api/channels/" + broadcaster + "/assets/" + asset.getId() + "/content",
-                asset.getPreview() != null ? "/api/channels/" + broadcaster + "/assets/" + asset.getId() + "/preview" : null,
+                asset.getPreview() != null && !asset.getPreview().isBlank()
+                        ? "/api/channels/" + broadcaster + "/assets/" + asset.getId() + "/preview"
+                        : null,
                 asset.getX(),
                 asset.getY(),
                 asset.getWidth(),
@@ -50,7 +52,7 @@ public record AssetView(
                 asset.getAudioPitch(),
                 asset.getAudioVolume(),
                 asset.isHidden(),
-                asset.getPreview() != null,
+                asset.getPreview() != null && !asset.getPreview().isBlank(),
                 asset.getCreatedAt()
         );
     }
