@@ -214,6 +214,7 @@ public class ChannelDirectoryService {
         return assetRepository.findById(assetId)
                 .filter(asset -> normalized.equals(asset.getBroadcaster()))
                 .map(asset -> {
+                    AssetPatch.TransformSnapshot before = AssetPatch.capture(asset);
                     validateTransform(req);
 
                     asset.setX(req.getX());
@@ -234,9 +235,11 @@ public class ChannelDirectoryService {
                     assetRepository.save(asset);
 
                     AssetView view = AssetView.from(normalized, asset);
-                    AssetPatch patch = AssetPatch.fromTransform(asset);
-                    messagingTemplate.convertAndSend(topicFor(broadcaster),
-                            AssetEvent.updated(broadcaster, patch));
+                    AssetPatch patch = AssetPatch.fromTransform(before, asset, req);
+                    if (hasPatchChanges(patch)) {
+                        messagingTemplate.convertAndSend(topicFor(broadcaster),
+                                AssetEvent.updated(broadcaster, patch));
+                    }
                     return view;
                 });
     }
@@ -356,5 +359,22 @@ public class ChannelDirectoryService {
                 .mapToInt(Asset::getZIndex)
                 .max()
                 .orElse(0) + 1;
+    }
+
+    private boolean hasPatchChanges(AssetPatch patch) {
+        return patch.x() != null
+                || patch.y() != null
+                || patch.width() != null
+                || patch.height() != null
+                || patch.rotation() != null
+                || patch.speed() != null
+                || patch.muted() != null
+                || patch.zIndex() != null
+                || patch.hidden() != null
+                || patch.audioLoop() != null
+                || patch.audioDelayMillis() != null
+                || patch.audioSpeed() != null
+                || patch.audioPitch() != null
+                || patch.audioVolume() != null;
     }
 }

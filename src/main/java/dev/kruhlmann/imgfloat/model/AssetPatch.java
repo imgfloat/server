@@ -21,9 +21,8 @@ public record AssetPatch(
         Double audioPitch,
         Double audioVolume
 ) {
-    public static AssetPatch fromTransform(Asset asset) {
-        return new AssetPatch(
-                asset.getId(),
+    public static TransformSnapshot capture(Asset asset) {
+        return new TransformSnapshot(
                 asset.getX(),
                 asset.getY(),
                 asset.getWidth(),
@@ -32,12 +31,35 @@ public record AssetPatch(
                 asset.getSpeed(),
                 asset.isMuted(),
                 asset.getZIndex(),
-                null,
                 asset.isAudioLoop(),
                 asset.getAudioDelayMillis(),
                 asset.getAudioSpeed(),
                 asset.getAudioPitch(),
                 asset.getAudioVolume()
+        );
+    }
+
+    /**
+     * Produces a minimal patch from a transform operation. Only fields that changed and were part of
+     * the incoming request are populated to keep WebSocket payloads small.
+     */
+    public static AssetPatch fromTransform(TransformSnapshot before, Asset asset, TransformRequest request) {
+        return new AssetPatch(
+                asset.getId(),
+                changed(before.x(), asset.getX()),
+                changed(before.y(), asset.getY()),
+                changed(before.width(), asset.getWidth()),
+                changed(before.height(), asset.getHeight()),
+                changed(before.rotation(), asset.getRotation()),
+                request.getSpeed() != null ? changed(before.speed(), asset.getSpeed()) : null,
+                request.getMuted() != null ? changed(before.muted(), asset.isMuted()) : null,
+                request.getZIndex() != null ? changed(before.zIndex(), asset.getZIndex()) : null,
+                null,
+                request.getAudioLoop() != null ? changed(before.audioLoop(), asset.isAudioLoop()) : null,
+                request.getAudioDelayMillis() != null ? changed(before.audioDelayMillis(), asset.getAudioDelayMillis()) : null,
+                request.getAudioSpeed() != null ? changed(before.audioSpeed(), asset.getAudioSpeed()) : null,
+                request.getAudioPitch() != null ? changed(before.audioPitch(), asset.getAudioPitch()) : null,
+                request.getAudioVolume() != null ? changed(before.audioVolume(), asset.getAudioVolume()) : null
         );
     }
 
@@ -60,4 +82,32 @@ public record AssetPatch(
                 null
         );
     }
+
+    private static Double changed(double before, double after) {
+        return Double.compare(before, after) == 0 ? null : after;
+    }
+
+    private static Integer changed(int before, int after) {
+        return before == after ? null : after;
+    }
+
+    private static Boolean changed(boolean before, boolean after) {
+        return before == after ? null : after;
+    }
+
+    public record TransformSnapshot(
+            double x,
+            double y,
+            double width,
+            double height,
+            double rotation,
+            double speed,
+            boolean muted,
+            int zIndex,
+            boolean audioLoop,
+            int audioDelayMillis,
+            double audioSpeed,
+            double audioPitch,
+            double audioVolume
+    ) { }
 }
