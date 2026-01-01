@@ -7,6 +7,9 @@ server:
     key-store: ${SSL_KEYSTORE_PATH:classpath:keystore.p12}
     key-store-password: ${SSL_KEYSTORE_PASSWORD:changeit}
     key-store-type: ${SSL_KEYSTORE_TYPE:PKCS12}
+  error:
+    include-message: never
+    include-stacktrace: never
 
 spring:
   config:

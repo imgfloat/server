@@ -9,6 +9,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.oauth2.client.endpoint.DefaultAuthorizationCodeTokenResponseClient;
 import org.springframework.security.oauth2.client.endpoint.OAuth2AccessTokenResponseClient;
 import org.springframework.security.oauth2.client.endpoint.OAuth2AuthorizationCodeGrantRequest;
+import org.springframework.security.oauth2.client.web.OAuth2AuthorizedClientRepository;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
@@ -21,7 +22,8 @@ import org.springframework.http.HttpStatus;
 public class SecurityConfig {
 
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    SecurityFilterChain securityFilterChain(HttpSecurity http,
+                                            OAuth2AuthorizedClientRepository authorizedClientRepository) throws Exception {
         http
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(
@@ -44,6 +46,7 @@ public class SecurityConfig {
                 .anyRequest().authenticated()
             )
             .oauth2Login(oauth -> oauth
+                .authorizedClientRepository(authorizedClientRepository)
                 .tokenEndpoint(token -> token.accessTokenResponseClient(twitchAccessTokenResponseClient()))
                 .userInfoEndpoint(user -> user.userService(twitchOAuth2UserService())))
             .logout(logout -> logout.logoutSuccessUrl("/").permitAll())

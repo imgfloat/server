@@ -21,7 +21,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClientService;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
-import org.springframework.security.oauth2.client.annotation.RegisteredOAuth2AuthorizedClient;
+import org.springframework.security.oauth2.client.web.OAuth2AuthorizedClientRepository;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -32,6 +32,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.multipart.MultipartFile;
+
+import jakarta.servlet.http.HttpServletRequest;
 
 import java.util.Collection;
 import java.io.IOException;
@@ -50,17 +52,20 @@ public class ChannelApiController {
     private static final Logger LOG = LoggerFactory.getLogger(ChannelApiController.class);
     private final ChannelDirectoryService channelDirectoryService;
     private final OAuth2AuthorizedClientService authorizedClientService;
+    private final OAuth2AuthorizedClientRepository authorizedClientRepository;
     private final TwitchUserLookupService twitchUserLookupService;
     private final AuthorizationService authorizationService;
 
     public ChannelApiController(
         ChannelDirectoryService channelDirectoryService,
         OAuth2AuthorizedClientService authorizedClientService,
+        OAuth2AuthorizedClientRepository authorizedClientRepository,
         TwitchUserLookupService twitchUserLookupService,
         AuthorizationService authorizationService
     ) {
         this.channelDirectoryService = channelDirectoryService;
         this.authorizedClientService = authorizedClientService;
+        this.authorizedClientRepository = authorizedClientRepository;
         this.twitchUserLookupService = twitchUserLookupService;
         this.authorizationService = authorizationService;
     }
@@ -82,7 +87,7 @@ public class ChannelApiController {
     @GetMapping("/admins")
     public Collection<TwitchUserProfile> listAdmins(@PathVariable("broadcaster") String broadcaster,
                                                     OAuth2AuthenticationToken oauthToken,
-                                                    @RegisteredOAuth2AuthorizedClient("twitch") OAuth2AuthorizedClient authorizedClient) {
+                                                    HttpServletRequest request) {
         String sessionUsername = OauthSessionUser.from(oauthToken).login();
         authorizationService.userMatchesSessionUsernameOrThrowHttpError(broadcaster, sessionUsername);
         LOG.debug("Listing admins for {} by {}", broadcaster, sessionUsername);
@@ -90,7 +95,7 @@ public class ChannelApiController {
         List<String> admins = channel.getAdmins().stream()
                 .sorted(Comparator.naturalOrder())
                 .toList();
-        authorizedClient = resolveAuthorizedClient(oauthToken, authorizedClient);
+        OAuth2AuthorizedClient authorizedClient = resolveAuthorizedClient(oauthToken, null, request);
         String accessToken = Optional.ofNullable(authorizedClient)
                 .map(OAuth2AuthorizedClient::getAccessToken)
                 .map(token -> token.getTokenValue())
@@ -105,12 +110,12 @@ public class ChannelApiController {
     @GetMapping("/admins/suggestions")
     public Collection<TwitchUserProfile> listAdminSuggestions(@PathVariable("broadcaster") String broadcaster,
                                                               OAuth2AuthenticationToken oauthToken,
-                                                              @RegisteredOAuth2AuthorizedClient("twitch") OAuth2AuthorizedClient authorizedClient) {
+                                                              HttpServletRequest request) {
         String sessionUsername = OauthSessionUser.from(oauthToken).login();
         authorizationService.userMatchesSessionUsernameOrThrowHttpError(broadcaster, sessionUsername);
         LOG.debug("Listing admin suggestions for {} by {}", broadcaster, sessionUsername);
         var channel = channelDirectoryService.getOrCreateChannel(broadcaster);
-        authorizedClient = resolveAuthorizedClient(oauthToken, authorizedClient);
+        OAuth2AuthorizedClient authorizedClient = resolveAuthorizedClient(oauthToken, null, request);
 
         if (authorizedClient == null) {
             LOG.warn("No authorized Twitch client found for {} while fetching admin suggestions for {}", sessionUsername, broadcaster);
@@ -281,12 +286,20 @@ public class ChannelApiController {
     }
 
     private OAuth2AuthorizedClient resolveAuthorizedClient(OAuth2AuthenticationToken oauthToken,
-                                                           OAuth2AuthorizedClient authorizedClient) {
+                                                           OAuth2AuthorizedClient authorizedClient,
+                                                           HttpServletRequest request) {
         if (authorizedClient != null) {
             return authorizedClient;
         }
         if (oauthToken == null) {
             return null;
+        }
+        OAuth2AuthorizedClient sessionClient = authorizedClientRepository.loadAuthorizedClient(
+                oauthToken.getAuthorizedClientRegistrationId(),
+                oauthToken,
+                request);
+        if (sessionClient != null) {
+            return sessionClient;
         }
         return authorizedClientService.loadAuthorizedClient(oauthToken.getAuthorizedClientRegistrationId(), oauthToken.getName());
     }

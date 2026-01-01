@@ -26,6 +26,8 @@ public class SchemaMigration implements ApplicationRunner {
         ensureSessionAttributeUpsertTrigger();
         ensureChannelCanvasColumns();
         ensureAssetMediaColumns();
+        ensureAuthorizedClientTable();
+        normalizeAuthorizedClientTimestamps();
     }
 
     private void ensureSessionAttributeUpsertTrigger() {
@@ -99,6 +101,52 @@ public class SchemaMigration implements ApplicationRunner {
             logger.info("Added missing column '{}' to {} table", columnName, tableName);
         } catch (DataAccessException ex) {
             logger.warn("Failed to add column '{}' to {} table", columnName, tableName, ex);
+        }
+    }
+
+    private void ensureAuthorizedClientTable() {
+        try {
+            jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS oauth2_authorized_client (
+                    client_registration_id VARCHAR(100) NOT NULL,
+                    principal_name VARCHAR(200) NOT NULL,
+                    access_token_type VARCHAR(100),
+                    access_token_value TEXT,
+                    access_token_issued_at INTEGER,
+                    access_token_expires_at INTEGER,
+                    access_token_scopes VARCHAR(1000),
+                    refresh_token_value TEXT,
+                    refresh_token_issued_at INTEGER,
+                    PRIMARY KEY (client_registration_id, principal_name)
+                )
+                """);
+            logger.info("Ensured oauth2_authorized_client table exists");
+        } catch (DataAccessException ex) {
+            logger.warn("Unable to ensure oauth2_authorized_client table", ex);
+        }
+    }
+
+    private void normalizeAuthorizedClientTimestamps() {
+        normalizeTimestampColumn("access_token_issued_at");
+        normalizeTimestampColumn("access_token_expires_at");
+        normalizeTimestampColumn("refresh_token_issued_at");
+    }
+
+    private void normalizeTimestampColumn(String column) {
+        try {
+            int updated = jdbcTemplate.update(
+                    "UPDATE oauth2_authorized_client " +
+                            "SET " + column + " = CASE " +
+                            "WHEN " + column + " LIKE '%-%' THEN CAST(strftime('%s', " + column + ") AS INTEGER) * 1000 " +
+                            "WHEN typeof(" + column + ") = 'text' AND " + column + " GLOB '[0-9]*' THEN CAST(" + column + " AS INTEGER) " +
+                            "WHEN typeof(" + column + ") = 'integer' THEN " + column + " " +
+                            "ELSE " + column + " END " +
+                            "WHERE " + column + " IS NOT NULL");
+            if (updated > 0) {
+                logger.info("Normalized {} rows in oauth2_authorized_client.{}", updated, column);
+            }
+        } catch (DataAccessException ex) {
+            logger.warn("Unable to normalize oauth2_authorized_client.{} timestamps", column, ex);
         }
     }
 }
