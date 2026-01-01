@@ -9,6 +9,7 @@ canvas.height = canvasSettings.height;
 const assets = new Map();
 const mediaCache = new Map();
 const renderStates = new Map();
+const visibilityStates = new Map();
 const animatedCache = new Map();
 const blobCache = new Map();
 const animationFailures = new Map();
@@ -16,10 +17,12 @@ const audioControllers = new Map();
 const pendingAudioUnlock = new Set();
 const TARGET_FPS = 60;
 const MIN_FRAME_TIME = 1000 / TARGET_FPS;
+const VISIBILITY_THRESHOLD = 0.01;
 let lastRenderTime = 0;
 let frameScheduled = false;
 let pendingDraw = false;
 let renderIntervalId = null;
+const pendingRemovals = new Set();
 const audioUnlockEvents = ['pointerdown', 'keydown', 'touchstart'];
 let layerOrder = [];
 
@@ -71,6 +74,26 @@ function getRenderOrder() {
     return [...getLayerOrder()].reverse().map((id) => assets.get(id)).filter(Boolean);
 }
 
+function queueRemoval(assetId) {
+    if (assetId) {
+        pendingRemovals.add(assetId);
+    }
+}
+
+function removeAsset(assetId) {
+    assets.delete(assetId);
+    layerOrder = layerOrder.filter((id) => id !== assetId);
+    clearMedia(assetId);
+    renderStates.delete(assetId);
+    visibilityStates.delete(assetId);
+}
+
+function flushPendingRemovals() {
+    if (!pendingRemovals.size) return;
+    pendingRemovals.forEach((id) => removeAsset(id));
+    pendingRemovals.clear();
+}
+
 function connect() {
     const socket = new SockJS('/ws');
     const stompClient = Stomp.over(socket);
@@ -99,8 +122,13 @@ function renderAssets(list) {
 
 function storeAsset(asset, placement = 'keep') {
     if (!asset) return;
+    const wasExisting = assets.has(asset.id);
     assets.set(asset.id, asset);
     ensureLayerPosition(asset.id, placement);
+    if (!wasExisting && !visibilityStates.has(asset.id)) {
+        const initialAlpha = 0; // Fade in newly discovered assets
+        visibilityStates.set(asset.id, { alpha: initialAlpha, targetHidden: !!asset.hidden });
+    }
 }
 
 function fetchCanvasSettings() {
@@ -141,25 +169,15 @@ function handleEvent(event) {
         return;
     }
     if (event.type === 'DELETED') {
-        assets.delete(assetId);
-        layerOrder = layerOrder.filter((id) => id !== assetId);
-        clearMedia(assetId);
-        renderStates.delete(assetId);
+        removeAsset(assetId);
     } else if (event.patch) {
         applyPatch(assetId, event.patch);
         if (event.payload) {
             const payload = normalizePayload(event.payload);
             if (payload.hidden) {
-                assets.delete(payload.id);
-                layerOrder = layerOrder.filter((id) => id !== payload.id);
-                clearMedia(payload.id);
-                renderStates.delete(payload.id);
+                hideAssetWithTransition(payload);
             } else if (!assets.has(payload.id)) {
-                storeAsset(payload, 'append');
-                ensureMedia(payload);
-                if (isAudioAsset(payload)) {
-                    playAudioImmediately(payload);
-                }
+                upsertVisibleAsset(payload, 'append');
             }
         }
     } else if (event.type === 'PLAY' && event.payload) {
@@ -170,16 +188,9 @@ function handleEvent(event) {
         }
     } else if (event.payload && !event.payload.hidden) {
         const payload = normalizePayload(event.payload);
-        storeAsset(payload);
-        ensureMedia(payload);
-        if (isAudioAsset(payload)) {
-            playAudioImmediately(payload);
-        }
+        upsertVisibleAsset(payload);
     } else if (event.payload && event.payload.hidden) {
-        assets.delete(event.payload.id);
-        layerOrder = layerOrder.filter((id) => id !== event.payload.id);
-        clearMedia(event.payload.id);
-        renderStates.delete(event.payload.id);
+        hideAssetWithTransition(event.payload);
     }
     draw();
 }
@@ -188,27 +199,47 @@ function normalizePayload(payload) {
     return { ...payload };
 }
 
+function hideAssetWithTransition(asset) {
+    const payload = asset ? normalizePayload(asset) : null;
+    if (!payload?.id) {
+        return;
+    }
+    const existing = assets.get(payload.id);
+    if (!existing && (!Number.isFinite(payload.x) || !Number.isFinite(payload.y) || !Number.isFinite(payload.width) || !Number.isFinite(payload.height))) {
+        return;
+    }
+    const merged = normalizePayload({ ...(existing || {}), ...payload, hidden: true });
+    storeAsset(merged);
+    stopAudio(payload.id);
+}
+
+function upsertVisibleAsset(asset, placement = 'keep') {
+    const payload = asset ? normalizePayload(asset) : null;
+    if (!payload?.id) {
+        return;
+    }
+    const placementMode = assets.has(payload.id) ? 'keep' : placement;
+    storeAsset(payload, placementMode);
+    ensureMedia(payload);
+    if (isAudioAsset(payload)) {
+        playAudioImmediately(payload);
+    }
+}
+
 function handleVisibilityEvent(event) {
     const payload = event.payload ? normalizePayload(event.payload) : null;
     const patch = event.patch;
     const id = payload?.id || patch?.id || event.assetId;
 
     if (payload?.hidden || patch?.hidden) {
-        assets.delete(id);
-        layerOrder = layerOrder.filter((assetId) => assetId !== id);
-        clearMedia(id);
-        renderStates.delete(id);
+        hideAssetWithTransition({ id, ...payload, ...patch });
         draw();
         return;
     }
 
     if (payload) {
         const placement = assets.has(payload.id) ? 'keep' : 'append';
-        storeAsset(payload, placement);
-        ensureMedia(payload);
-        if (isAudioAsset(payload)) {
-            playAudioImmediately(payload);
-        }
+        upsertVisibleAsset(payload, placement);
     }
 
     if (patch && id) {
@@ -232,10 +263,7 @@ function applyPatch(assetId, patch) {
     const merged = normalizePayload({ ...existing, ...sanitizedPatch });
     const isAudio = isAudioAsset(merged);
     if (sanitizedPatch.hidden) {
-        assets.delete(assetId);
-        layerOrder = layerOrder.filter((id) => id !== assetId);
-        clearMedia(assetId);
-        renderStates.delete(assetId);
+        hideAssetWithTransition(merged);
         return;
     }
     const targetLayer = Number.isFinite(patch.layer)
@@ -249,17 +277,6 @@ function applyPatch(assetId, patch) {
     }
     storeAsset(merged);
     ensureMedia(merged);
-    renderStates.set(assetId, { ...renderStates.get(assetId), ...pickTransform(merged) });
-}
-
-function pickTransform(asset) {
-    return {
-        x: asset.x,
-        y: asset.y,
-        width: asset.width,
-        height: asset.height,
-        rotation: asset.rotation
-    };
 }
 
 function draw() {
@@ -289,18 +306,27 @@ function draw() {
 function renderFrame() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     getRenderOrder().forEach(drawAsset);
+    flushPendingRemovals();
 }
 
 function drawAsset(asset) {
+    const visibility = getVisibilityState(asset);
+    if (visibility.alpha <= VISIBILITY_THRESHOLD && asset.hidden) {
+        queueRemoval(asset.id);
+        return;
+    }
     const renderState = smoothState(asset);
     const halfWidth = renderState.width / 2;
     const halfHeight = renderState.height / 2;
     ctx.save();
+    ctx.globalAlpha = Math.max(0, Math.min(1, visibility.alpha));
     ctx.translate(renderState.x + halfWidth, renderState.y + halfHeight);
     ctx.rotate(renderState.rotation * Math.PI / 180);
 
     if (isAudioAsset(asset)) {
-        autoStartAudio(asset);
+        if (!asset.hidden) {
+            autoStartAudio(asset);
+        }
         ctx.restore();
         return;
     }
@@ -313,6 +339,17 @@ function drawAsset(asset) {
     }
 
     ctx.restore();
+}
+
+function getVisibilityState(asset) {
+    const current = visibilityStates.get(asset.id) || {};
+    const targetAlpha = asset.hidden ? 0 : 1;
+    const startingAlpha = Number.isFinite(current.alpha) ? current.alpha : 0;
+    const factor = asset.hidden ? 0.18 : 0.2;
+    const nextAlpha = lerp(startingAlpha, targetAlpha, factor);
+    const state = { alpha: nextAlpha, targetHidden: !!asset.hidden };
+    visibilityStates.set(asset.id, state);
+    return state;
 }
 
 function smoothState(asset) {
