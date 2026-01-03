@@ -58,7 +58,7 @@ function createWindow() {
     const handleNavigation = (navigationUrl) => {
         try {
             const { pathname } = new URL(navigationUrl);
-            const isBroadcast = /\\/view\\/[^/]+\\/broadcast\\/?$/.test(pathname);
+            const isBroadcast = /\/view\/[^/]+\/broadcast\/?$/.test(pathname);
 
             if (isBroadcast) {
                 clearCanvasSizeInterval();
