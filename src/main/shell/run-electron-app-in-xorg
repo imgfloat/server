@@ -1,0 +1,46 @@
+#!/usr/bin/env sh
+set -eu
+
+APP_ENTRY="src/main/node/app.js"
+SCREEN="1280x800"
+
+for d in 99 98 97 96 95; do
+    if ! xdpyinfo -display ":$d" >/dev/null 2>&1; then
+        DISP="$d"
+        break
+    fi
+done
+
+[ -n "${DISP:-}" ] || {
+    echo "No free DISPLAY found" >&2
+    exit 1
+}
+
+echo "Using DISPLAY=:$DISP"
+
+Xephyr ":$DISP" -screen "$SCREEN" -resizeable -ac &
+XEPHYR_PID=$!
+
+cleanup() {
+    kill "$ELECTRON_PID" "$OPENBOX_PID" "$XEPHYR_PID" 2>/dev/null || true
+}
+trap cleanup EXIT INT TERM
+
+sleep 1
+
+DISPLAY=":$DISP" openbox &
+OPENBOX_PID=$!
+
+sleep 0.5
+
+DISPLAY=":$DISP" electron "$APP_ENTRY" &
+ELECTRON_PID=$!
+
+# monitor X server — when it dies, kill Electron
+while kill -0 "$XEPHYR_PID" 2>/dev/null; do
+    sleep 0.5
+done
+
+echo "Xephyr exited — killing Electron"
+kill "$ELECTRON_PID" 2>/dev/null || true
+wait "$ELECTRON_PID" 2>/dev/null || true

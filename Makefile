@@ -38,6 +38,10 @@ test:
 package:
 	mvn clean package
 
+.PHONY: runx
+runx:
+	./src/main/shell/run-electron-app-in-xorg
+
 .PHONY: ssl
 ssl:
 	mkdir -p local

@@ -4,7 +4,7 @@
   "description": "Electron wrapper for the Imgfloat overlay",
   "main": "app.js",
   "build": {
-    "appId": "dev.kruhlmann.imgfloat.overlay",
+    "appId": "dev.kruhlmann.imgfloat",
     "productName": "Imgfloat",
     "files": [ "src/main/node/app.js" ],
     "asar": false,
@@ -17,6 +17,15 @@
     "win": {
       "target": ["nsis"]
       "icon": "assets/icon/appicon.ico"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": true,
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Imgfloat"
     },
     "mac": {
       "category": "public.app-category.productivity"

@@ -2,14 +2,16 @@
 
 pkgs.mkShell {
   packages = [
-    pkgs.openssl
     pkgs.electron
-    pkgs.openjdk
-    pkgs.maven
-    pkgs.nodejs
-    pkgs.nodePackages.prettier
     pkgs.jdt-language-server
+    pkgs.maven
     pkgs.mkcert
+    pkgs.nodePackages.prettier
+    pkgs.nodejs
     pkgs.nss
+    pkgs.openbox
+    pkgs.openjdk
+    pkgs.openssl
+    pkgs.xorg.xorgserver
   ];
 }
