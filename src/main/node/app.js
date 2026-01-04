@@ -15,6 +15,7 @@ function createWindow() {
         icon: path.join(__dirname, "../resources/assets/icon/appicon.ico"),
         webPreferences: { backgroundThrottling: false },
     });
+    win.setMenu(null);
 
     let canvasSizeInterval;
     const clearCanvasSizeInterval = () => {
