@@ -71,7 +71,7 @@ public class ChannelApiController {
     }
 
     @PostMapping("/admins")
-    public ResponseEntity<?> addAdmin(
+    public ResponseEntity<Boolean> addAdmin(
         @PathVariable("broadcaster") String broadcaster,
         @Valid @RequestBody AdminRequest request,
         OAuth2AuthenticationToken oauthToken
@@ -86,7 +86,7 @@ public class ChannelApiController {
         if (!added) {
             LOG.info("User {} already admin for {} or could not be added", logRequestUsername, logBroadcaster);
         }
-        return ResponseEntity.ok().body(added);
+        return ResponseEntity.ok(added);
     }
 
     @GetMapping("/admins")
@@ -156,7 +156,7 @@ public class ChannelApiController {
     }
 
     @DeleteMapping("/admins/{username}")
-    public ResponseEntity<?> removeAdmin(
+    public ResponseEntity<Boolean> removeAdmin(
         @PathVariable("broadcaster") String broadcaster,
         @PathVariable("username") String username,
         OAuth2AuthenticationToken oauthToken
@@ -168,7 +168,7 @@ public class ChannelApiController {
         authorizationService.userMatchesSessionUsernameOrThrowHttpError(broadcaster, sessionUsername);
         LOG.info("User {} removing admin {} from {}", logSessionUsername, logUsername, logBroadcaster);
         boolean removed = channelDirectoryService.removeAdmin(broadcaster, username);
-        return ResponseEntity.ok().body(removed);
+        return ResponseEntity.ok(removed);
     }
 
     @GetMapping("/assets")
@@ -369,7 +369,7 @@ public class ChannelApiController {
     }
 
     @DeleteMapping("/assets/{assetId}")
-    public ResponseEntity<?> delete(
+    public ResponseEntity<Void> delete(
         @PathVariable("broadcaster") String broadcaster,
         @PathVariable("assetId") String assetId,
         OAuth2AuthenticationToken oauthToken

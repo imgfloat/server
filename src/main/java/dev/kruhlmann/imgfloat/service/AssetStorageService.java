@@ -8,7 +8,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -58,7 +57,7 @@ public class AssetStorageService {
             Files.createDirectories(this.assetRoot);
             Files.createDirectories(this.previewRoot);
         } catch (IOException e) {
-            throw new RuntimeException("Failed to create asset storage directories", e);
+            throw new IllegalStateException("Failed to create asset storage directories", e);
         }
     }
 
@@ -77,7 +76,7 @@ public class AssetStorageService {
             StandardOpenOption.TRUNCATE_EXISTING,
             StandardOpenOption.WRITE
         );
-        logger.info("Wrote asset to {}", file.toString());
+        logger.info("Wrote asset to {}", file);
     }
 
     public void storePreview(String broadcaster, String assetId, byte[] previewBytes) throws IOException {
@@ -93,7 +92,7 @@ public class AssetStorageService {
             StandardOpenOption.TRUNCATE_EXISTING,
             StandardOpenOption.WRITE
         );
-        logger.info("Wrote asset to {}", file.toString());
+        logger.info("Wrote asset to {}", file);
     }
 
     public Optional<AssetContent> loadAssetFile(Asset asset) {

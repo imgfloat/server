@@ -2,12 +2,8 @@ package dev.kruhlmann.imgfloat.service;
 
 import dev.kruhlmann.imgfloat.model.Asset;
 import dev.kruhlmann.imgfloat.repository.AssetRepository;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.Set;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.event.ApplicationReadyEvent;

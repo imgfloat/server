@@ -12,6 +12,7 @@ import org.springframework.security.oauth2.client.registration.ClientRegistratio
 import org.springframework.security.oauth2.core.endpoint.OAuth2ParameterNames;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
+import org.springframework.lang.Nullable;
 
 /**
  * Ensures Twitch token requests always include {@code client_id} and {@code client_secret} in the
@@ -25,7 +26,7 @@ final class TwitchAuthorizationCodeGrantRequestEntityConverter
         new OAuth2AuthorizationCodeGrantRequestEntityConverter();
 
     @Override
-    public RequestEntity<?> convert(OAuth2AuthorizationCodeGrantRequest request) {
+    public @Nullable RequestEntity<?> convert(@Nullable OAuth2AuthorizationCodeGrantRequest request) {
         RequestEntity<?> entity = delegate.convert(request);
         if (entity == null || !(entity.getBody() instanceof MultiValueMap<?, ?> existingBody)) {
             return entity;

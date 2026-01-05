@@ -4,9 +4,6 @@ import static org.springframework.http.HttpStatus.FORBIDDEN;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 
-import dev.kruhlmann.imgfloat.model.OauthSessionUser;
-import dev.kruhlmann.imgfloat.service.ChannelDirectoryService;
-import dev.kruhlmann.imgfloat.service.SystemAdministratorService;
 import dev.kruhlmann.imgfloat.util.LogSanitizer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

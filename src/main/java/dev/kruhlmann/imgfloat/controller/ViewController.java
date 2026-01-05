@@ -13,7 +13,6 @@ import dev.kruhlmann.imgfloat.service.SettingsService;
 import dev.kruhlmann.imgfloat.service.VersionService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -28,22 +27,22 @@ public class ViewController {
     private final SettingsService settingsService;
     private final ObjectMapper objectMapper;
     private final AuthorizationService authorizationService;
-
-    @Autowired
-    private long uploadLimitBytes;
+    private final long uploadLimitBytes;
 
     public ViewController(
         ChannelDirectoryService channelDirectoryService,
         VersionService versionService,
         SettingsService settingsService,
         ObjectMapper objectMapper,
-        AuthorizationService authorizationService
+        AuthorizationService authorizationService,
+        long uploadLimitBytes
     ) {
         this.channelDirectoryService = channelDirectoryService;
         this.versionService = versionService;
         this.settingsService = settingsService;
         this.objectMapper = objectMapper;
         this.authorizationService = authorizationService;
+        this.uploadLimitBytes = uploadLimitBytes;
     }
 
     @org.springframework.web.bind.annotation.GetMapping("/")
