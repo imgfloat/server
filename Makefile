@@ -41,7 +41,7 @@ package:
 
 .PHONY: runx
 runx:
-	./src/main/shell/run-electron-app-in-xorg
+	IMGFLOAT_CHANNELS_URL=http://localhost:8080/channels ./src/main/shell/run-electron-app-in-xorg
 
 .PHONY: ssl
 ssl:

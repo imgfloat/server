@@ -18,13 +18,13 @@ done
 
 echo "Using DISPLAY=:$DISP"
 
-Xephyr ":$DISP" -screen "$SCREEN" -resizeable -ac &
-XEPHYR_PID=$!
-
 cleanup() {
     kill "$ELECTRON_PID" "$OPENBOX_PID" "$XEPHYR_PID" 2>/dev/null || true
 }
 trap cleanup EXIT INT TERM
+
+Xephyr ":$DISP" -screen "$SCREEN" -resizeable -ac &
+XEPHYR_PID=$!
 
 sleep 1
 
@@ -35,12 +35,23 @@ sleep 0.5
 
 DISPLAY=":$DISP" electron "$APP_ENTRY" &
 ELECTRON_PID=$!
+DISPLAY=":$DISP" xsetroot -solid "#009999"
 
-# monitor X server — when it dies, kill Electron
-while kill -0 "$XEPHYR_PID" 2>/dev/null; do
+while :; do
+    if ! kill -0 "$ELECTRON_PID" 2>/dev/null; then
+        echo "Electron exited — killing Xephyr"
+        kill "$XEPHYR_PID" 2>/dev/null || true
+        break
+    fi
+
+    if ! kill -0 "$XEPHYR_PID" 2>/dev/null; then
+        echo "Xephyr exited — killing Electron"
+        kill "$ELECTRON_PID" 2>/dev/null || true
+        break
+    fi
+
     sleep 0.5
 done
 
-echo "Xephyr exited — killing Electron"
-kill "$ELECTRON_PID" 2>/dev/null || true
 wait "$ELECTRON_PID" 2>/dev/null || true
+wait "$XEPHYR_PID" 2>/dev/null || true

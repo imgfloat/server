@@ -1,8 +1,9 @@
 const { app, BrowserWindow } = require("electron");
 const path = require("path");
+let broadcastRect = { width: 0, height: 0 };
 
 function createWindow() {
-    const url = "https://imgfloat.kruhlmann.dev/channels";
+    const url = process.env["IMGFLOAT_CHANNELS_URL"] || "https://imgfloat.kruhlmann.dev/channels";
     const initialWindowWidthPx = 960;
     const initialWindowHeightPx = 640;
     const applicationWindow = new BrowserWindow({
@@ -27,31 +28,30 @@ function createWindow() {
 
     const lockWindowToCanvas = async () => {
         if (applicationWindow.isDestroyed()) {
-            return false;
+            return;
         }
-        try {
-            const size = await applicationWindow.webContents.executeJavaScript(`(() => {
-                const canvas = document.getElementById('broadcast-canvas');
-                if (!canvas || !canvas.width || !canvas.height) {
-                    return null;
-                }
-                return { width: Math.round(canvas.width), height: Math.round(canvas.height) };
-            })();`);
-
-            if (size?.width && size?.height) {
-                const [currentWidth, currentHeight] = applicationWindow.getSize();
-                if (currentWidth !== size.width || currentHeight !== size.height) {
-                    applicationWindow.setSize(size.width, size.height, false);
-                }
-                applicationWindow.setMinimumSize(size.width, size.height);
-                applicationWindow.setMaximumSize(size.width, size.height);
-                applicationWindow.setResizable(false);
-                return true;
+        const size = await applicationWindow.webContents.executeJavaScript(`(() => {
+            const canvas = document.getElementById('broadcast-canvas');
+            if (!canvas) {
+                return null;
             }
-        } catch (error) {
-            // Best-effort sizing; ignore errors from early navigation states.
+            const rect = canvas.getBoundingClientRect();
+            return {
+                width: Math.round(rect.width),
+                height: Math.round(rect.height),
+            };
+        })();`);
+
+        if (size?.width && size?.height) {
+            if (broadcastRect.width !== size.width || broadcastRect.height !== size.height) {
+                console.log(
+                    `Window size did not match canvas old: ${broadcastRect.width}x${broadcastRect.height} new: ${size.width}x${size.height}. Resizing.`,
+                );
+                applicationWindow.setContentSize(size.width, size.height, false);
+                applicationWindow.setResizable(false);
+                broadcastRect = { ...size };
+            }
         }
-        return false;
     };
 
     const handleNavigation = (navigationUrl) => {
@@ -65,9 +65,6 @@ function createWindow() {
                 lockWindowToCanvas();
             } else {
                 clearCanvasSizeInterval();
-                applicationWindow.setResizable(true);
-                applicationWindow.setMinimumSize(320, 240);
-                applicationWindow.setMaximumSize(10000, 10000);
                 applicationWindow.setSize(initialWindowWidthPx, initialWindowHeightPx, false);
             }
         } catch {

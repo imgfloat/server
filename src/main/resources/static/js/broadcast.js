@@ -154,15 +154,6 @@ function fetchCanvasSettings() {
 }
 
 function resizeCanvas() {
-    const scale = Math.min(window.innerWidth / canvasSettings.width, window.innerHeight / canvasSettings.height);
-    const displayWidth = canvasSettings.width * scale;
-    const displayHeight = canvasSettings.height * scale;
-    canvas.width = canvasSettings.width;
-    canvas.height = canvasSettings.height;
-    canvas.style.width = `${displayWidth}px`;
-    canvas.style.height = `${displayHeight}px`;
-    canvas.style.left = `${(window.innerWidth - displayWidth) / 2}px`;
-    canvas.style.top = `${(window.innerHeight - displayHeight) / 2}px`;
     draw();
 }
 
@@ -279,8 +270,8 @@ function applyPatch(assetId, patch) {
     const targetLayer = Number.isFinite(patch.layer)
         ? patch.layer
         : Number.isFinite(patch.zIndex)
-          ? patch.zIndex
-          : null;
+            ? patch.zIndex
+            : null;
     if (!isAudio && Number.isFinite(targetLayer)) {
         const currentOrder = getLayerOrder().filter((id) => id !== assetId);
         const insertIndex = Math.max(0, currentOrder.length - Math.round(targetLayer));
@@ -773,7 +764,7 @@ function setVideoSource(element, asset) {
             }
             applyVideoSource(element, next.objectUrl, asset);
         })
-        .catch(() => {});
+        .catch(() => { });
 }
 
 function applyVideoSource(element, objectUrl, asset) {
