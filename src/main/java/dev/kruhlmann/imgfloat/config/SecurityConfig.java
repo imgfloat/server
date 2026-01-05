@@ -28,6 +28,8 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(
                         "/",
+                        "/favicon.ico",
+                        "/img/**",
                         "/css/**",
                         "/js/**",
                         "/webjars/**",
