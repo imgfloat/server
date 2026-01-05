@@ -18,7 +18,7 @@
         "AppImage"
       ],
       "category": "Utility",
-      "icon": "src/main/resources/assets/icon/raw_icon.png"
+      "icon": "src/main/resources/assets/icon/raw.png"
     },
     "win": {
       "target": [
