@@ -6,6 +6,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.kruhlmann.imgfloat.model.OauthSessionUser;
 import dev.kruhlmann.imgfloat.model.Settings;
+import dev.kruhlmann.imgfloat.util.LogSanitizer;
 import dev.kruhlmann.imgfloat.service.AuthorizationService;
 import dev.kruhlmann.imgfloat.service.ChannelDirectoryService;
 import dev.kruhlmann.imgfloat.service.SettingsService;
@@ -49,7 +50,8 @@ public class ViewController {
     public String home(OAuth2AuthenticationToken oauthToken, Model model) {
         if (oauthToken != null) {
             String sessionUsername = OauthSessionUser.from(oauthToken).login();
-            LOG.info("Rendering dashboard for {}", sessionUsername);
+            String logSessionUsername = LogSanitizer.sanitize(sessionUsername);
+            LOG.info("Rendering dashboard for {}", logSessionUsername);
             model.addAttribute("username", sessionUsername);
             model.addAttribute("channel", sessionUsername);
             model.addAttribute("adminChannels", channelDirectoryService.adminChannelsFor(sessionUsername));
@@ -70,7 +72,8 @@ public class ViewController {
     public String settingsView(OAuth2AuthenticationToken oauthToken, Model model) {
         String sessionUsername = OauthSessionUser.from(oauthToken).login();
         authorizationService.userIsSystemAdministratorOrThrowHttpError(sessionUsername);
-        LOG.info("Rendering settings for {}", sessionUsername);
+        String logSessionUsername = LogSanitizer.sanitize(sessionUsername);
+        LOG.info("Rendering settings for {}", logSessionUsername);
         Settings settings = settingsService.get();
         try {
             model.addAttribute("settingsJson", objectMapper.writeValueAsString(settings));
@@ -92,10 +95,12 @@ public class ViewController {
             broadcaster,
             sessionUsername
         );
+        String logBroadcaster = LogSanitizer.sanitize(broadcaster);
+        String logSessionUsername = LogSanitizer.sanitize(sessionUsername);
         LOG.info(
             "Rendering admin console for {} (requested by {})",
-            broadcaster.replaceAll("[\n\r]", "_"),
-            sessionUsername
+            logBroadcaster,
+            logSessionUsername
         );
         Settings settings = settingsService.get();
         model.addAttribute("broadcaster", broadcaster.toLowerCase());
@@ -116,7 +121,8 @@ public class ViewController {
         @org.springframework.web.bind.annotation.PathVariable("broadcaster") String broadcaster,
         Model model
     ) {
-        LOG.debug("Rendering broadcast overlay for {}", broadcaster);
+        String logBroadcaster = LogSanitizer.sanitize(broadcaster);
+        LOG.debug("Rendering broadcast overlay for {}", logBroadcaster);
         model.addAttribute("broadcaster", broadcaster.toLowerCase());
         return "broadcast";
     }

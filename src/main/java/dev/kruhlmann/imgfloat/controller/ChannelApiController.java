@@ -12,6 +12,7 @@ import dev.kruhlmann.imgfloat.model.PlaybackRequest;
 import dev.kruhlmann.imgfloat.model.TransformRequest;
 import dev.kruhlmann.imgfloat.model.TwitchUserProfile;
 import dev.kruhlmann.imgfloat.model.VisibilityRequest;
+import dev.kruhlmann.imgfloat.util.LogSanitizer;
 import dev.kruhlmann.imgfloat.service.AuthorizationService;
 import dev.kruhlmann.imgfloat.service.ChannelDirectoryService;
 import dev.kruhlmann.imgfloat.service.TwitchUserLookupService;
@@ -76,11 +77,14 @@ public class ChannelApiController {
         OAuth2AuthenticationToken oauthToken
     ) {
         String sessionUsername = OauthSessionUser.from(oauthToken).login();
+        String logBroadcaster = LogSanitizer.sanitize(broadcaster);
+        String logSessionUsername = LogSanitizer.sanitize(sessionUsername);
+        String logRequestUsername = LogSanitizer.sanitize(request.getUsername());
         authorizationService.userMatchesSessionUsernameOrThrowHttpError(broadcaster, sessionUsername);
-        LOG.info("User {} adding admin {} to {}", sessionUsername, request.getUsername(), broadcaster.replaceAll("[\n\r]", "_"));
+        LOG.info("User {} adding admin {} to {}", logSessionUsername, logRequestUsername, logBroadcaster);
         boolean added = channelDirectoryService.addAdmin(broadcaster, request.getUsername());
         if (!added) {
-            LOG.info("User {} already admin for {} or could not be added", request.getUsername(), broadcaster.replaceAll("[\n\r]", "_"));
+            LOG.info("User {} already admin for {} or could not be added", logRequestUsername, logBroadcaster);
         }
         return ResponseEntity.ok().body(added);
     }
@@ -92,8 +96,10 @@ public class ChannelApiController {
         HttpServletRequest request
     ) {
         String sessionUsername = OauthSessionUser.from(oauthToken).login();
+        String logBroadcaster = LogSanitizer.sanitize(broadcaster);
+        String logSessionUsername = LogSanitizer.sanitize(sessionUsername);
         authorizationService.userMatchesSessionUsernameOrThrowHttpError(broadcaster, sessionUsername);
-        LOG.debug("Listing admins for {} by {}", broadcaster, sessionUsername);
+        LOG.debug("Listing admins for {} by {}", logBroadcaster, logSessionUsername);
         var channel = channelDirectoryService.getOrCreateChannel(broadcaster);
         List<String> admins = channel.getAdmins().stream().sorted(Comparator.naturalOrder()).toList();
         OAuth2AuthorizedClient authorizedClient = resolveAuthorizedClient(oauthToken, null, request);
@@ -115,16 +121,18 @@ public class ChannelApiController {
         HttpServletRequest request
     ) {
         String sessionUsername = OauthSessionUser.from(oauthToken).login();
+        String logBroadcaster = LogSanitizer.sanitize(broadcaster);
+        String logSessionUsername = LogSanitizer.sanitize(sessionUsername);
         authorizationService.userMatchesSessionUsernameOrThrowHttpError(broadcaster, sessionUsername);
-        LOG.debug("Listing admin suggestions for {} by {}", broadcaster, sessionUsername);
+        LOG.debug("Listing admin suggestions for {} by {}", logBroadcaster, logSessionUsername);
         var channel = channelDirectoryService.getOrCreateChannel(broadcaster);
         OAuth2AuthorizedClient authorizedClient = resolveAuthorizedClient(oauthToken, null, request);
 
         if (authorizedClient == null) {
             LOG.warn(
                 "No authorized Twitch client found for {} while fetching admin suggestions for {}",
-                sessionUsername,
-                broadcaster.replaceAll("[\n\r]", "_")
+                logSessionUsername,
+                logBroadcaster
             );
             return List.of();
         }
@@ -139,8 +147,8 @@ public class ChannelApiController {
         if (accessToken == null || accessToken.isBlank() || clientId == null || clientId.isBlank()) {
             LOG.warn(
                 "Missing Twitch credentials for {} while fetching admin suggestions for {}",
-                sessionUsername,
-                broadcaster
+                logSessionUsername,
+                logBroadcaster
             );
             return List.of();
         }
@@ -154,8 +162,11 @@ public class ChannelApiController {
         OAuth2AuthenticationToken oauthToken
     ) {
         String sessionUsername = OauthSessionUser.from(oauthToken).login();
+        String logBroadcaster = LogSanitizer.sanitize(broadcaster);
+        String logSessionUsername = LogSanitizer.sanitize(sessionUsername);
+        String logUsername = LogSanitizer.sanitize(username);
         authorizationService.userMatchesSessionUsernameOrThrowHttpError(broadcaster, sessionUsername);
-        LOG.info("User {} removing admin {} from {}", sessionUsername, username, broadcaster);
+        LOG.info("User {} removing admin {} from {}", logSessionUsername, logUsername, logBroadcaster);
         boolean removed = channelDirectoryService.removeAdmin(broadcaster, username);
         return ResponseEntity.ok().body(removed);
     }
@@ -182,11 +193,13 @@ public class ChannelApiController {
         OAuth2AuthenticationToken oauthToken
     ) {
         String sessionUsername = OauthSessionUser.from(oauthToken).login();
+        String logBroadcaster = LogSanitizer.sanitize(broadcaster);
+        String logSessionUsername = LogSanitizer.sanitize(sessionUsername);
         authorizationService.userMatchesSessionUsernameOrThrowHttpError(broadcaster, sessionUsername);
         LOG.info(
             "Updating canvas for {} by {}: {}x{}",
-            broadcaster.replaceAll("[\n\r]", "_"),
-            sessionUsername,
+            logBroadcaster,
+            logSessionUsername,
             request.getWidth(),
             request.getHeight()
         );
@@ -200,22 +213,25 @@ public class ChannelApiController {
         OAuth2AuthenticationToken oauthToken
     ) {
         String sessionUsername = OauthSessionUser.from(oauthToken).login();
+        String logBroadcaster = LogSanitizer.sanitize(broadcaster);
+        String logSessionUsername = LogSanitizer.sanitize(sessionUsername);
         authorizationService.userIsBroadcasterOrChannelAdminForBroadcasterOrThrowHttpError(
             broadcaster,
             sessionUsername
         );
         if (file == null || file.isEmpty()) {
-            LOG.warn("User {} attempted to upload empty file to {}", sessionUsername, broadcaster);
+            LOG.warn("User {} attempted to upload empty file to {}", logSessionUsername, logBroadcaster);
             throw new ResponseStatusException(BAD_REQUEST, "Asset file is required");
         }
         try {
-            LOG.info("User {} uploading asset {} to {}", sessionUsername, file.getOriginalFilename(), broadcaster);
+            String logOriginalFilename = LogSanitizer.sanitize(file.getOriginalFilename());
+            LOG.info("User {} uploading asset {} to {}", logSessionUsername, logOriginalFilename, logBroadcaster);
             return channelDirectoryService
                 .createAsset(broadcaster, file)
                 .map(ResponseEntity::ok)
                 .orElseThrow(() -> new ResponseStatusException(BAD_REQUEST, "Unable to read image"));
         } catch (IOException e) {
-            LOG.error("Failed to process asset upload for {} by {}", broadcaster, sessionUsername, e);
+            LOG.error("Failed to process asset upload for {} by {}", logBroadcaster, logSessionUsername, e);
             throw new ResponseStatusException(BAD_REQUEST, "Failed to process image", e);
         }
     }
@@ -228,16 +244,19 @@ public class ChannelApiController {
         OAuth2AuthenticationToken oauthToken
     ) {
         String sessionUsername = OauthSessionUser.from(oauthToken).login();
+        String logBroadcaster = LogSanitizer.sanitize(broadcaster);
+        String logAssetId = LogSanitizer.sanitize(assetId);
+        String logSessionUsername = LogSanitizer.sanitize(sessionUsername);
         authorizationService.userIsBroadcasterOrChannelAdminForBroadcasterOrThrowHttpError(
             broadcaster,
             sessionUsername
         );
-        LOG.debug("Applying transform to asset {} on {} by {}", assetId, broadcaster, sessionUsername);
+        LOG.debug("Applying transform to asset {} on {} by {}", logAssetId, logBroadcaster, logSessionUsername);
         return channelDirectoryService
             .updateTransform(broadcaster, assetId, request)
             .map(ResponseEntity::ok)
             .orElseThrow(() -> {
-                LOG.warn("Transform request for missing asset {} on {} by {}", assetId, broadcaster, sessionUsername);
+                LOG.warn("Transform request for missing asset {} on {} by {}", logAssetId, logBroadcaster, logSessionUsername);
                 return createAsset404();
             });
     }
@@ -250,11 +269,14 @@ public class ChannelApiController {
         OAuth2AuthenticationToken oauthToken
     ) {
         String sessionUsername = OauthSessionUser.from(oauthToken).login();
+        String logBroadcaster = LogSanitizer.sanitize(broadcaster);
+        String logAssetId = LogSanitizer.sanitize(assetId);
+        String logSessionUsername = LogSanitizer.sanitize(sessionUsername);
         authorizationService.userIsBroadcasterOrChannelAdminForBroadcasterOrThrowHttpError(
             broadcaster,
             sessionUsername
         );
-        LOG.info("Triggering playback for asset {} on {} by {}", assetId, broadcaster, sessionUsername);
+        LOG.info("Triggering playback for asset {} on {} by {}", logAssetId, logBroadcaster, logSessionUsername);
         return channelDirectoryService
             .triggerPlayback(broadcaster, assetId, request)
             .map(ResponseEntity::ok)
@@ -269,15 +291,18 @@ public class ChannelApiController {
         OAuth2AuthenticationToken oauthToken
     ) {
         String sessionUsername = OauthSessionUser.from(oauthToken).login();
+        String logBroadcaster = LogSanitizer.sanitize(broadcaster);
+        String logAssetId = LogSanitizer.sanitize(assetId);
+        String logSessionUsername = LogSanitizer.sanitize(sessionUsername);
         authorizationService.userIsBroadcasterOrChannelAdminForBroadcasterOrThrowHttpError(
             broadcaster,
             sessionUsername
         );
         LOG.info(
             "Updating visibility for asset {} on {} by {} to hidden={} ",
-            assetId,
-            broadcaster.replaceAll("[\n\r]", "_"),
-            sessionUsername,
+            logAssetId,
+            logBroadcaster,
+            logSessionUsername,
             request.isHidden()
         );
         return channelDirectoryService
@@ -286,9 +311,9 @@ public class ChannelApiController {
             .orElseThrow(() -> {
                 LOG.warn(
                     "Visibility update for missing asset {} on {} by {}",
-                    assetId.replaceAll("[\n\r]", "_"),
-                    broadcaster.replaceAll("[\n\r]", "_"),
-                    sessionUsername
+                    logAssetId,
+                    logBroadcaster,
+                    logSessionUsername
                 );
                 return createAsset404();
             });
@@ -299,7 +324,9 @@ public class ChannelApiController {
         @PathVariable("broadcaster") String broadcaster,
         @PathVariable("assetId") String assetId
     ) {
-        LOG.debug("Serving asset {} for broadcaster {}", assetId, broadcaster);
+        String logBroadcaster = LogSanitizer.sanitize(broadcaster);
+        String logAssetId = LogSanitizer.sanitize(assetId);
+        LOG.debug("Serving asset {} for broadcaster {}", logAssetId, logBroadcaster);
         return channelDirectoryService
             .getAssetContent(assetId)
             .map((content) ->
@@ -317,7 +344,9 @@ public class ChannelApiController {
         @PathVariable("broadcaster") String broadcaster,
         @PathVariable("assetId") String assetId
     ) {
-        LOG.debug("Serving preview for asset {} for broadcaster {}", assetId, broadcaster);
+        String logBroadcaster = LogSanitizer.sanitize(broadcaster);
+        String logAssetId = LogSanitizer.sanitize(assetId);
+        LOG.debug("Serving preview for asset {} for broadcaster {}", logAssetId, logBroadcaster);
         return channelDirectoryService
             .getAssetPreview(assetId, true)
             .map((content) ->
@@ -346,16 +375,19 @@ public class ChannelApiController {
         OAuth2AuthenticationToken oauthToken
     ) {
         String sessionUsername = OauthSessionUser.from(oauthToken).login();
+        String logBroadcaster = LogSanitizer.sanitize(broadcaster);
+        String logAssetId = LogSanitizer.sanitize(assetId);
+        String logSessionUsername = LogSanitizer.sanitize(sessionUsername);
         authorizationService.userIsBroadcasterOrChannelAdminForBroadcasterOrThrowHttpError(
             broadcaster,
             sessionUsername
         );
         boolean removed = channelDirectoryService.deleteAsset(assetId);
         if (!removed) {
-            LOG.warn("Attempt to delete missing asset {} on {} by {}", assetId, broadcaster, sessionUsername);
+            LOG.warn("Attempt to delete missing asset {} on {} by {}", logAssetId, logBroadcaster, logSessionUsername);
             throw createAsset404();
         }
-        LOG.info("Asset {} deleted on {} by {}", assetId, broadcaster, sessionUsername);
+        LOG.info("Asset {} deleted on {} by {}", logAssetId, logBroadcaster, logSessionUsername);
         return ResponseEntity.ok().build();
     }
 
