@@ -3,6 +3,8 @@
     <head>
         <meta charset="UTF-8" />
         <title>Imgfloat Dashboard</title>
+        <meta name="_csrf" th:content="${_csrf.token}" />
+        <meta name="_csrf_header" th:content="${_csrf.headerName}" />
         <link rel="icon" href="/favicon.ico" />
         <link rel="stylesheet" href="/css/styles.css" />
     </head>
@@ -109,6 +111,7 @@
             <section class="card download-card-block" th:insert="fragments/downloads :: downloads"></section>
         </div>
         <script src="/js/cookie-consent.js"></script>
+        <script src="/js/csrf.js"></script>
         <script src="/js/toast.js"></script>
         <script src="/js/downloads.js"></script>
         <script th:inline="javascript">

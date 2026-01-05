@@ -1,5 +1,7 @@
 package dev.kruhlmann.imgfloat.config;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -12,14 +14,27 @@ import org.springframework.security.oauth2.client.endpoint.OAuth2AccessTokenResp
 import org.springframework.security.oauth2.client.endpoint.OAuth2AuthorizationCodeGrantRequest;
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizedClientRepository;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.csrf.CsrfToken;
+import org.springframework.security.web.csrf.CsrfException;
+import org.springframework.security.web.csrf.CsrfFilter;
+import org.springframework.web.filter.OncePerRequestFilter;
+import org.springframework.web.util.WebUtils;
 import org.springframework.web.client.RestTemplate;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
 public class SecurityConfig {
+
+    private static final Logger LOG = LoggerFactory.getLogger(SecurityConfig.class);
 
     @Bean
     SecurityFilterChain securityFilterChain(
@@ -69,9 +84,14 @@ public class SecurityConfig {
                 exceptions.defaultAuthenticationEntryPointFor(
                     new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED),
                     new AntPathRequestMatcher("/api/**")
-                )
+                ).accessDeniedHandler(csrfAccessDeniedHandler())
             )
-            .csrf((csrf) -> csrf.ignoringRequestMatchers("/ws/**", "/api/**"));
+            .csrf((csrf) ->
+                csrf
+                    .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                    .ignoringRequestMatchers("/ws/**")
+            )
+            .addFilterAfter(csrfTokenCookieFilter(), CsrfFilter.class);
         return http.build();
     }
 
@@ -88,5 +108,52 @@ public class SecurityConfig {
     @Bean
     TwitchOAuth2UserService twitchOAuth2UserService() {
         return new TwitchOAuth2UserService();
+    }
+
+    private AccessDeniedHandler csrfAccessDeniedHandler() {
+        return (request, response, accessDeniedException) -> {
+            if (accessDeniedException instanceof CsrfException) {
+                LOG.warn(
+                    "CSRF failure for {} {} - referer: {}, origin: {}, message: {}",
+                    request.getMethod(),
+                    request.getRequestURI(),
+                    request.getHeader("Referer"),
+                    request.getHeader("Origin"),
+                    accessDeniedException.getMessage()
+                );
+            }
+            response.sendError(HttpServletResponse.SC_FORBIDDEN, accessDeniedException.getMessage());
+        };
+    }
+
+    /**
+     * Ensure the XSRF-TOKEN cookie is always present for browser clients and mirror the current
+     * token value on every request. This helps client-side fetch calls include the token header and
+     * aids debugging when tokens are missing.
+     */
+    @Bean
+    OncePerRequestFilter csrfTokenCookieFilter() {
+        return new OncePerRequestFilter() {
+            @Override
+            protected void doFilterInternal(
+                HttpServletRequest request,
+                HttpServletResponse response,
+                FilterChain filterChain
+            ) throws java.io.IOException, jakarta.servlet.ServletException {
+                CsrfToken csrfToken = (CsrfToken) request.getAttribute(CsrfToken.class.getName());
+                if (csrfToken != null) {
+                    String token = csrfToken.getToken();
+                    Cookie existingCookie = WebUtils.getCookie(request, "XSRF-TOKEN");
+                    if (existingCookie == null || !token.equals(existingCookie.getValue())) {
+                        Cookie cookie = new Cookie("XSRF-TOKEN", token);
+                        cookie.setPath("/");
+                        cookie.setSecure(request.isSecure());
+                        cookie.setHttpOnly(false);
+                        response.addCookie(cookie);
+                    }
+                }
+                filterChain.doFilter(request, response);
+            }
+        };
     }
 }

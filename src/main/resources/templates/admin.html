@@ -3,6 +3,8 @@
     <head>
         <meta charset="UTF-8" />
         <title>Imgfloat Admin</title>
+        <meta name="_csrf" th:content="${_csrf.token}" />
+        <meta name="_csrf_header" th:content="${_csrf.headerName}" />
         <link rel="icon" href="/favicon.ico" />
         <link rel="stylesheet" href="/css/styles.css" />
         <link
@@ -14,6 +16,7 @@
         />
         <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+        <script src="/js/csrf.js"></script>
     </head>
     <body class="admin-body">
         <div class="admin-frame">
