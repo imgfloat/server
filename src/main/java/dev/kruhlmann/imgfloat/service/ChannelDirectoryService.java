@@ -16,7 +16,6 @@ import dev.kruhlmann.imgfloat.model.TransformRequest;
 import dev.kruhlmann.imgfloat.model.VisibilityRequest;
 import dev.kruhlmann.imgfloat.repository.AssetRepository;
 import dev.kruhlmann.imgfloat.repository.ChannelRepository;
-import dev.kruhlmann.imgfloat.service.SettingsService;
 import dev.kruhlmann.imgfloat.service.media.AssetContent;
 import dev.kruhlmann.imgfloat.service.media.MediaDetectionService;
 import dev.kruhlmann.imgfloat.service.media.MediaOptimizationService;
@@ -27,7 +26,6 @@ import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -155,12 +153,13 @@ public class ChannelDirectoryService {
             .filter((s) -> !s.isBlank())
             .orElse("asset_" + System.currentTimeMillis());
 
+        boolean isAudio = optimized.mediaType().startsWith("audio/");
         double width = optimized.width() > 0
             ? optimized.width()
-            : (optimized.mediaType().startsWith("audio/") ? 400 : 640);
+            : isAudio ? 400 : 640;
         double height = optimized.height() > 0
             ? optimized.height()
-            : (optimized.mediaType().startsWith("audio/") ? 80 : 360);
+            : isAudio ? 80 : 360;
 
         Asset asset = new Asset(channel.getBroadcaster(), safeName, "", width, height);
         asset.setOriginalMediaType(mediaType);
