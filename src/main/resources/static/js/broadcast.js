@@ -5,8 +5,6 @@ const supportsAnimatedDecode =
 const canPlayProbe = document.createElement("video");
 const ctx = canvas.getContext("2d");
 let canvasSettings = { width: 1920, height: 1080 };
-canvas.width = canvasSettings.width;
-canvas.height = canvasSettings.height;
 const assets = new Map();
 const mediaCache = new Map();
 const renderStates = new Map();
@@ -26,6 +24,8 @@ let renderIntervalId = null;
 const pendingRemovals = new Set();
 const audioUnlockEvents = ["pointerdown", "keydown", "touchstart"];
 let layerOrder = [];
+
+applyCanvasSettings(canvasSettings);
 
 audioUnlockEvents.forEach((eventName) => {
     window.addEventListener(eventName, () => {
@@ -144,8 +144,7 @@ function fetchCanvasSettings() {
             return r.json();
         })
         .then((settings) => {
-            canvasSettings = settings;
-            resizeCanvas();
+            applyCanvasSettings(settings);
         })
         .catch(() => {
             resizeCanvas();
@@ -153,11 +152,31 @@ function fetchCanvasSettings() {
         });
 }
 
+function applyCanvasSettings(settings) {
+    if (!settings) {
+        return;
+    }
+    const width = Number.isFinite(settings.width) ? settings.width : canvasSettings.width;
+    const height = Number.isFinite(settings.height) ? settings.height : canvasSettings.height;
+    canvasSettings = { width, height };
+    resizeCanvas();
+}
+
 function resizeCanvas() {
+    if (Number.isFinite(canvasSettings.width) && Number.isFinite(canvasSettings.height)) {
+        canvas.width = canvasSettings.width;
+        canvas.height = canvasSettings.height;
+        canvas.style.width = `${canvasSettings.width}px`;
+        canvas.style.height = `${canvasSettings.height}px`;
+    }
     draw();
 }
 
 function handleEvent(event) {
+    if (event.type === "CANVAS" && event.payload) {
+        applyCanvasSettings(event.payload);
+        return;
+    }
     const assetId = event.assetId || event?.patch?.id || event?.payload?.id;
     if (event.type === "VISIBILITY") {
         handleVisibilityEvent(event);

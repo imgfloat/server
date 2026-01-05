@@ -2,8 +2,6 @@ const canvas = document.getElementById("admin-canvas");
 const ctx = canvas.getContext("2d");
 const overlay = document.getElementById("admin-overlay");
 let canvasSettings = { width: 1920, height: 1080 };
-canvas.width = canvasSettings.width;
-canvas.height = canvasSettings.height;
 const assets = new Map();
 const mediaCache = new Map();
 const renderStates = new Map();
@@ -65,6 +63,8 @@ let selectedAssetId = null;
 let interactionState = null;
 let lastSizeInputChanged = null;
 let stompClient;
+
+applyCanvasSettings(canvasSettings);
 
 audioUnlockEvents.forEach((eventName) => {
     window.addEventListener(eventName, () => {
@@ -467,13 +467,22 @@ function fetchCanvasSettings() {
             return r.json();
         })
         .then((settings) => {
-            canvasSettings = settings;
-            resizeCanvas();
+            applyCanvasSettings(settings);
         })
         .catch(() => {
             resizeCanvas();
             showToast("Using default canvas size. Unable to load saved settings.", "warning");
         });
+}
+
+function applyCanvasSettings(settings) {
+    if (!settings) {
+        return;
+    }
+    const width = Number.isFinite(settings.width) ? settings.width : canvasSettings.width;
+    const height = Number.isFinite(settings.height) ? settings.height : canvasSettings.height;
+    canvasSettings = { width, height };
+    resizeCanvas();
 }
 
 function resizeCanvas() {
@@ -540,6 +549,10 @@ function updateRenderState(asset) {
 }
 
 function handleEvent(event) {
+    if (event.type === "CANVAS" && event.payload) {
+        applyCanvasSettings(event.payload);
+        return;
+    }
     const assetId = event.assetId || event?.patch?.id || event?.payload?.id;
     if (event.type === "DELETED") {
         assets.delete(assetId);

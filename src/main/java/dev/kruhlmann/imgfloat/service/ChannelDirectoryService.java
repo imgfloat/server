@@ -7,6 +7,7 @@ import dev.kruhlmann.imgfloat.model.Asset;
 import dev.kruhlmann.imgfloat.model.AssetEvent;
 import dev.kruhlmann.imgfloat.model.AssetPatch;
 import dev.kruhlmann.imgfloat.model.AssetView;
+import dev.kruhlmann.imgfloat.model.CanvasEvent;
 import dev.kruhlmann.imgfloat.model.CanvasSettingsRequest;
 import dev.kruhlmann.imgfloat.model.Channel;
 import dev.kruhlmann.imgfloat.model.PlaybackRequest;
@@ -121,7 +122,9 @@ public class ChannelDirectoryService {
         channel.setCanvasWidth(req.getWidth());
         channel.setCanvasHeight(req.getHeight());
         channelRepository.save(channel);
-        return new CanvasSettingsRequest(channel.getCanvasWidth(), channel.getCanvasHeight());
+        CanvasSettingsRequest response = new CanvasSettingsRequest(channel.getCanvasWidth(), channel.getCanvasHeight());
+        messagingTemplate.convertAndSend(topicFor(broadcaster), CanvasEvent.updated(broadcaster, response));
+        return response;
     }
 
     public Optional<AssetView> createAsset(String broadcaster, MultipartFile file) throws IOException {
