@@ -1,8 +1,8 @@
-(function () {
+(function() {
     const CSRF_COOKIE_NAME = "XSRF-TOKEN";
     const DEFAULT_HEADER_NAME = "X-XSRF-TOKEN";
     const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS", "TRACE"]);
-    const originalFetch = window.fetch;
+    const originalFetch = globalThis.fetch;
 
     function getCookie(name) {
         return document.cookie
@@ -13,16 +13,16 @@
     }
 
     function isSameOrigin(url) {
-        const parsed = new URL(url, window.location.href);
-        return parsed.origin === window.location.origin;
+        const parsed = new URL(url, globalThis.location.href);
+        return parsed.origin === globalThis.location.origin;
     }
 
     function getMeta(name) {
-        const el = document.querySelector(`meta[name=\"${name}\"]`);
+        const el = document.querySelector(`meta[name="${name}"]`);
         return el ? el.getAttribute("content") : null;
     }
 
-    window.fetch = function patchedFetch(input, init = {}) {
+    globalThis.fetch = function patchedFetch(input, init = {}) {
         const request = new Request(input, init);
         const method = (request.method || "GET").toUpperCase();
 

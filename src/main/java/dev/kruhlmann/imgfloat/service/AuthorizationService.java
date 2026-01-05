@@ -91,7 +91,7 @@ public class AuthorizationService {
 
     public boolean userIsBroadcasterOrChannelAdminForBroadcaster(String broadcaster, String sessionUser) {
         return (
-            userIsBroadcaster(sessionUser, broadcaster) || userIsChannelAdminForBroadcaster(sessionUser, broadcaster)
+            userIsBroadcaster(sessionUser, broadcaster) || userIsChannelAdminForBroadcaster(broadcaster, sessionUser)
         );
     }
 
