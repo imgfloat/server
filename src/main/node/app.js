@@ -1,12 +1,21 @@
 const { app, BrowserWindow } = require("electron");
 const path = require("path");
-let broadcastRect = { width: 0, height: 0 };
+const initialWindowWidthPx = 960;
+const initialWindowHeightPx = 640;
 
-async function autoResizeWindow(window, lastSize) {
-    if (window.isDestroyed()) {
+let canvasSizeInterval;
+function clearCanvasSizeInterval() {
+    if (canvasSizeInterval) {
+        clearInterval(canvasSizeInterval);
+        canvasSizeInterval = undefined;
+    }
+}
+
+async function autoResizeWindow(win, lastSize) {
+    if (win.isDestroyed()) {
         return lastSize;
     }
-    const newSize = await window.webContents.executeJavaScript(`(() => {
+    const newSize = await win.webContents.executeJavaScript(`(() => {
         const canvas = document.getElementById('broadcast-canvas');
         if (!canvas) {
             return null;
@@ -24,19 +33,45 @@ async function autoResizeWindow(window, lastSize) {
     if (lastSize.width === newSize.width && lastSize.height === newSize.height) {
         return lastSize;
     }
-    console.log(
+    console.info(
         `Window size did not match canvas old: ${lastSize.width}x${lastSize.height} new: ${newSize.width}x${newSize.height}. Resizing.`,
     );
-    window.setContentSize(newSize.width, newSize.height, false);
-    window.setResizable(false);
+    win.setContentSize(newSize.width, newSize.height, false);
+    win.setResizable(false);
     return newSize;
 }
 
+function onPostNavigationLoad(win, url, broadcastRect) {
+    url = url || win.webContents.getURL();
+    let pathname;
+    try {
+        pathname = new URL(url).pathname;
+    } catch (e) {
+        console.error(`Failed to parse URL: ${url}`, e);
+        return;
+    }
+    const isBroadcast = /\/view\/[^/]+\/broadcast\/?$/.test(pathname);
+
+    console.info(`Navigation to ${url} detected. Is broadcast: ${isBroadcast}`);
+    if (isBroadcast) {
+        clearCanvasSizeInterval();
+        console.info("Setting up auto-resize for broadcast window.");
+        canvasSizeInterval = setInterval(() => {
+            autoResizeWindow(win, broadcastRect).then((newSize) => {
+                broadcastRect = newSize;
+            });
+        }, 750);
+        autoResizeWindow(win, broadcastRect).then((newSize) => {
+            broadcastRect = newSize;
+        });
+    } else {
+        clearCanvasSizeInterval();
+        win.setSize(initialWindowWidthPx, initialWindowHeightPx, false);
+    }
+}
+
 function createWindow() {
-    const url = process.env["IMGFLOAT_CHANNELS_URL"] || "https://imgfloat.kruhlmann.dev/channels";
-    const initialWindowWidthPx = 960;
-    const initialWindowHeightPx = 640;
-    const applicationWindow = new BrowserWindow({
+    const win = new BrowserWindow({
         width: initialWindowWidthPx,
         height: initialWindowHeightPx,
         transparent: true,
@@ -46,51 +81,17 @@ function createWindow() {
         icon: path.join(__dirname, "../resources/assets/icon/appicon.ico"),
         webPreferences: { backgroundThrottling: false },
     });
-    applicationWindow.setMenu(null);
+    win.setMenu(null);
 
-    let canvasSizeInterval;
-    const clearCanvasSizeInterval = () => {
-        if (canvasSizeInterval) {
-            clearInterval(canvasSizeInterval);
-            canvasSizeInterval = undefined;
-        }
-    };
-
-    const handleNavigation = (navigationUrl) => {
-        try {
-            const { pathname } = new URL(navigationUrl);
-            const isBroadcast = /\/view\/[^/]+\/broadcast\/?$/.test(pathname);
-
-            if (isBroadcast) {
-                clearCanvasSizeInterval();
-                canvasSizeInterval = setInterval(() => {
-                    autoResizeWindow(applicationWindow, broadcastRect).then((newSize) => {
-                        broadcastRect = newSize;
-                    });
-                }, 750);
-                autoResizeWindow(applicationWindow, broadcastRect).then((newSize) => {
-                    broadcastRect = newSize;
-                });
-            } else {
-                clearCanvasSizeInterval();
-                applicationWindow.setSize(initialWindowWidthPx, initialWindowHeightPx, false);
-            }
-        } catch {
-            // Ignore malformed URLs while navigating.
-        }
-    };
-
-    applicationWindow.loadURL(url);
-
-    applicationWindow.webContents.on("did-finish-load", () => {
-        handleNavigation(applicationWindow.webContents.getURL());
-    });
-
-    applicationWindow.webContents.on("did-navigate", (_event, navigationUrl) => handleNavigation(navigationUrl));
-    applicationWindow.webContents.on("did-navigate-in-page", (_event, navigationUrl) =>
-        handleNavigation(navigationUrl),
-    );
-    applicationWindow.on("closed", clearCanvasSizeInterval);
+    return win;
 }
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+    let broadcastRect = { width: 0, height: 0 };
+    const win = createWindow();
+    win.loadURL(process.env["IMGFLOAT_CHANNELS_URL"] || "https://imgfloat.kruhlmann.dev/channels");
+    win.webContents.on("did-finish-load", () => onPostNavigationLoad(win, undefined, broadcastRect));
+    win.webContents.on("did-navigate", (_, url) => onPostNavigationLoad(win, url, broadcastRect));
+    win.webContents.on("did-navigate-in-page", (_, url) => onPostNavigationLoad(win, url, broadcastRect));
+    win.on("closed", clearCanvasSizeInterval);
+});
