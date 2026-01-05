@@ -15,6 +15,9 @@ RUNTIME_ENV = IMGFLOAT_ASSETS_PATH=$(IMGFLOAT_ASSETS_PATH) \
 			  SPRING_SERVLET_MULTIPART_MAX_REQUEST_SIZE=$(SPRING_SERVLET_MULTIPART_MAX_REQUEST_SIZE)
 WATCHDIR = ./src/main
 
+node_modules: package-lock.json
+	npm install
+
 .PHONY: build
 build:
 	mvn compile
@@ -45,4 +48,8 @@ ssl:
 	mkdir -p local
 	keytool -genkeypair -alias imgfloat -keyalg RSA -keystore local/keystore.p12 -storetype PKCS12 -storepass changeit -keypass changeit -dname "CN=localhost" -validity 365
 	echo "Use SSL_ENABLED=true SSL_KEYSTORE_PATH=file:$$PWD/local/keystore.p12"
+
+.PHONY: fix
+fix: node_modules
+	./node_modules/.bin/prettier --write src
 

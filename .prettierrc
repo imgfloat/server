@@ -1,6 +1,7 @@
 {
+    "plugins": ["prettier-plugin-java"],
     "printWidth":120,
-    "tabWidth":2,
+    "tabWidth":4,
     "useTabs":false,
     "semi":true,
     "singleQuote":false,
