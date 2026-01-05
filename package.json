@@ -33,7 +33,9 @@
       "allowToChangeInstallationDirectory": false,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Imgfloat"
+      "shortcutName": "Imgfloat",
+      "installerIcon": "src/main/resources/assets/icon/appicon.ico",
+      "uninstallerIcon": "src/main/resources/assets/icon/appicon.ico"
     },
     "mac": {
       "category": "public.app-category.productivity",
