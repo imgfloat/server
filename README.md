@@ -15,7 +15,7 @@ Define the following required environment variables:
 | SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE | Maximum upload file size | 10MB |
 | SPRING_SERVLET_MULTIPART_MAX_REQUEST_SIZE | Maximum upload request size | 10MB |
 | TWITCH_CLIENT_ID | Oauth2 client id | i1bjnh4whieht5kzn307nvu3rn5pqi |
-| TWITCH_CLIENT_SECRET Oauth2 client secret | vpkn8cp7ona65l121j6q78l9gkmed3 |
+| TWITCH_CLIENT_SECRET | Oauth2 client secret | vpkn8cp7ona65l121j6q78l9gkmed3 |
 
 Optional:
 
