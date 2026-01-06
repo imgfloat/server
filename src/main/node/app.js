@@ -88,6 +88,13 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+    if (process.env.CI) {
+	process.on("uncaughtException", (err) => {
+	    console.error("Uncaught exception:", err);
+	    app.exit(1);
+	});
+        setTimeout(() => app.quit(), 3000);
+    }
     autoUpdater.checkForUpdatesAndNotify();
 
     let broadcastRect = { width: 0, height: 0 };

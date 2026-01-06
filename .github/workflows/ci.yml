@@ -66,6 +66,28 @@ jobs:
       - name: Build Electron bundles
         run: ${{ matrix.build-command }}
 
+      - name: Smoke test AppImage (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb
+          chmod +x dist/*.AppImage
+          xvfb-run ./dist/*.AppImage
+
+      - name: Smoke test Windows exe
+        if: matrix.os == 'windows-latest'
+        shell: powershell
+        run: |
+          Start-Process -FilePath "dist\*.exe"
+          Start-Sleep -Seconds 5
+
+      - name: Smoke test macOS app
+        if: matrix.os == 'macos-latest'
+        run: |
+          open dist/*.app
+          sleep 5
+          pkill -f Imgfloat || true
+
       - name: Upload Electron artifacts
         uses: actions/upload-artifact@v4
         with:
