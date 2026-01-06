@@ -62,12 +62,11 @@ public class VersionService {
     }
 
     private String resolveClientVersion() {
-        String packageJsonVersion = getPackageJsonVersion();
-        if (packageJsonVersion != null && !packageJsonVersion.isBlank()) {
-            return packageJsonVersion;
+        try {
+            return getPackageJsonVersion();
+        } catch (IOException e) {
+            throw new IllegalStateException("Client manifest is missing", e);
         }
-
-        return serverVersion;
     }
 
     private String normalizeReleaseVersion(String baseVersion) {
@@ -159,23 +158,19 @@ public class VersionService {
         return null;
     }
 
-    private String getPackageJsonVersion() {
+    private String getPackageJsonVersion() throws IOException {
         Path packageJsonPath = Paths.get("package.json");
         if (!Files.exists(packageJsonPath) || !Files.isRegularFile(packageJsonPath)) {
             return null;
         }
 
-        try {
-            String packageJson = Files.readString(packageJsonPath, StandardCharsets.UTF_8);
-            Matcher matcher = PACKAGE_VERSION_PATTERN.matcher(packageJson);
-            if (matcher.find()) {
-                String version = matcher.group(1);
-                if (version != null && !version.isBlank()) {
-                    return version.trim();
-                }
+        String packageJson = Files.readString(packageJsonPath, StandardCharsets.UTF_8);
+        Matcher matcher = PACKAGE_VERSION_PATTERN.matcher(packageJson);
+        if (matcher.find()) {
+            String version = matcher.group(1);
+            if (version != null && !version.isBlank()) {
+                return version.trim();
             }
-        } catch (IOException e) {
-            LOG.warn("Unable to read version from package.json", e);
         }
 
         return null;
