@@ -10,6 +10,7 @@ import dev.kruhlmann.imgfloat.util.LogSanitizer;
 import dev.kruhlmann.imgfloat.service.AuthorizationService;
 import dev.kruhlmann.imgfloat.service.ChannelDirectoryService;
 import dev.kruhlmann.imgfloat.service.SettingsService;
+import dev.kruhlmann.imgfloat.service.GitInfoService;
 import dev.kruhlmann.imgfloat.service.VersionService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,6 +26,7 @@ public class ViewController {
     private final ChannelDirectoryService channelDirectoryService;
     private final VersionService versionService;
     private final SettingsService settingsService;
+    private final GitInfoService gitInfoService;
     private final ObjectMapper objectMapper;
     private final AuthorizationService authorizationService;
     private final long uploadLimitBytes;
@@ -33,6 +35,7 @@ public class ViewController {
         ChannelDirectoryService channelDirectoryService,
         VersionService versionService,
         SettingsService settingsService,
+        GitInfoService gitInfoService,
         ObjectMapper objectMapper,
         AuthorizationService authorizationService,
         long uploadLimitBytes
@@ -40,6 +43,7 @@ public class ViewController {
         this.channelDirectoryService = channelDirectoryService;
         this.versionService = versionService;
         this.settingsService = settingsService;
+        this.gitInfoService = gitInfoService;
         this.objectMapper = objectMapper;
         this.authorizationService = authorizationService;
         this.uploadLimitBytes = uploadLimitBytes;
@@ -129,5 +133,7 @@ public class ViewController {
     private void addVersionAttributes(Model model) {
         model.addAttribute("version", versionService.getVersion());
         model.addAttribute("releaseVersion", versionService.getReleaseVersion());
+        model.addAttribute("buildCommitShort", gitInfoService.getShortCommitSha());
+        model.addAttribute("buildCommitUrl", gitInfoService.getCommitUrl());
     }
 }

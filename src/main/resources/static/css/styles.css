@@ -58,6 +58,13 @@ body {
     letter-spacing: 0.2px;
     font-size: 13px;
 }
+.version-link {
+    color: inherit;
+    text-decoration: none;
+}
+.version-link:hover {
+    text-decoration: underline;
+}
 
 .channels-body,
 .settings-body {
