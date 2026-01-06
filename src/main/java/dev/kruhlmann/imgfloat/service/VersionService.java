@@ -2,9 +2,12 @@ package dev.kruhlmann.imgfloat.service;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -13,23 +16,38 @@ import org.springframework.stereotype.Component;
 public class VersionService {
 
     private static final Logger LOG = LoggerFactory.getLogger(VersionService.class);
-    private final String version;
+    private static final Pattern PACKAGE_VERSION_PATTERN = Pattern.compile("\"version\"\\s*:\\s*\"([^\"]+)\"");
+
+    private final String serverVersion;
+    private final String clientVersion;
     private final String releaseVersion;
 
     public VersionService() {
-        this.version = resolveVersion();
-        this.releaseVersion = normalizeReleaseVersion(this.version);
+        this.serverVersion = resolveServerVersion();
+        this.clientVersion = resolveClientVersion();
+        this.releaseVersion = normalizeReleaseVersion(this.clientVersion);
     }
 
     public String getVersion() {
-        return version;
+        return serverVersion;
     }
 
     public String getReleaseVersion() {
         return releaseVersion;
     }
 
-    private String resolveVersion() {
+    public String getReleaseTag() {
+        if (releaseVersion == null || releaseVersion.isBlank()) {
+            return "latest";
+        }
+        if ("latest".equalsIgnoreCase(releaseVersion)) {
+            return "latest";
+        }
+        String normalized = releaseVersion.startsWith("v") ? releaseVersion.substring(1) : releaseVersion;
+        return "v" + normalized;
+    }
+
+    private String resolveServerVersion() {
         String pomVersion = getPomVersion();
         if (pomVersion != null && !pomVersion.isBlank()) {
             return pomVersion;
@@ -41,6 +59,15 @@ public class VersionService {
         }
 
         return "unknown";
+    }
+
+    private String resolveClientVersion() {
+        String packageJsonVersion = getPackageJsonVersion();
+        if (packageJsonVersion != null && !packageJsonVersion.isBlank()) {
+            return packageJsonVersion;
+        }
+
+        return serverVersion;
     }
 
     private String normalizeReleaseVersion(String baseVersion) {
@@ -129,6 +156,28 @@ public class VersionService {
         } catch (Exception e) {
             LOG.warn("Unable to parse version from pom.xml", e);
         }
+        return null;
+    }
+
+    private String getPackageJsonVersion() {
+        Path packageJsonPath = Paths.get("package.json");
+        if (!Files.exists(packageJsonPath) || !Files.isRegularFile(packageJsonPath)) {
+            return null;
+        }
+
+        try {
+            String packageJson = Files.readString(packageJsonPath, StandardCharsets.UTF_8);
+            Matcher matcher = PACKAGE_VERSION_PATTERN.matcher(packageJson);
+            if (matcher.find()) {
+                String version = matcher.group(1);
+                if (version != null && !version.isBlank()) {
+                    return version.trim();
+                }
+            }
+        } catch (IOException e) {
+            LOG.warn("Unable to read version from package.json", e);
+        }
+
         return null;
     }
 }

@@ -9,6 +9,7 @@ import dev.kruhlmann.imgfloat.model.Settings;
 import dev.kruhlmann.imgfloat.service.AuthorizationService;
 import dev.kruhlmann.imgfloat.service.ChannelDirectoryService;
 import dev.kruhlmann.imgfloat.service.GitInfoService;
+import dev.kruhlmann.imgfloat.service.GithubReleaseService;
 import dev.kruhlmann.imgfloat.service.SettingsService;
 import dev.kruhlmann.imgfloat.service.VersionService;
 import dev.kruhlmann.imgfloat.util.LogSanitizer;
@@ -29,6 +30,7 @@ public class ViewController {
     private final GitInfoService gitInfoService;
     private final ObjectMapper objectMapper;
     private final AuthorizationService authorizationService;
+    private final GithubReleaseService githubReleaseService;
     private final long uploadLimitBytes;
 
     public ViewController(
@@ -38,6 +40,7 @@ public class ViewController {
         GitInfoService gitInfoService,
         ObjectMapper objectMapper,
         AuthorizationService authorizationService,
+        GithubReleaseService githubReleaseService,
         long uploadLimitBytes
     ) {
         this.channelDirectoryService = channelDirectoryService;
@@ -46,6 +49,7 @@ public class ViewController {
         this.gitInfoService = gitInfoService;
         this.objectMapper = objectMapper;
         this.authorizationService = authorizationService;
+        this.githubReleaseService = githubReleaseService;
         this.uploadLimitBytes = uploadLimitBytes;
     }
 
@@ -129,6 +133,7 @@ public class ViewController {
     private void addVersionAttributes(Model model) {
         model.addAttribute("version", versionService.getVersion());
         model.addAttribute("releaseVersion", versionService.getReleaseVersion());
+        model.addAttribute("downloadBaseUrl", githubReleaseService.getDownloadBaseUrl());
         model.addAttribute("buildCommitShort", gitInfoService.getShortCommitSha());
         model.addAttribute("buildCommitUrl", gitInfoService.getCommitUrl());
     }

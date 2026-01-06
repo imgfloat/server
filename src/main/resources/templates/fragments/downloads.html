@@ -10,9 +10,7 @@
                 <span class="badge soft recommended-badge hidden">Recommended</span>
             </div>
             <p class="muted">Apple Silicon build (ARM64)</p>
-            <a
-                class="button block"
-                th:href="'https://github.com/Kruhlmann/imgfloat-j/releases/download/' + ${releaseVersion} + '/Imgfloat-' + ${releaseVersion} + '-arm64.dmg'"
+            <a class="button block" th:href="${downloadBaseUrl + 'Imgfloat-' + releaseVersion + '-arm64.dmg'}"
                 >Download DMG</a
             >
         </div>
@@ -22,9 +20,7 @@
                 <span class="badge soft recommended-badge hidden">Recommended</span>
             </div>
             <p class="muted">Installer for Windows 10 and 11</p>
-            <a
-                class="button block"
-                th:href="'https://github.com/Kruhlmann/imgfloat-j/releases/download/' + ${releaseVersion} + '/Imgfloat.Setup.' + ${releaseVersion} + '.exe'"
+            <a class="button block" th:href="${downloadBaseUrl + 'Imgfloat-Setup-' + releaseVersion + '.exe'}"
                 >Download EXE</a
             >
         </div>
@@ -34,9 +30,7 @@
                 <span class="badge soft recommended-badge hidden">Recommended</span>
             </div>
             <p class="muted">AppImage for most distributions</p>
-            <a
-                class="button block"
-                th:href="'https://github.com/Kruhlmann/imgfloat-j/releases/download/' + ${releaseVersion} + '/Imgfloat-' + ${releaseVersion} + '.AppImage'"
+            <a class="button block" th:href="${downloadBaseUrl + 'Imgfloat-' + releaseVersion + '.AppImage'}"
                 >Download AppImage</a
             >
         </div>

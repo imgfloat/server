@@ -16,6 +16,8 @@ Define the following required environment variables:
 | `IMGFLOAT_INITIAL_TWITCH_USERNAME_SYSADMIN` | Twitch username of the initial sysadmin user | example_broadcaster |
 | `SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE` | Maximum upload file size | 10MB |
 | `SPRING_SERVLET_MULTIPART_MAX_REQUEST_SIZE` | Maximum upload request size | 10MB |
+| `IMGFLOAT_GITHUB_OWNER` | GitHub owner used to build desktop download links | Kruhlmann |
+| `IMGFLOAT_GITHUB_REPO` | GitHub repo used to build desktop download links | imgfloat-j |
 | `TWITCH_CLIENT_ID` | Oauth2 client id | i1bjnh4whieht5kzn307nvu3rn5pqi |
 | `TWITCH_CLIENT_SECRET` | Oauth2 client secret | vpkn8cp7ona65l121j6q78l9gkmed3 |
 

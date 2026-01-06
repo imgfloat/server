@@ -40,6 +40,12 @@ public class SystemEnvironmentValidator {
     @Value("${IMGFLOAT_INITIAL_TWITCH_USERNAME_SYSADMIN:#{null}}")
     private String initialSysadmin;
 
+    @Value("${IMGFLOAT_GITHUB_OWNER:#{null}}")
+    private String githubOwner;
+
+    @Value("${IMGFLOAT_GITHUB_REPO:#{null}}")
+    private String githubRepo;
+
     private long maxUploadBytes;
     private long maxRequestBytes;
 
@@ -70,6 +76,8 @@ public class SystemEnvironmentValidator {
         checkString(twitchClientSecret, "TWITCH_CLIENT_SECRET", missing);
         checkString(assetsPath, "IMGFLOAT_ASSETS_PATH", missing);
         checkString(previewsPath, "IMGFLOAT_PREVIEWS_PATH", missing);
+        checkString(githubOwner, "IMGFLOAT_GITHUB_OWNER", missing);
+        checkString(githubRepo, "IMGFLOAT_GITHUB_REPO", missing);
 
         if (!missing.isEmpty()) {
             throw new IllegalStateException("Missing or invalid environment variables:\n" + missing);
@@ -84,6 +92,8 @@ public class SystemEnvironmentValidator {
         log.info(" - IMGFLOAT_INITIAL_TWITCH_USERNAME_SYSADMIN: {}", initialSysadmin);
         log.info(" - IMGFLOAT_ASSETS_PATH: {}", assetsPath);
         log.info(" - IMGFLOAT_PREVIEWS_PATH: {}", previewsPath);
+        log.info(" - IMGFLOAT_GITHUB_OWNER: {}", githubOwner);
+        log.info(" - IMGFLOAT_GITHUB_REPO: {}", githubRepo);
     }
 
     private void checkString(String value, String name, StringBuilder missing) {
