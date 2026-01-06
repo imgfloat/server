@@ -44,10 +44,9 @@ public class ChannelDirectoryService {
     private final MediaDetectionService mediaDetectionService;
     private final MediaOptimizationService mediaOptimizationService;
     private final SettingsService settingsService;
+    private final long uploadLimitBytes;
 
     @Autowired
-    private long uploadLimitBytes;
-
     public ChannelDirectoryService(
         ChannelRepository channelRepository,
         AssetRepository assetRepository,
@@ -55,7 +54,8 @@ public class ChannelDirectoryService {
         AssetStorageService assetStorageService,
         MediaDetectionService mediaDetectionService,
         MediaOptimizationService mediaOptimizationService,
-        SettingsService settingsService
+        SettingsService settingsService,
+        long uploadLimitBytes
     ) {
         this.channelRepository = channelRepository;
         this.assetRepository = assetRepository;
@@ -64,6 +64,7 @@ public class ChannelDirectoryService {
         this.mediaDetectionService = mediaDetectionService;
         this.mediaOptimizationService = mediaOptimizationService;
         this.settingsService = settingsService;
+        this.uploadLimitBytes = uploadLimitBytes;
     }
 
     public Channel getOrCreateChannel(String broadcaster) {
@@ -154,8 +155,10 @@ public class ChannelDirectoryService {
             .orElse("asset_" + System.currentTimeMillis());
 
         boolean isAudio = optimized.mediaType().startsWith("audio/");
-        double width = optimized.width() > 0 ? optimized.width() : isAudio ? 400 : 640;
-        double height = optimized.height() > 0 ? optimized.height() : isAudio ? 80 : 360;
+        double defaultWidth = isAudio ? 400 : 640;
+        double defaultHeight = isAudio ? 80 : 360;
+        double width = optimized.width() > 0 ? optimized.width() : defaultWidth;
+        double height = optimized.height() > 0 ? optimized.height() : defaultHeight;
 
         Asset asset = new Asset(channel.getBroadcaster(), safeName, "", width, height);
         asset.setOriginalMediaType(mediaType);

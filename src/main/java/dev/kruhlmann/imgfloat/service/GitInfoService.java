@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class GitInfoService {
-
+    private static final String FALLBACK_GIT_SHA = "unknown";
     private static final Logger LOG = LoggerFactory.getLogger(GitInfoService.class);
     private static final String COMMIT_URL_PREFIX = "https://github.com/Kruhlmann/imgfloat-j/commit/";
 
@@ -46,7 +46,7 @@ public class GitInfoService {
     }
 
     public String getCommitUrl() {
-        if (commitSha == null || commitSha.isBlank() || "unknown".equalsIgnoreCase(commitSha)) {
+        if (commitSha == null || commitSha.isBlank() || FALLBACK_GIT_SHA.equalsIgnoreCase(commitSha)) {
             return null;
         }
         return COMMIT_URL_PREFIX + commitSha;
@@ -118,9 +118,9 @@ public class GitInfoService {
 
     private String defaultValue(String value) {
         if (value == null || value.isBlank()) {
-            return "unknown";
+            return FALLBACK_GIT_SHA;
         }
-        return "unknown".equalsIgnoreCase(value) ? "unknown" : value;
+        return value;
     }
 
     private record CommitInfo(String fullSha, String shortSha) {}
