@@ -1762,16 +1762,13 @@ button:disabled:hover {
     position: relative;
     padding-right: 48px !important;
     font-variant-numeric: tabular-nums;
+    -moz-appearance: textfield;
 }
 
 .number-input::-webkit-outer-spin-button,
 .number-input::-webkit-inner-spin-button {
     -webkit-appearance: none;
     margin: 0;
-}
-
-.number-input {
-    -moz-appearance: textfield;
 }
 
 .number-input:focus {

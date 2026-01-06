@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class GitInfoService {
+
     private static final String FALLBACK_GIT_SHA = "unknown";
     private static final Logger LOG = LoggerFactory.getLogger(GitInfoService.class);
     private static final String COMMIT_URL_PREFIX = "https://github.com/Kruhlmann/imgfloat-j/commit/";

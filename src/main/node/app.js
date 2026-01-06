@@ -1,6 +1,8 @@
+const path = require("node:path");
+
 const { app, BrowserWindow } = require("electron");
 const { autoUpdater } = require("electron-updater");
-const path = require("path");
+
 const initialWindowWidthPx = 960;
 const initialWindowHeightPx = 640;
 
