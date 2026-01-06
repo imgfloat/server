@@ -1,4 +1,5 @@
 const { app, BrowserWindow } = require("electron");
+const { autoUpdater } = require("electron-updater");
 const path = require("path");
 const initialWindowWidthPx = 960;
 const initialWindowHeightPx = 640;
@@ -87,6 +88,8 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+    autoUpdater.checkForUpdatesAndNotify();
+
     let broadcastRect = { width: 0, height: 0 };
     const win = createWindow();
     win.loadURL(process.env["IMGFLOAT_CHANNELS_URL"] || "https://imgfloat.kruhlmann.dev/channels");

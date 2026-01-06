@@ -1,6 +1,6 @@
 {
   "name": "imgfloat-electron",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "description": "Electron wrapper for the Imgfloat overlay",
   "main": "src/main/node/app.js",
   "build": {
@@ -10,17 +10,26 @@
       "src/main/node/app.js",
       "src/main/resources/**"
     ],
+    "publish": {
+      "provider": "github",
+      "owner": "Kruhlmann",
+      "repo": "imgfloat-j"
+    },
     "asar": false,
     "directories": {
       "output": "dist"
     },
     "linux": {
-      "target": ["AppImage"],
+      "target": [
+        "AppImage"
+      ],
       "category": "Utility",
       "icon": "src/main/resources/assets/icon/linux"
     },
     "win": {
-      "target": ["nsis"],
+      "target": [
+        "nsis"
+      ],
       "icon": "src/main/resources/assets/icon/appicon.ico"
     },
     "nsis": {
@@ -42,6 +51,7 @@
   "devDependencies": {
     "electron": "^35.7.5",
     "electron-builder": "^24.13.3",
+    "electron-updater": "^6.6.2",
     "prettier": "^3.7.4",
     "prettier-plugin-java": "^2.7.7"
   }
