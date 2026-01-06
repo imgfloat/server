@@ -45,7 +45,13 @@
     },
     "mac": {
       "category": "public.app-category.productivity",
-      "icon": "src/main/resources/assets/icon/macos.icns"
+      "icon": "src/main/resources/assets/icon/macos.icns",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["arm64"]
+        }
+      ]
     }
   },
   "dependencies": {
