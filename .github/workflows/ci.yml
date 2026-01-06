@@ -69,10 +69,11 @@ jobs:
       - name: Smoke test AppImage (Linux)
         if: matrix.os == 'ubuntu-latest'
         run: |
+          chmod +x dist/*.AppImage
+          ./dist/*.AppImage --appimage-extract
           sudo apt-get update
           sudo apt-get install -y xvfb
-          chmod +x dist/*.AppImage
-          xvfb-run ./dist/*.AppImage
+          xvfb-run squashfs-root/AppRun
 
       - name: Smoke test Windows exe
         if: matrix.os == 'windows-latest'
