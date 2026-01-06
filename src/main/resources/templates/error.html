@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+    <head>
+        <meta charset="UTF-8" />
+        <title>Something went wrong - Imgfloat</title>
+        <link rel="icon" href="/favicon.ico" />
+        <link rel="stylesheet" href="/css/styles.css" />
+    </head>
+    <body class="error-body">
+        <div class="error-shell">
+            <header class="error-header">
+                <div class="brand">
+                    <img class="brand-mark" alt="brand" src="/img/brand.png" />
+                    <div>
+                        <div class="brand-title">Imgfloat</div>
+                        <div class="brand-subtitle">Twitch overlay manager</div>
+                    </div>
+                </div>
+                <div class="status-chip" th:if="${status}">
+                    <span th:text="|Error ${status}|">Error</span>
+                </div>
+            </header>
+
+            <main class="error-main">
+                <section class="error-card">
+                    <p class="eyebrow subtle">Something went wrong</p>
+                    <h1>We couldn't complete your request</h1>
+                    <p class="muted">
+                        We're sorry, but we hit a problem while handling your request. Please try again in a moment.
+                    </p>
+
+                    <div class="error-details">
+                        <div class="error-detail" th:if="${path}">
+                            <p class="detail-label">Requested path</p>
+                            <p class="detail-value" th:text="${path}">/</p>
+                        </div>
+                        <div class="error-detail" th:if="${error}">
+                            <p class="detail-label">Error</p>
+                            <p class="detail-value" th:text="${error}">Unexpected error</p>
+                        </div>
+                        <div class="error-detail" th:if="${message}">
+                            <p class="detail-label">Details</p>
+                            <p class="detail-value" th:text="${message}">Please try again.</p>
+                        </div>
+                    </div>
+
+                    <div class="cta-row">
+                        <a class="button" href="/">Return home</a>
+                        <a class="button ghost" href="/channels">Browse channels</a>
+                    </div>
+                </section>
+            </main>
+        </div>
+        <script src="/js/cookie-consent.js"></script>
+    </body>
+</html>
