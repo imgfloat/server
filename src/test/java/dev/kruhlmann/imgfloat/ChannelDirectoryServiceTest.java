@@ -40,7 +40,6 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.mock.web.MockMultipartFile;
-import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.server.ResponseStatusException;
 
 class ChannelDirectoryServiceTest {
@@ -65,6 +64,7 @@ class ChannelDirectoryServiceTest {
         MediaPreviewService mediaPreviewService = new MediaPreviewService();
         MediaOptimizationService mediaOptimizationService = new MediaOptimizationService(mediaPreviewService);
         MediaDetectionService mediaDetectionService = new MediaDetectionService();
+        long uploadLimitBytes = 5_000_000L;
         service = new ChannelDirectoryService(
             channelRepository,
             assetRepository,
@@ -72,9 +72,9 @@ class ChannelDirectoryServiceTest {
             assetStorageService,
             mediaDetectionService,
             mediaOptimizationService,
-            settingsService
+            settingsService,
+            uploadLimitBytes
         );
-        ReflectionTestUtils.setField(service, "uploadLimitBytes", 5_000_000L);
     }
 
     @Test
