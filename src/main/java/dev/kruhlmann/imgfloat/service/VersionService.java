@@ -69,16 +69,12 @@ public class VersionService {
         }
     }
 
-    private String normalizeReleaseVersion(String baseVersion) {
-        if (baseVersion == null || baseVersion.isBlank()) {
-            return "latest";
-        }
-
+    private String normalizeReleaseVersion(String baseVersion) throws IllegalStateException {
         String normalized = baseVersion.trim();
         normalized = normalized.replaceFirst("(?i)^v", "");
         normalized = normalized.replaceFirst("-SNAPSHOT$", "");
         if (normalized.isBlank()) {
-            return "latest";
+            throw new IllegalStateException("Invalid version: " + baseVersion);
         }
         return normalized;
     }
