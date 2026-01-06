@@ -64,7 +64,10 @@ public class AuthorizationService {
 
     public void userIsSystemAdministratorOrThrowHttpError(String sessionUsername) {
         if (!userIsSystemAdministrator(sessionUsername)) {
-            LOG.warn("Access denied for system administrator-only action by user {}", LogSanitizer.sanitize(sessionUsername));
+            LOG.warn(
+                "Access denied for system administrator-only action by user {}",
+                LogSanitizer.sanitize(sessionUsername)
+            );
             throw new ResponseStatusException(FORBIDDEN, "You do not have permission to perform this action");
         }
     }

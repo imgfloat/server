@@ -6,12 +6,12 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.kruhlmann.imgfloat.model.OauthSessionUser;
 import dev.kruhlmann.imgfloat.model.Settings;
-import dev.kruhlmann.imgfloat.util.LogSanitizer;
 import dev.kruhlmann.imgfloat.service.AuthorizationService;
 import dev.kruhlmann.imgfloat.service.ChannelDirectoryService;
-import dev.kruhlmann.imgfloat.service.SettingsService;
 import dev.kruhlmann.imgfloat.service.GitInfoService;
+import dev.kruhlmann.imgfloat.service.SettingsService;
 import dev.kruhlmann.imgfloat.service.VersionService;
+import dev.kruhlmann.imgfloat.util.LogSanitizer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
@@ -100,11 +100,7 @@ public class ViewController {
         );
         String logBroadcaster = LogSanitizer.sanitize(broadcaster);
         String logSessionUsername = LogSanitizer.sanitize(sessionUsername);
-        LOG.info(
-            "Rendering admin console for {} (requested by {})",
-            logBroadcaster,
-            logSessionUsername
-        );
+        LOG.info("Rendering admin console for {} (requested by {})", logBroadcaster, logSessionUsername);
         Settings settings = settingsService.get();
         model.addAttribute("broadcaster", broadcaster.toLowerCase());
         model.addAttribute("username", sessionUsername);

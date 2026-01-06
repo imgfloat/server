@@ -1,4 +1,4 @@
-(function() {
+(function () {
     const CSRF_COOKIE_NAME = "XSRF-TOKEN";
     const DEFAULT_HEADER_NAME = "X-XSRF-TOKEN";
     const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS", "TRACE"]);

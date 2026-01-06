@@ -154,12 +154,8 @@ public class ChannelDirectoryService {
             .orElse("asset_" + System.currentTimeMillis());
 
         boolean isAudio = optimized.mediaType().startsWith("audio/");
-        double width = optimized.width() > 0
-            ? optimized.width()
-            : isAudio ? 400 : 640;
-        double height = optimized.height() > 0
-            ? optimized.height()
-            : isAudio ? 80 : 360;
+        double width = optimized.width() > 0 ? optimized.width() : isAudio ? 400 : 640;
+        double height = optimized.height() > 0 ? optimized.height() : isAudio ? 80 : 360;
 
         Asset asset = new Asset(channel.getBroadcaster(), safeName, "", width, height);
         asset.setOriginalMediaType(mediaType);

@@ -12,10 +12,10 @@ import dev.kruhlmann.imgfloat.model.PlaybackRequest;
 import dev.kruhlmann.imgfloat.model.TransformRequest;
 import dev.kruhlmann.imgfloat.model.TwitchUserProfile;
 import dev.kruhlmann.imgfloat.model.VisibilityRequest;
-import dev.kruhlmann.imgfloat.util.LogSanitizer;
 import dev.kruhlmann.imgfloat.service.AuthorizationService;
 import dev.kruhlmann.imgfloat.service.ChannelDirectoryService;
 import dev.kruhlmann.imgfloat.service.TwitchUserLookupService;
+import dev.kruhlmann.imgfloat.util.LogSanitizer;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -256,7 +256,12 @@ public class ChannelApiController {
             .updateTransform(broadcaster, assetId, request)
             .map(ResponseEntity::ok)
             .orElseThrow(() -> {
-                LOG.warn("Transform request for missing asset {} on {} by {}", logAssetId, logBroadcaster, logSessionUsername);
+                LOG.warn(
+                    "Transform request for missing asset {} on {} by {}",
+                    logAssetId,
+                    logBroadcaster,
+                    logSessionUsername
+                );
                 return createAsset404();
             });
     }
