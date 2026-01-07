@@ -79,7 +79,6 @@ function createWindow(version) {
         height: initialWindowHeightPx,
         transparent: true,
         frame: true,
-        backgroundColor: "#00000000",
         alwaysOnTop: false,
         icon: path.join(__dirname, "../resources/assets/icon/appicon.ico"),
         webPreferences: { backgroundThrottling: false },
