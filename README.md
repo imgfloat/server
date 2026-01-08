@@ -6,6 +6,8 @@
 
 Bring your stream to life with a lightweight, real-time overlay system built for Twitch. Upload images once, place and animate them from anywhere, and see your changes live, so your stream visuals look polished.
 
+# Getting started
+
 ## Streamers
 
 Visit [imgfloat.kruhlmann.dev](https://imgfloat.kruhlmann.dev) to add your channel admins from the dashboard and download the application for your platform. Run the appliation, enter your twitch channel name and add the window to your OBS scene.
