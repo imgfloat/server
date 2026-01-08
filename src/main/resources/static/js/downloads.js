@@ -1,5 +1,5 @@
 function detectPlatform() {
-    const navigatorPlatform = (navigator.userAgentData?.platform || navigator.platform || "").toLowerCase();
+    const navigatorPlatform = (navigator.userAgentData?.platform || "").toLowerCase();
     const userAgent = (navigator.userAgent || "").toLowerCase();
     const platformString = `${navigatorPlatform} ${userAgent}`;
 
@@ -12,6 +12,7 @@ function detectPlatform() {
     if (platformString.includes("linux")) {
         return "linux";
     }
+    console.warn(`Unable to detect platform from string: ${platformString}`);
     return null;
 }
 
