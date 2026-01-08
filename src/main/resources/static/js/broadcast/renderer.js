@@ -20,9 +20,7 @@ export class BroadcastRenderer {
 
         this.obsBrowser = !!globalThis.obsstudio;
         this.supportsAnimatedDecode =
-            typeof ImageDecoder !== "undefined" &&
-            typeof createImageBitmap === "function" &&
-            !this.obsBrowser;
+            typeof ImageDecoder !== "undefined" && typeof createImageBitmap === "function" && !this.obsBrowser;
         this.canPlayProbe = document.createElement("video");
 
         this.audioManager = createAudioManager({ assets: this.state.assets });
@@ -65,9 +63,7 @@ export class BroadcastRenderer {
                     return r.json();
                 })
                 .then((assets) => this.renderAssets(assets))
-                .catch(() =>
-                    this.showToast("Unable to load overlay assets. Retrying may help.", "error"),
-                );
+                .catch(() => this.showToast("Unable to load overlay assets. Retrying may help.", "error"));
         });
     }
 
@@ -127,21 +123,14 @@ export class BroadcastRenderer {
         if (!settings) {
             return;
         }
-        const width = Number.isFinite(settings.width)
-            ? settings.width
-            : this.state.canvasSettings.width;
-        const height = Number.isFinite(settings.height)
-            ? settings.height
-            : this.state.canvasSettings.height;
+        const width = Number.isFinite(settings.width) ? settings.width : this.state.canvasSettings.width;
+        const height = Number.isFinite(settings.height) ? settings.height : this.state.canvasSettings.height;
         this.state.canvasSettings = { width, height };
         this.resizeCanvas();
     }
 
     resizeCanvas() {
-        if (
-            Number.isFinite(this.state.canvasSettings.width) &&
-            Number.isFinite(this.state.canvasSettings.height)
-        ) {
+        if (Number.isFinite(this.state.canvasSettings.width) && Number.isFinite(this.state.canvasSettings.height)) {
             this.canvas.width = this.state.canvasSettings.width;
             this.canvas.height = this.state.canvasSettings.height;
             this.canvas.style.width = `${this.state.canvasSettings.width}px`;

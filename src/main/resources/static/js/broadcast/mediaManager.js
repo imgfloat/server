@@ -1,14 +1,7 @@
 import { isAudioAsset } from "../media/audio.js";
 import { isGifAsset, isVideoAsset, isVideoElement } from "./assetKinds.js";
 
-export function createMediaManager({
-    state,
-    audioManager,
-    draw,
-    obsBrowser,
-    supportsAnimatedDecode,
-    canPlayProbe,
-}) {
+export function createMediaManager({ state, audioManager, draw, obsBrowser, supportsAnimatedDecode, canPlayProbe }) {
     const { mediaCache, animatedCache, blobCache, animationFailures, videoPlaybackStates } = state;
 
     function clearMedia(assetId) {
