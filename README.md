@@ -1,13 +1,10 @@
 <p align="center">
     <a href="https://imgfloat.kruhlmann.dev"><img src="src/main/resources/assets/banner.png" /></a>
-    <video width="830" controls>
-      <source src="https://github.com/Kruhlmann/imgfloat-j/raw/refs/heads/master/src/main/resources/demo.webm" type="video/webm">
-    </video>
 </p>
 
-# Get started
+[demo.webm](https://github.com/user-attachments/assets/f154ed72-6e3d-40ed-a111-706f6a916d52)
 
-Bring your stream to life with a lightweight, real-time overlay system built for Twitch. Upload images once, place and animate them from anywhere, and see your changes in real-time, so your stream visuals look polished.
+Bring your stream to life with a lightweight, real-time overlay system built for Twitch. Upload images once, place and animate them from anywhere, and see your changes live, so your stream visuals look polished.
 
 ## Streamers
 
