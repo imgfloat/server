@@ -25,13 +25,9 @@ let renderIntervalId = null;
 const audioUnlockEvents = ["pointerdown", "keydown", "touchstart"];
 let layerOrder = [];
 
-function spawnUserJavaScriptWorker() {
+function spawnUserJavaScriptWorker() {}
 
-}
-
-function stopUserJavaScriptWorker() {
-
-}
+function stopUserJavaScriptWorker() {}
 
 applyCanvasSettings(canvasSettings);
 
@@ -287,7 +283,7 @@ function applyPatch(assetId, patch) {
         return;
     }
     const merged = normalizePayload({ ...existing, ...sanitizedPatch });
-    console.log(merged)
+    console.log(merged);
     const isAudio = isAudioAsset(merged);
     if (sanitizedPatch.hidden) {
         hideAssetWithTransition(merged);
@@ -296,8 +292,8 @@ function applyPatch(assetId, patch) {
     const targetLayer = Number.isFinite(patch.layer)
         ? patch.layer
         : Number.isFinite(patch.zIndex)
-            ? patch.zIndex
-            : null;
+          ? patch.zIndex
+          : null;
     if (!isAudio && Number.isFinite(targetLayer)) {
         const currentOrder = getLayerOrder().filter((id) => id !== assetId);
         const insertIndex = Math.max(0, currentOrder.length - Math.round(targetLayer));
@@ -824,7 +820,7 @@ function setVideoSource(element, asset) {
             }
             applyVideoSource(element, next.objectUrl, asset);
         })
-        .catch(() => { });
+        .catch(() => {});
 }
 
 function applyVideoSource(element, objectUrl, asset) {

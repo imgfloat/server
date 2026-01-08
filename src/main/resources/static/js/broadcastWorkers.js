@@ -6,10 +6,10 @@ async function spawnUserJavaScriptWorker(asset) {
         console.error(`Unable to fetch asset with id:${id} from url:${asset.url}`, error);
         return;
     }
-    const blob = new Blob([assetSource], { type: 'application/javascript' });
+    const blob = new Blob([assetSource], { type: "application/javascript" });
     const worker = new Worker(URL.createObjectURL(blob));
     worker.onmessage = (event) => {
-        console.log('Message from worker:', event.data);
-    }
+        console.log("Message from worker:", event.data);
+    };
     worker.postMessage(data);
 }
