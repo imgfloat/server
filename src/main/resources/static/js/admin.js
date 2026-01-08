@@ -2071,6 +2071,14 @@ function sendToBack() {
     applyLayerOrder(ordered);
 }
 
+globalThis.handleFileSelection = handleFileSelection;
+globalThis.nudgeRotation = nudgeRotation;
+globalThis.recenterSelectedAsset = recenterSelectedAsset;
+globalThis.bringForward = bringForward;
+globalThis.bringBackward = bringBackward;
+globalThis.bringToFront = bringToFront;
+globalThis.sendToBack = sendToBack;
+
 function applyLayerOrder(ordered) {
     const newOrder = ordered.map((item) => item.id).filter((id) => assets.has(id));
     layerOrder = newOrder;
