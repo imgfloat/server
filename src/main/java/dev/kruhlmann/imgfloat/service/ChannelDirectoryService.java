@@ -38,8 +38,6 @@ public class ChannelDirectoryService {
 
     private static final Logger logger = LoggerFactory.getLogger(ChannelDirectoryService.class);
     private static final Pattern SAFE_FILENAME = Pattern.compile("[^a-zA-Z0-9._ -]");
-    private static final Pattern INIT_FUNCTION = Pattern.compile("\\bfunction\\s+init\\b");
-    private static final Pattern TICK_FUNCTION = Pattern.compile("\\bfunction\\s+tick\\b");
     private static final String DEFAULT_CODE_MEDIA_TYPE = "application/javascript";
 
     private final ChannelRepository channelRepository;
@@ -438,12 +436,6 @@ public class ChannelDirectoryService {
     private void validateCodeAssetSource(String source) {
         if (source == null || source.isBlank()) {
             throw new ResponseStatusException(BAD_REQUEST, "Script source is required");
-        }
-        if (!INIT_FUNCTION.matcher(source).find()) {
-            throw new ResponseStatusException(BAD_REQUEST, "Missing function: init");
-        }
-        if (!TICK_FUNCTION.matcher(source).find()) {
-            throw new ResponseStatusException(BAD_REQUEST, "Missing function: tick");
         }
     }
 
