@@ -1,7 +1,7 @@
 <p align="center">
     <a href="https://imgfloat.kruhlmann.dev"><img src="src/main/resources/assets/banner.png" /></a>
     <video width="830" controls>
-      <source src="https://raw.githubusercontent.com/kruhlmann/imgfloat-j/master/src/main/resources/demo.mp4" type="video/mp4">
+      <source src="https://github.com/Kruhlmann/imgfloat-j/raw/refs/heads/master/src/main/resources/demo.mp4" type="video/mp4">
     </video>
 </p>
 
