@@ -53,8 +53,12 @@ package:
 run-client:
 	IMGFLOAT_CHANNELS_URL=http://localhost:8080/channels $(ELECTRON) ./src/main/node/app.js
 
-.PHONY: runx
+.PHONY: run-client-x
 run-client-x:
+	IMGFLOAT_CHANNELS_URL=http://localhost:8080/channels ./src/main/shell/run-electron-app-in-xorg $(ELECTRON)
+
+.PHONY: run-client-wl
+run-client-wl:
 	IMGFLOAT_CHANNELS_URL=http://localhost:8080/channels ./src/main/shell/run-electron-app-in-xorg $(ELECTRON)
 
 .PHONY: fix

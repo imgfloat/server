@@ -79,11 +79,11 @@ This automatically re-compiles the project when source files change. `entr` is r
 
 ### Running the electron client
 
-There are two methods of running the electron app during development. Both methods require access to an Xorg server.
+There are two methods of running the electron app during development.
 
-#### Running in the current X server
+#### Running in the current display server
 
-This spawns the window in your current Xorg server.
+This spawns the window in your current display server.
 
 ```sh
 $ make run-client
@@ -92,6 +92,16 @@ $ make run-client
 ```
 
 #### Running in a sandboxed X server
+
+This method spawns an Xorg server with `Xephyr` and `openbox` to ensure a floating window manager, which will more accurately reflect the common user environment. Killing either the Xephyr or electron process shuts both down.
+
+```sh
+$ make run-client-x
+...
+^C
+```
+
+#### Running in a sandboxed wayland server
 
 This method spawns an Xorg server with `Xephyr` and `openbox` to ensure a floating window manager, which will more accurately reflect the common user environment. Killing either the Xephyr or electron process shuts both down.
 

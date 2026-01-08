@@ -1,0 +1,49 @@
+#!/usr/bin/env sh
+set -eu
+
+ELECTRON="$1"
+APP_ENTRY="src/main/node/app.js"
+SIZE="1280x800"
+RUNTIME="${XDG_RUNTIME_DIR:-/tmp}"
+
+# Find free WAYLAND_DISPLAY
+for d in 1 2 3 4 5; do
+    if [ ! -S "$RUNTIME/wayland-$d" ]; then
+        WAYLAND_NUM="$d"
+        break
+    fi
+done
+
+[ -n "${WAYLAND_NUM:-}" ] || {
+    echo "No free WAYLAND_DISPLAY found" >&2
+    exit 1
+}
+
+export WAYLAND_DISPLAY="wayland-$WAYLAND_NUM"
+export XDG_RUNTIME_DIR="$RUNTIME"
+
+cleanup() {
+    kill "$ELECTRON_PID" "$WESTON_PID" 2>/dev/null || true
+}
+trap cleanup EXIT INT TERM
+
+weston \
+  --backend=wayland-backend.so \
+  --width="${SIZE%x*}" \
+  --height="${SIZE#*x}" \
+  --xwayland \
+  --socket="$WAYLAND_DISPLAY" &
+WESTON_PID=$!
+
+sleep 1
+
+WAYLAND_DISPLAY="$WAYLAND_DISPLAY" \
+DISPLAY="" \
+"${ELECTRON}" "$APP_ENTRY" &
+ELECTRON_PID=$!
+
+while :; do
+    kill -0 "$ELECTRON_PID" 2>/dev/null || break
+    kill -0 "$WESTON_PID" 2>/dev/null || break
+    sleep 0.5
+done
