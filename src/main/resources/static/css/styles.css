@@ -1586,6 +1586,12 @@ button:disabled:hover {
 
 .asset-row .meta {
     flex: 1;
+    overflow: hidden;
+}
+
+.asset-row strong {
+    white-space: nowrap;
+    overflow: hidden;
 }
 
 .asset-item .meta {
