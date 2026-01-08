@@ -13,3 +13,4 @@ src/main/resources/assets/icon/linux/64x64.png filter=lfs diff=lfs merge=lfs -te
 src/main/resources/assets/icon/linux/128x128.png filter=lfs diff=lfs merge=lfs -text
 src/main/resources/assets/icon/linux/16x16.png filter=lfs diff=lfs merge=lfs -text
 src/main/resources/demo.mp4 filter=lfs diff=lfs merge=lfs -text
+src/main/resources/demo.webm filter=lfs diff=lfs merge=lfs -text
