@@ -8,6 +8,41 @@ let startTime = 0;
 const tickIntervalMs = 1000 / 60;
 const errorKeys = new Set();
 
+function disableNetworkApis() {
+    const blockedApis = {
+        fetch: () => {
+            throw new Error("Network access is disabled in asset scripts.");
+        },
+        XMLHttpRequest: undefined,
+        WebSocket: undefined,
+        EventSource: undefined,
+        importScripts: () => {
+            throw new Error("Network access is disabled in asset scripts.");
+        },
+    };
+
+    Object.entries(blockedApis).forEach(([key, value]) => {
+        if (!(key in self)) {
+            return;
+        }
+        try {
+            Object.defineProperty(self, key, {
+                value,
+                writable: false,
+                configurable: false,
+            });
+        } catch (error) {
+            try {
+                self[key] = value;
+            } catch (_error) {
+                // ignore if the API cannot be overridden in this environment
+            }
+        }
+    });
+}
+
+disableNetworkApis();
+
 function reportScriptError(id, stage, error) {
     if (!id) {
         return;
