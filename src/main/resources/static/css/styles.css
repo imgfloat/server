@@ -2014,6 +2014,17 @@ button:disabled:hover {
     font-weight: 700;
 }
 
+.sysadmin-title-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.sysadmin-badge {
+    font-size: 12px;
+}
+
 .identity-row {
     display: flex;
     align-items: center;

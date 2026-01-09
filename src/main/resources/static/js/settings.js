@@ -151,17 +151,46 @@ function renderSystemAdministrators(admins) {
     }
 
     admins.forEach((admin) => {
+        const normalizedAdmin = admin?.trim().toLowerCase();
+        const isInitialSysadmin = initialSysadmin && normalizedAdmin === initialSysadmin;
         const listItem = document.createElement("li");
         listItem.classList.add("stacked-list-item");
 
         const text = document.createElement("div");
-        text.innerHTML = `<p class="list-title">${admin}</p><p class="muted">System admin access</p>`;
+        const titleRow = document.createElement("div");
+        titleRow.classList.add("sysadmin-title-row");
+
+        const title = document.createElement("p");
+        title.classList.add("list-title");
+        title.textContent = admin;
+        titleRow.appendChild(title);
+
+        if (isInitialSysadmin) {
+            const badge = document.createElement("span");
+            badge.classList.add("chip", "subtle", "sysadmin-badge");
+            badge.textContent = "Initial system admin";
+            titleRow.appendChild(badge);
+        }
+
+        const subtitle = document.createElement("p");
+        subtitle.classList.add("muted");
+        subtitle.textContent = "System admin access";
+
+        text.appendChild(titleRow);
+        text.appendChild(subtitle);
 
         const button = document.createElement("button");
         button.classList.add("button", "secondary");
         button.type = "button";
         button.textContent = "Remove";
         button.addEventListener("click", () => removeSystemAdministrator(admin));
+        button.setAttribute("data-sysadmin-remove", "true");
+        button.setAttribute("data-sysadmin-username", admin);
+
+        if (isInitialSysadmin) {
+            button.disabled = true;
+            button.title = "The initial system administrator cannot be removed.";
+        }
 
         listItem.appendChild(text);
         listItem.appendChild(button);
@@ -215,6 +244,10 @@ function addSystemAdministrator() {
 }
 
 function removeSystemAdministrator(username) {
+    if (initialSysadmin && username.trim().toLowerCase() === initialSysadmin) {
+        showToast("The initial system administrator cannot be removed.", "warning");
+        return;
+    }
     fetch(`/api/system-administrators/${encodeURIComponent(username)}`, { method: "DELETE" })
         .then((r) => {
             if (!r.ok) {
@@ -258,13 +291,3 @@ setFormSettings(currentSettings);
 updateStatCards(currentSettings);
 updateSubmitButtonDisabledState();
 loadSystemAdministrators();
-
-if (initialSysadmin) {
-    document.querySelectorAll("[data-sysadmin-remove]").forEach((button) => {
-        const username = button.getAttribute("data-sysadmin-username");
-        if (username && username.trim().toLowerCase() === initialSysadmin) {
-            button.disabled = true;
-            button.title = "The initial system administrator cannot be removed.";
-        }
-    });
-}

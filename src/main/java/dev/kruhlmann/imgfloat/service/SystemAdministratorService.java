@@ -2,14 +2,16 @@ package dev.kruhlmann.imgfloat.service;
 
 import dev.kruhlmann.imgfloat.model.SystemAdministrator;
 import dev.kruhlmann.imgfloat.repository.SystemAdministratorRepository;
-import jakarta.annotation.PostConstruct;
 import java.util.List;
 import java.util.Locale;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.env.Environment;
+import org.springframework.context.event.EventListener;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class SystemAdministratorService {
@@ -27,8 +29,13 @@ public class SystemAdministratorService {
         this.environment = environment;
     }
 
-    @PostConstruct
+    @EventListener(ApplicationReadyEvent.class)
     public void initDefaults() {
+        initDefaultsInTransaction();
+    }
+
+    @Transactional
+    void initDefaultsInTransaction() {
         if (
             Boolean.parseBoolean(
                 environment.getProperty("org.springframework.boot.test.context.SpringBootTestContextBootstrapper")
