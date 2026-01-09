@@ -7,19 +7,21 @@ import java.io.InputStreamReader;
 import java.util.Properties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 @Component
 public class GitInfoService {
 
     private static final String FALLBACK_GIT_SHA = "unknown";
     private static final Logger LOG = LoggerFactory.getLogger(GitInfoService.class);
-    private static final String COMMIT_URL_PREFIX = "https://github.com/Kruhlmann/imgfloat-j/commit/";
 
     private final String commitSha;
     private final String shortCommitSha;
+    private final String commitUrlPrefix;
 
-    public GitInfoService() {
+    public GitInfoService(@Value("${IMGFLOAT_COMMIT_URL_PREFIX:}") String commitUrlPrefix) {
         CommitInfo commitInfo = resolveFromGitProperties();
         if (commitInfo == null) {
             commitInfo = resolveFromGitBinary();
@@ -36,6 +38,7 @@ public class GitInfoService {
 
         this.commitSha = defaultValue(full);
         this.shortCommitSha = defaultValue(abbreviated);
+        this.commitUrlPrefix = normalize(commitUrlPrefix);
     }
 
     public String getCommitSha() {
@@ -47,10 +50,17 @@ public class GitInfoService {
     }
 
     public String getCommitUrl() {
-        if (commitSha == null || commitSha.isBlank() || FALLBACK_GIT_SHA.equalsIgnoreCase(commitSha)) {
+        if (!shouldShowCommitChip()
+            || commitSha == null
+            || commitSha.isBlank()
+            || FALLBACK_GIT_SHA.equalsIgnoreCase(commitSha)) {
             return null;
         }
-        return COMMIT_URL_PREFIX + commitSha;
+        return commitUrlPrefix + commitSha;
+    }
+
+    public boolean shouldShowCommitChip() {
+        return StringUtils.hasText(commitUrlPrefix);
     }
 
     private CommitInfo resolveFromGitProperties() {

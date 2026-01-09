@@ -156,6 +156,7 @@ public class ViewController {
         model.addAttribute("version", versionService.getVersion());
         model.addAttribute("releaseVersion", githubReleaseService.getClientReleaseVersion());
         model.addAttribute("downloadBaseUrl", githubReleaseService.getDownloadBaseUrl());
+        model.addAttribute("showCommitChip", gitInfoService.shouldShowCommitChip());
         model.addAttribute("buildCommitShort", gitInfoService.getShortCommitSha());
         model.addAttribute("buildCommitUrl", gitInfoService.getCommitUrl());
     }

@@ -57,7 +57,7 @@
                     <span class="muted">Version</span>
                     <span class="version-badge" th:text="${version}">unknown</span>
                 </div>
-                <div class="build-chip">
+                <div class="build-chip" th:if="${showCommitChip}">
                     <span class="muted">Build</span>
                     <a
                         class="version-badge version-link"
