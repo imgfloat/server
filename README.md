@@ -14,12 +14,11 @@ Define the following required environment variables:
 | `IMGFLOAT_PREVIEWS_PATH` | Filesystem path to store generated image previews | /var/imgfloat/previews |
 | `IMGFLOAT_DB_PATH` | Filesystem path to the SQLite database file | /var/imgfloat/imgfloat.db |
 | `IMGFLOAT_INITIAL_TWITCH_USERNAME_SYSADMIN` | Twitch username of the initial sysadmin user | example_broadcaster |
-| `IMGFLOAT_GITHUB_OWNER` | Github user or org which has the client repository | Kruhlmann |
-| `IMGFLOAT_GITHUB_REPO` | Client repository name | imgfloat-j |
+| `IMGFLOAT_GITHUB_CLIENT_OWNER` | GitHub user or org which has the client repository | imgfloat |
+| `IMGFLOAT_GITHUB_CLIENT_REPO` | Client repository name | client |
+| `IMGFLOAT_GITHUB_CLIENT_VERSION` | Client release version used for download links | 1.2.3 |
 | `SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE` | Maximum upload file size | 10MB |
 | `SPRING_SERVLET_MULTIPART_MAX_REQUEST_SIZE` | Maximum upload request size | 10MB |
-| `IMGFLOAT_GITHUB_OWNER` | GitHub owner used to build desktop download links | Kruhlmann |
-| `IMGFLOAT_GITHUB_REPO` | GitHub repo used to build desktop download links | imgfloat-j |
 | `TWITCH_CLIENT_ID` | Oauth2 client id | i1bjnh4whieht5kzn307nvu3rn5pqi |
 | `TWITCH_CLIENT_SECRET` | Oauth2 client secret | vpkn8cp7ona65l121j6q78l9gkmed3 |
 
@@ -36,8 +35,9 @@ If you want to use the default development setup your `.env` file should look li
 ```sh
 TWITCH_CLIENT_ID=...
 TWITCH_CLIENT_SECRET=...
-IMGFLOAT_GITHUB_OWNER=...
-IMGFLOAT_GITHUB_REPO=...
+IMGFLOAT_GITHUB_CLIENT_OWNER=...
+IMGFLOAT_GITHUB_CLIENT_REPO=...
+IMGFLOAT_GITHUB_CLIENT_VERSION=...
 IMGFLOAT_INITIAL_TWITCH_USERNAME_SYSADMIN=...
 ```
 

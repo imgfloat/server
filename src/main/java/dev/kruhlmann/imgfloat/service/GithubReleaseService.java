@@ -11,35 +11,65 @@ public class GithubReleaseService {
 
     private static final Logger LOG = LoggerFactory.getLogger(GithubReleaseService.class);
 
-    private final VersionService versionService;
-    private final String githubOwner;
-    private final String githubRepo;
+    private final String githubClientOwner;
+    private final String githubClientRepo;
+    private final String githubClientVersion;
 
     public GithubReleaseService(
-        VersionService versionService,
-        @Value("${IMGFLOAT_GITHUB_OWNER:#{null}}") String githubOwner,
-        @Value("${IMGFLOAT_GITHUB_REPO:#{null}}") String githubRepo
+        @Value("${IMGFLOAT_GITHUB_CLIENT_OWNER:#{null}}") String githubClientOwner,
+        @Value("${IMGFLOAT_GITHUB_CLIENT_REPO:#{null}}") String githubClientRepo,
+        @Value("${IMGFLOAT_GITHUB_CLIENT_VERSION:#{null}}") String githubClientVersion
     ) {
-        this.versionService = versionService;
-        this.githubOwner = githubOwner;
-        this.githubRepo = githubRepo;
+        this.githubClientOwner = githubClientOwner;
+        this.githubClientRepo = githubClientRepo;
+        this.githubClientVersion = githubClientVersion;
     }
 
     public String getDownloadBaseUrl() {
         validateConfiguration();
-        String releaseTag = versionService.getReleaseTag();
+        String releaseTag = getClientReleaseTag();
         return String.format(
             "https://github.com/%s/%s/releases/download/%s/",
-            githubOwner.trim(),
-            githubRepo.trim(),
+            githubClientOwner.trim(),
+            githubClientRepo.trim(),
             releaseTag
         );
     }
 
+    public String getClientReleaseVersion() {
+        validateConfiguration();
+        return normalizeReleaseVersion(githubClientVersion);
+    }
+
+    private String getClientReleaseTag() {
+        String normalized = getClientReleaseVersion();
+        String normalizedVersion = normalized.startsWith("v") ? normalized.substring(1) : normalized;
+        return "v" + normalizedVersion;
+    }
+
     private void validateConfiguration() {
-        if (!StringUtils.hasText(githubOwner) || !StringUtils.hasText(githubRepo)) {
-            LOG.error("GitHub download configuration is missing (owner={}, repo={})", githubOwner, githubRepo);
-            throw new IllegalStateException("Missing GitHub owner or repo configuration for download links");
+        if (
+            !StringUtils.hasText(githubClientOwner) ||
+            !StringUtils.hasText(githubClientRepo) ||
+            !StringUtils.hasText(githubClientVersion)
+        ) {
+            LOG.error(
+                "GitHub client download configuration is missing (owner={}, repo={}, version={})",
+                githubClientOwner,
+                githubClientRepo,
+                githubClientVersion
+            );
+            throw new IllegalStateException("Missing GitHub client configuration for download links");
         }
+    }
+
+    private String normalizeReleaseVersion(String baseVersion) {
+        String normalized = baseVersion.trim();
+        normalized = normalized.replaceFirst("(?i)^v", "");
+        normalized = normalized.replaceFirst("-SNAPSHOT$", "");
+        if (normalized.isBlank()) {
+            throw new IllegalStateException("Invalid client version: " + baseVersion);
+        }
+        return normalized;
     }
 }
