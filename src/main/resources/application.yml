@@ -29,12 +29,17 @@ spring:
     jpa:
         open-in-view: false
         hibernate:
-            ddl-auto: update
+            ddl-auto: validate
         database-platform: org.hibernate.community.dialect.SQLiteDialect
+    flyway:
+        enabled: true
+        locations: classpath:db/migration
+        baseline-on-migrate: true
+        baseline-version: 1
     session:
         store-type: jdbc
         jdbc:
-            initialize-schema: always
+            initialize-schema: never
             platform: sqlite
     security:
         oauth2:
