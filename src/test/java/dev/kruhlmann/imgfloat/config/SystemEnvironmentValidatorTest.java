@@ -51,7 +51,8 @@ class SystemEnvironmentValidatorTest {
         ReflectionTestUtils.setField(validator, "previewsPath", "/tmp/previews");
         ReflectionTestUtils.setField(validator, "dbPath", "/tmp/db");
         ReflectionTestUtils.setField(validator, "initialSysadmin", "admin");
-        ReflectionTestUtils.setField(validator, "githubOwner", "owner");
-        ReflectionTestUtils.setField(validator, "githubRepo", "repo");
+        ReflectionTestUtils.setField(validator, "githubClientOwner", "owner");
+        ReflectionTestUtils.setField(validator, "githubClientRepo", "repo");
+        ReflectionTestUtils.setField(validator, "githubClientVersion", "1.0.0");
     }
 }
