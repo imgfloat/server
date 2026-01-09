@@ -19,6 +19,10 @@ const sysadminInputElement = document.getElementById("new-sysadmin");
 const addSysadminButtonElement = document.getElementById("add-sysadmin-button");
 
 let currentSettings = JSON.parse(serverRenderedSettings);
+const initialSysadmin =
+    typeof serverRenderedInitialSysadmin === "string" && serverRenderedInitialSysadmin.trim() !== ""
+        ? serverRenderedInitialSysadmin.trim().toLowerCase()
+        : null;
 let userSettings = { ...currentSettings };
 
 function jsonEquals(a, b) {
@@ -165,7 +169,7 @@ function renderSystemAdministrators(admins) {
     });
 }
 
-function loadSystemAdministrators() {
+async function loadSystemAdministrators() {
     return fetch("/api/system-administrators")
         .then((r) => {
             if (!r.ok) {
@@ -254,3 +258,13 @@ setFormSettings(currentSettings);
 updateStatCards(currentSettings);
 updateSubmitButtonDisabledState();
 loadSystemAdministrators();
+
+if (initialSysadmin) {
+    document.querySelectorAll("[data-sysadmin-remove]").forEach((button) => {
+        const username = button.getAttribute("data-sysadmin-username");
+        if (username && username.trim().toLowerCase() === initialSysadmin) {
+            button.disabled = true;
+            button.title = "The initial system administrator cannot be removed.";
+        }
+    });
+}

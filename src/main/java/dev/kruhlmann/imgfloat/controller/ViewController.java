@@ -11,6 +11,7 @@ import dev.kruhlmann.imgfloat.service.ChannelDirectoryService;
 import dev.kruhlmann.imgfloat.service.GitInfoService;
 import dev.kruhlmann.imgfloat.service.GithubReleaseService;
 import dev.kruhlmann.imgfloat.service.SettingsService;
+import dev.kruhlmann.imgfloat.service.SystemAdministratorService;
 import dev.kruhlmann.imgfloat.service.VersionService;
 import dev.kruhlmann.imgfloat.util.LogSanitizer;
 import org.slf4j.Logger;
@@ -31,6 +32,7 @@ public class ViewController {
     private final ObjectMapper objectMapper;
     private final AuthorizationService authorizationService;
     private final GithubReleaseService githubReleaseService;
+    private final SystemAdministratorService systemAdministratorService;
     private final long uploadLimitBytes;
 
     public ViewController(
@@ -41,6 +43,7 @@ public class ViewController {
         ObjectMapper objectMapper,
         AuthorizationService authorizationService,
         GithubReleaseService githubReleaseService,
+        SystemAdministratorService systemAdministratorService,
         long uploadLimitBytes
     ) {
         this.channelDirectoryService = channelDirectoryService;
@@ -50,6 +53,7 @@ public class ViewController {
         this.objectMapper = objectMapper;
         this.authorizationService = authorizationService;
         this.githubReleaseService = githubReleaseService;
+        this.systemAdministratorService = systemAdministratorService;
         this.uploadLimitBytes = uploadLimitBytes;
     }
 
@@ -111,6 +115,7 @@ public class ViewController {
             LOG.error("Failed to serialize settings for settings view", e);
             throw new ResponseStatusException(INTERNAL_SERVER_ERROR, "Failed to serialize settings");
         }
+        model.addAttribute("initialSysadmin", systemAdministratorService.getInitialSysadmin());
         return "settings";
     }
 
