@@ -3,7 +3,9 @@ package dev.kruhlmann.imgfloat.service;
 import dev.kruhlmann.imgfloat.model.SystemAdministrator;
 import dev.kruhlmann.imgfloat.repository.SystemAdministratorRepository;
 import jakarta.annotation.PostConstruct;
+import java.util.List;
 import java.util.Locale;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -78,6 +80,14 @@ public class SystemAdministratorService {
 
     public boolean isSysadmin(String twitchUsername) {
         return repo.existsByTwitchUsername(normalize(twitchUsername));
+    }
+
+    public List<String> listSysadmins() {
+        return repo
+            .findAllByOrderByTwitchUsernameAsc()
+            .stream()
+            .map(SystemAdministrator::getTwitchUsername)
+            .collect(Collectors.toList());
     }
 
     private String normalize(String username) {

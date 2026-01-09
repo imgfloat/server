@@ -236,6 +236,27 @@
                                 </button>
                             </div>
                         </form>
+
+                        <div class="form-section">
+                            <div class="form-heading">
+                                <p class="eyebrow subtle">Access</p>
+                                <h3>System administrators</h3>
+                                <p class="muted tiny">
+                                    Invite teammates who can manage global defaults and other system-wide actions.
+                                </p>
+                            </div>
+                            <div class="inline-form">
+                                <input id="new-sysadmin" placeholder="Twitch username" />
+                                <button id="add-sysadmin-button" class="button" type="button">Add system admin</button>
+                            </div>
+                            <div class="card-section">
+                                <div class="section-header">
+                                    <h4 class="list-title">Current system admins</h4>
+                                    <p class="muted">These users can access the settings page and APIs.</p>
+                                </div>
+                                <ul id="sysadmin-list" class="stacked-list"></ul>
+                            </div>
+                        </div>
                     </section>
 
                     <aside class="settings-sidebar">
