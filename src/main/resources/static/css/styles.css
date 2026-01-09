@@ -81,7 +81,7 @@ body {
 
 .channels-shell,
 .settings-shell {
-    width: min(760px, 100%);
+    width: 100%;
     display: flex;
     flex-direction: column;
     gap: 20px;
@@ -110,6 +110,8 @@ body {
 .settings-main {
     display: flex;
     justify-content: center;
+    flex-direction: column;
+    gap: 14px;
 }
 
 .error-main {
@@ -204,35 +206,21 @@ body {
 }
 
 .settings-hero {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 20px;
-    align-items: center;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
 }
 
-.settings-layout {
-    display: grid;
-    grid-template-columns: 2fr minmax(260px, 1fr);
+.settings-stack {
+    display: flex;
+    flex-direction: column;
     gap: 18px;
-    align-items: start;
-}
-
-@media (max-width: 900px) {
-    .settings-layout {
-        grid-template-columns: 1fr;
-    }
 }
 
 .settings-panel {
     display: flex;
     flex-direction: column;
     gap: 18px;
-}
-
-.settings-sidebar {
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
 }
 
 .hero-copy h1 {

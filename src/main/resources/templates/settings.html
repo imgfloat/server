@@ -39,11 +39,6 @@
                             Configure overlay performance and audio guardrails for every channel using Imgfloat. These
                             settings are applied globally.
                         </p>
-                        <div class="badge-row">
-                            <span class="badge soft"><i class="fa-solid fa-gauge-high"></i> Performance tuned</span>
-                            <span class="badge"><i class="fa-solid fa-cloud"></i> Server-wide</span>
-                            <span class="badge subtle"><i class="fa-solid fa-gear"></i> Admin only</span>
-                        </div>
                     </div>
                     <div class="stat-grid compact">
                         <div class="stat">
@@ -69,7 +64,7 @@
                     </div>
                 </section>
 
-                <div class="settings-layout">
+                <div class="settings-stack">
                     <section class="settings-card settings-panel">
                         <div class="section-heading">
                             <div>
@@ -236,50 +231,47 @@
                                 </button>
                             </div>
                         </form>
+                    </section>
 
-                        <div class="form-section">
-                            <div class="form-heading">
-                                <p class="eyebrow subtle">Access</p>
-                                <h3>System administrators</h3>
-                                <p class="muted tiny">
-                                    Invite teammates who can manage global defaults and other system-wide actions.
-                                </p>
+                    <section class="settings-card">
+                        <div class="form-heading">
+                            <p class="eyebrow subtle">Access</p>
+                            <h3>System administrators</h3>
+                            <p class="muted tiny">
+                                Invite teammates who can manage global defaults and other system-wide actions.
+                            </p>
+                        </div>
+                        <div class="inline-form">
+                            <input id="new-sysadmin" placeholder="Twitch username" />
+                            <button id="add-sysadmin-button" class="button" type="button">Add system admin</button>
+                        </div>
+                        <div class="card-section">
+                            <div class="section-header">
+                                <h4 class="list-title">Current system admins</h4>
+                                <p class="muted">These users can access the settings page and APIs.</p>
                             </div>
-                            <div class="inline-form">
-                                <input id="new-sysadmin" placeholder="Twitch username" />
-                                <button id="add-sysadmin-button" class="button" type="button">Add system admin</button>
-                            </div>
-                            <div class="card-section">
-                                <div class="section-header">
-                                    <h4 class="list-title">Current system admins</h4>
-                                    <p class="muted">These users can access the settings page and APIs.</p>
-                                </div>
-                                <ul id="sysadmin-list" class="stacked-list"></ul>
-                            </div>
+                            <ul id="sysadmin-list" class="stacked-list"></ul>
                         </div>
                     </section>
 
-                    <aside class="settings-sidebar">
-                        <section class="settings-card info-card">
-                            <p class="eyebrow subtle">Checklist</p>
-                            <h3>Before you save</h3>
-                            <ul class="hint-list">
-                                <li>Match canvas dimensions to the OBS browser source you embed.</li>
-                                <li>Use 30–60 FPS for smoother overlays without overwhelming viewers.</li>
-                                <li>Keep playback and pitch bounds between 0 and 1 to avoid distortion.</li>
-                                <li>Lower the minimum volume if alerts feel too loud on stream.</li>
-                            </ul>
-                        </section>
+                    <section class="settings-card info-card">
+                        <p class="eyebrow subtle">Checklist</p>
+                        <h3>Before you save</h3>
+                        <ul class="hint-list">
+                            <li>Match canvas dimensions to the OBS browser source you embed.</li>
+                            <li>Use 30–60 FPS for smoother overlays without overwhelming viewers.</li>
+                            <li>Keep playback and pitch bounds between 0 and 1 to avoid distortion.</li>
+                            <li>Lower the minimum volume if alerts feel too loud on stream.</li>
+                        </ul>
+                    </section>
 
-                        <section class="settings-card info-card subtle">
-                            <p class="eyebrow subtle">Heads up</p>
-                            <h3>Global impact</h3>
-                            <p class="muted tiny">
-                                Changes here update every channel immediately. Save carefully and confirm with your
-                                team.
-                            </p>
-                        </section>
-                    </aside>
+                    <section class="settings-card info-card subtle">
+                        <p class="eyebrow subtle">Heads up</p>
+                        <h3>Global impact</h3>
+                        <p class="muted tiny">
+                            Changes here update every channel immediately. Save carefully and confirm with your team.
+                        </p>
+                    </section>
                 </div>
             </main>
         </div>
