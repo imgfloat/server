@@ -21,6 +21,7 @@ import dev.kruhlmann.imgfloat.repository.AssetRepository;
 import dev.kruhlmann.imgfloat.repository.AudioAssetRepository;
 import dev.kruhlmann.imgfloat.repository.ChannelRepository;
 import dev.kruhlmann.imgfloat.repository.ScriptAssetRepository;
+import dev.kruhlmann.imgfloat.repository.ScriptAssetAttachmentRepository;
 import dev.kruhlmann.imgfloat.repository.VisualAssetRepository;
 import dev.kruhlmann.imgfloat.service.AssetStorageService;
 import dev.kruhlmann.imgfloat.service.ChannelDirectoryService;
@@ -56,6 +57,7 @@ class ChannelDirectoryServiceTest {
     private VisualAssetRepository visualAssetRepository;
     private AudioAssetRepository audioAssetRepository;
     private ScriptAssetRepository scriptAssetRepository;
+    private ScriptAssetAttachmentRepository scriptAssetAttachmentRepository;
     private SettingsService settingsService;
 
     @BeforeEach
@@ -66,6 +68,7 @@ class ChannelDirectoryServiceTest {
         visualAssetRepository = mock(VisualAssetRepository.class);
         audioAssetRepository = mock(AudioAssetRepository.class);
         scriptAssetRepository = mock(ScriptAssetRepository.class);
+        scriptAssetAttachmentRepository = mock(ScriptAssetAttachmentRepository.class);
         settingsService = mock(SettingsService.class);
         when(settingsService.get()).thenReturn(Settings.defaults());
         setupInMemoryPersistence();
@@ -82,6 +85,7 @@ class ChannelDirectoryServiceTest {
             visualAssetRepository,
             audioAssetRepository,
             scriptAssetRepository,
+            scriptAssetAttachmentRepository,
             messagingTemplate,
             assetStorageService,
             mediaDetectionService,

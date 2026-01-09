@@ -10,6 +10,7 @@ import dev.kruhlmann.imgfloat.model.CanvasSettingsRequest;
 import dev.kruhlmann.imgfloat.model.CodeAssetRequest;
 import dev.kruhlmann.imgfloat.model.OauthSessionUser;
 import dev.kruhlmann.imgfloat.model.PlaybackRequest;
+import dev.kruhlmann.imgfloat.model.ScriptAssetAttachmentView;
 import dev.kruhlmann.imgfloat.model.TransformRequest;
 import dev.kruhlmann.imgfloat.model.TwitchUserProfile;
 import dev.kruhlmann.imgfloat.model.VisibilityRequest;
@@ -387,6 +388,33 @@ public class ChannelApiController {
             .orElseThrow(() -> createAsset404());
     }
 
+    @GetMapping("/script-assets/{assetId}/attachments/{attachmentId}/content")
+    public ResponseEntity<byte[]> getScriptAttachmentContent(
+        @PathVariable("broadcaster") String broadcaster,
+        @PathVariable("assetId") String assetId,
+        @PathVariable("attachmentId") String attachmentId
+    ) {
+        String logBroadcaster = LogSanitizer.sanitize(broadcaster);
+        String logAssetId = LogSanitizer.sanitize(assetId);
+        String logAttachmentId = LogSanitizer.sanitize(attachmentId);
+        LOG.debug(
+            "Serving script attachment {} for asset {} for broadcaster {}",
+            logAttachmentId,
+            logAssetId,
+            logBroadcaster
+        );
+        return channelDirectoryService
+            .getScriptAttachmentContent(broadcaster, assetId, attachmentId)
+            .map((content) ->
+                ResponseEntity.ok()
+                    .header("X-Content-Type-Options", "nosniff")
+                    .header(HttpHeaders.CONTENT_DISPOSITION, contentDispositionFor(content.mediaType()))
+                    .contentType(MediaType.parseMediaType(content.mediaType()))
+                    .body(content.bytes())
+            )
+            .orElseThrow(() -> createAsset404());
+    }
+
     @GetMapping("/assets/{assetId}/preview")
     public ResponseEntity<byte[]> getAssetPreview(
         @PathVariable("broadcaster") String broadcaster,
@@ -436,6 +464,65 @@ public class ChannelApiController {
             throw createAsset404();
         }
         LOG.info("Asset {} deleted on {} by {}", logAssetId, logBroadcaster, logSessionUsername);
+        return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/assets/{assetId}/attachments")
+    public Collection<ScriptAssetAttachmentView> listScriptAttachments(
+        @PathVariable("broadcaster") String broadcaster,
+        @PathVariable("assetId") String assetId,
+        OAuth2AuthenticationToken oauthToken
+    ) {
+        String sessionUsername = OauthSessionUser.from(oauthToken).login();
+        authorizationService.userIsBroadcasterOrChannelAdminForBroadcasterOrThrowHttpError(
+            broadcaster,
+            sessionUsername
+        );
+        return channelDirectoryService.listScriptAttachments(broadcaster, assetId);
+    }
+
+    @PostMapping(value = "/assets/{assetId}/attachments", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ScriptAssetAttachmentView> createScriptAttachment(
+        @PathVariable("broadcaster") String broadcaster,
+        @PathVariable("assetId") String assetId,
+        @org.springframework.web.bind.annotation.RequestPart("file") MultipartFile file,
+        OAuth2AuthenticationToken oauthToken
+    ) {
+        String sessionUsername = OauthSessionUser.from(oauthToken).login();
+        authorizationService.userIsBroadcasterOrChannelAdminForBroadcasterOrThrowHttpError(
+            broadcaster,
+            sessionUsername
+        );
+        if (file == null || file.isEmpty()) {
+            throw new ResponseStatusException(BAD_REQUEST, "Attachment file is required");
+        }
+        try {
+            return channelDirectoryService
+                .createScriptAttachment(broadcaster, assetId, file)
+                .map(ResponseEntity::ok)
+                .orElseThrow(() -> new ResponseStatusException(BAD_REQUEST, "Unable to save attachment"));
+        } catch (IOException e) {
+            LOG.error("Failed to process attachment upload for {} by {}", broadcaster, sessionUsername, e);
+            throw new ResponseStatusException(BAD_REQUEST, "Failed to process attachment", e);
+        }
+    }
+
+    @DeleteMapping("/assets/{assetId}/attachments/{attachmentId}")
+    public ResponseEntity<Void> deleteScriptAttachment(
+        @PathVariable("broadcaster") String broadcaster,
+        @PathVariable("assetId") String assetId,
+        @PathVariable("attachmentId") String attachmentId,
+        OAuth2AuthenticationToken oauthToken
+    ) {
+        String sessionUsername = OauthSessionUser.from(oauthToken).login();
+        authorizationService.userIsBroadcasterOrChannelAdminForBroadcasterOrThrowHttpError(
+            broadcaster,
+            sessionUsername
+        );
+        boolean removed = channelDirectoryService.deleteScriptAttachment(broadcaster, assetId, attachmentId);
+        if (!removed) {
+            throw createAsset404();
+        }
         return ResponseEntity.ok().build();
     }
 

@@ -88,6 +88,9 @@ export class BroadcastRenderer {
         const wasExisting = this.state.assets.has(asset.id);
         this.state.assets.set(asset.id, asset);
         ensureLayerPosition(this.state, asset.id, placement);
+        if (isCodeAsset(asset)) {
+            this.updateScriptWorkerAttachments(asset);
+        }
         if (!wasExisting && !this.state.visibilityStates.has(asset.id)) {
             const initialAlpha = 0; // Fade in newly discovered assets
             this.state.visibilityStates.set(asset.id, {
@@ -484,6 +487,20 @@ export class BroadcastRenderer {
             payload: {
                 id: asset.id,
                 source: assetSource,
+                attachments: asset.scriptAttachments || [],
+            },
+        });
+    }
+
+    updateScriptWorkerAttachments(asset) {
+        if (!this.scriptWorker || !this.scriptWorkerReady || !asset?.id) {
+            return;
+        }
+        this.scriptWorker.postMessage({
+            type: "updateAttachments",
+            payload: {
+                id: asset.id,
+                attachments: asset.scriptAttachments || [],
             },
         });
     }

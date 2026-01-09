@@ -387,13 +387,36 @@
                         <textarea
                             class="text-input"
                             id="custom-asset-code"
-                            placeholder="exports.init = ({ surface, assets, channel }) => {&#10;&#10;};&#10;&#10;exports.tick = () => {&#10;&#10;};"
+                            placeholder="exports.init = (context) => {&#10;  const { assets } = context;&#10;&#10;};&#10;&#10;exports.tick = () => {&#10;&#10;};"
                             rows="25"
                             required
                         ></textarea>
                         <p class="field-note">
                             By submitting your script, you agree to release it under the MIT License to the public.
                         </p>
+                    </div>
+                    <div class="form-group">
+                        <label>Script attachments</label>
+                        <div class="attachment-actions">
+                            <input
+                                id="custom-asset-attachment-file"
+                                class="file-input-field"
+                                type="file"
+                                accept="image/*,video/*,audio/*"
+                            />
+                            <label for="custom-asset-attachment-file" class="file-input-trigger small">
+                                <span class="file-input-icon"><i class="fa-solid fa-paperclip"></i></span>
+                                <span class="file-input-copy">
+                                    <strong>Add attachment</strong>
+                                    <small>Images, video, or audio</small>
+                                </span>
+                            </label>
+                        </div>
+                        <p class="field-note" id="custom-asset-attachment-hint">
+                            Attachments are stored with the script and are available for scripts to render. Save the
+                            script before adding attachments.
+                        </p>
+                        <ul id="custom-asset-attachment-list" class="attachment-list"></ul>
                     </div>
                     <div class="form-error hidden" id="custom-asset-error">
                         <strong>JavaScript error: <span id="js-error-title"></span></strong>

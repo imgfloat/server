@@ -1,6 +1,7 @@
 package dev.kruhlmann.imgfloat.model;
 
 import java.time.Instant;
+import java.util.List;
 
 public record AssetView(
     String id,
@@ -18,6 +19,7 @@ public record AssetView(
     String mediaType,
     String originalMediaType,
     AssetType assetType,
+    List<ScriptAssetAttachmentView> scriptAttachments,
     Integer zIndex,
     Boolean audioLoop,
     Integer audioDelayMillis,
@@ -47,6 +49,7 @@ public record AssetView(
             visual.getMediaType(),
             visual.getOriginalMediaType(),
             asset.getAssetType(),
+            null,
             visual.getZIndex(),
             null,
             null,
@@ -78,6 +81,7 @@ public record AssetView(
             audio.getOriginalMediaType(),
             asset.getAssetType(),
             null,
+            null,
             audio.isAudioLoop(),
             audio.getAudioDelayMillis(),
             audio.getAudioSpeed(),
@@ -107,6 +111,7 @@ public record AssetView(
             script.getMediaType(),
             script.getOriginalMediaType(),
             asset.getAssetType(),
+            script.getAttachments(),
             null,
             null,
             null,

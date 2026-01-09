@@ -134,6 +134,18 @@ public class SchemaMigration implements ApplicationRunner {
                 )
                 """
             );
+            jdbcTemplate.execute(
+                """
+                CREATE TABLE IF NOT EXISTS script_asset_attachments (
+                    id TEXT PRIMARY KEY,
+                    script_asset_id TEXT NOT NULL,
+                    name TEXT NOT NULL,
+                    media_type TEXT,
+                    original_media_type TEXT,
+                    asset_type TEXT
+                )
+                """
+            );
             backfillAssetTypes(assetColumns);
         } catch (DataAccessException ex) {
             logger.warn("Unable to ensure asset type tables", ex);

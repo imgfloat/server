@@ -1,4 +1,5 @@
 const scripts = new Map();
+const allowedFetchUrls = new Set();
 let canvas = null;
 let ctx = null;
 let channelName = "";
@@ -9,9 +10,18 @@ const tickIntervalMs = 1000 / 60;
 const errorKeys = new Set();
 
 function disableNetworkApis() {
+    const nativeFetch = typeof self.fetch === "function" ? self.fetch.bind(self) : null;
     const blockedApis = {
-        fetch: () => {
-            throw new Error("Network access is disabled in asset scripts.");
+        fetch: (...args) => {
+            if (!nativeFetch) {
+                throw new Error("Network access is disabled in asset scripts.");
+            }
+            const request = new Request(...args);
+            const url = normalizeUrl(request.url);
+            if (!allowedFetchUrls.has(url)) {
+                throw new Error("Network access is disabled in asset scripts.");
+            }
+            return nativeFetch(request);
         },
         XMLHttpRequest: undefined,
         WebSocket: undefined,
@@ -42,6 +52,32 @@ function disableNetworkApis() {
 }
 
 disableNetworkApis();
+
+function normalizeUrl(url) {
+    try {
+        return new URL(url, self.location?.href || "http://localhost").toString();
+    } catch (_error) {
+        return "";
+    }
+}
+
+function refreshAllowedFetchUrls() {
+    allowedFetchUrls.clear();
+    scripts.forEach((script) => {
+        const assets = script?.context?.assets;
+        if (!Array.isArray(assets)) {
+            return;
+        }
+        assets.forEach((asset) => {
+            if (asset?.url) {
+                const normalized = normalizeUrl(asset.url);
+                if (normalized) {
+                    allowedFetchUrls.add(normalized);
+                }
+            }
+        });
+    });
+}
 
 function reportScriptError(id, stage, error) {
     if (!id) {
@@ -115,7 +151,8 @@ function stopTickLoopIfIdle() {
 }
 
 function createScriptHandlers(source, context, state, sourceLabel = "") {
-    const contextPrelude = "const { canvas, ctx, channelName, width, height, now, deltaMs, elapsedMs } = context;";
+    const contextPrelude =
+        "const { canvas, ctx, channelName, width, height, now, deltaMs, elapsedMs, assets } = context;";
     const sourceUrl = sourceLabel ? `\n//# sourceURL=${sourceLabel}` : "";
     const factory = new Function(
         "context",
@@ -172,6 +209,7 @@ self.addEventListener("message", (event) => {
             now: 0,
             deltaMs: 0,
             elapsedMs: 0,
+            assets: Array.isArray(payload.attachments) ? payload.attachments : [],
         };
         let handlers = {};
         try {
@@ -189,6 +227,7 @@ self.addEventListener("message", (event) => {
             tick: handlers.tick,
         };
         scripts.set(payload.id, script);
+        refreshAllowedFetchUrls();
         if (script.init) {
             try {
                 script.init(script.context, script.state);
@@ -206,6 +245,19 @@ self.addEventListener("message", (event) => {
             return;
         }
         scripts.delete(payload.id);
+        refreshAllowedFetchUrls();
         stopTickLoopIfIdle();
+    }
+
+    if (type === "updateAttachments") {
+        if (!payload?.id) {
+            return;
+        }
+        const script = scripts.get(payload.id);
+        if (!script) {
+            return;
+        }
+        script.context.assets = Array.isArray(payload.attachments) ? payload.attachments : [];
+        refreshAllowedFetchUrls();
     }
 });

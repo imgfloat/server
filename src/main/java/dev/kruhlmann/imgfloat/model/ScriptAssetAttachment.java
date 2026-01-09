@@ -2,19 +2,23 @@ package dev.kruhlmann.imgfloat.model;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
-import jakarta.persistence.Transient;
-import java.util.List;
+import java.util.UUID;
 
 @Entity
-@Table(name = "script_assets")
-public class ScriptAsset {
+@Table(name = "script_asset_attachments")
+public class ScriptAssetAttachment {
 
     @Id
     private String id;
+
+    @Column(name = "script_asset_id", nullable = false)
+    private String scriptAssetId;
 
     @Column(nullable = false)
     private String name;
@@ -22,21 +26,30 @@ public class ScriptAsset {
     private String mediaType;
     private String originalMediaType;
 
-    @Transient
-    private List<ScriptAssetAttachmentView> attachments = List.of();
+    @Enumerated(EnumType.STRING)
+    @Column(name = "asset_type", nullable = false)
+    private AssetType assetType;
 
-    public ScriptAsset() {}
+    public ScriptAssetAttachment() {}
 
-    public ScriptAsset(String assetId, String name) {
-        this.id = assetId;
+    public ScriptAssetAttachment(String scriptAssetId, String name) {
+        this.id = UUID.randomUUID().toString();
+        this.scriptAssetId = scriptAssetId;
         this.name = name;
+        this.assetType = AssetType.OTHER;
     }
 
     @PrePersist
     @PreUpdate
     public void prepare() {
+        if (this.id == null) {
+            this.id = UUID.randomUUID().toString();
+        }
         if (this.name == null || this.name.isBlank()) {
             this.name = this.id;
+        }
+        if (this.assetType == null) {
+            this.assetType = AssetType.OTHER;
         }
     }
 
@@ -46,6 +59,14 @@ public class ScriptAsset {
 
     public void setId(String id) {
         this.id = id;
+    }
+
+    public String getScriptAssetId() {
+        return scriptAssetId;
+    }
+
+    public void setScriptAssetId(String scriptAssetId) {
+        this.scriptAssetId = scriptAssetId;
     }
 
     public String getName() {
@@ -72,11 +93,11 @@ public class ScriptAsset {
         this.originalMediaType = originalMediaType;
     }
 
-    public List<ScriptAssetAttachmentView> getAttachments() {
-        return attachments == null ? List.of() : attachments;
+    public AssetType getAssetType() {
+        return assetType == null ? AssetType.OTHER : assetType;
     }
 
-    public void setAttachments(List<ScriptAssetAttachmentView> attachments) {
-        this.attachments = attachments;
+    public void setAssetType(AssetType assetType) {
+        this.assetType = assetType == null ? AssetType.OTHER : assetType;
     }
 }

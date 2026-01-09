@@ -7,6 +7,11 @@ export function createCustomAssetModal({ broadcaster, showToast = globalThis.sho
     const jsErrorDetails = document.getElementById("js-error-details");
     const form = document.getElementById("custom-asset-form");
     const cancelButton = document.getElementById("custom-asset-cancel");
+    const attachmentInput = document.getElementById("custom-asset-attachment-file");
+    const attachmentList = document.getElementById("custom-asset-attachment-list");
+    const attachmentHint = document.getElementById("custom-asset-attachment-hint");
+    let currentAssetId = null;
+    let attachmentState = [];
 
     const resetErrors = () => {
         if (formErrorWrapper) {
@@ -37,8 +42,9 @@ export function createCustomAssetModal({ broadcaster, showToast = globalThis.sho
             userSourceTextArea.disabled = false;
             userSourceTextArea.dataset.assetId = "";
             userSourceTextArea.placeholder =
-                "function init(context, state) {\n\n}\n\nfunction tick(context, state) {\n\n}\n\n// or\n// module.exports.init = (context, state) => {};\n// module.exports.tick = (context, state) => {};";
+                "function init(context, state) {\n  const { assets } = context;\n\n}\n\nfunction tick(context, state) {\n\n}\n\n// or\n// module.exports.init = (context, state) => {};\n// module.exports.tick = (context, state) => {};";
         }
+        setAttachmentState(null, []);
         resetErrors();
         openModal();
     };
@@ -57,6 +63,7 @@ export function createCustomAssetModal({ broadcaster, showToast = globalThis.sho
             userSourceTextArea.disabled = true;
             userSourceTextArea.dataset.assetId = asset.id;
         }
+        setAttachmentState(asset.id, asset.scriptAttachments || []);
         openModal();
 
         fetch(asset.url)
@@ -151,8 +158,147 @@ export function createCustomAssetModal({ broadcaster, showToast = globalThis.sho
     if (cancelButton) {
         cancelButton.addEventListener("click", () => closeModal());
     }
+    if (attachmentInput) {
+        attachmentInput.addEventListener("change", (event) => {
+            const file = event.target?.files?.[0];
+            if (!file) {
+                return;
+            }
+            if (!currentAssetId) {
+                showToast?.("Save the script before adding attachments.", "info");
+                attachmentInput.value = "";
+                return;
+            }
+            uploadAttachment(file)
+                .then((attachment) => {
+                    if (attachment) {
+                        attachmentState = [...attachmentState, attachment];
+                        renderAttachmentList();
+                        showToast?.("Attachment added.", "success");
+                    }
+                })
+                .catch((error) => {
+                    console.error(error);
+                    showToast?.("Unable to upload attachment. Please try again.", "error");
+                })
+                .finally(() => {
+                    attachmentInput.value = "";
+                });
+        });
+    }
 
     return { openNew, openEditor };
+
+    function setAttachmentState(assetId, attachments) {
+        currentAssetId = assetId || null;
+        attachmentState = Array.isArray(attachments) ? [...attachments] : [];
+        renderAttachmentList();
+    }
+
+    function renderAttachmentList() {
+        if (!attachmentList) {
+            return;
+        }
+        attachmentList.innerHTML = "";
+        if (!currentAssetId) {
+            if (attachmentInput) {
+                attachmentInput.disabled = true;
+            }
+            if (attachmentHint) {
+                attachmentHint.textContent = "Save the script before adding attachments.";
+            }
+            const empty = document.createElement("li");
+            empty.className = "attachment-empty";
+            empty.textContent = "Attachments will appear here once the script is saved.";
+            attachmentList.appendChild(empty);
+            return;
+        }
+        if (attachmentInput) {
+            attachmentInput.disabled = false;
+        }
+        if (attachmentHint) {
+            attachmentHint.textContent =
+                "Attachments are available to this script only and are not visible on the canvas.";
+        }
+        if (!attachmentState.length) {
+            const empty = document.createElement("li");
+            empty.className = "attachment-empty";
+            empty.textContent = "No attachments yet.";
+            attachmentList.appendChild(empty);
+            return;
+        }
+        attachmentState.forEach((attachment) => {
+            const item = document.createElement("li");
+            item.className = "attachment-item";
+
+            const meta = document.createElement("div");
+            meta.className = "attachment-meta";
+            const name = document.createElement("strong");
+            name.textContent = attachment.name || "Untitled";
+            const type = document.createElement("span");
+            type.textContent = attachment.assetType || attachment.mediaType || "Attachment";
+            meta.appendChild(name);
+            meta.appendChild(type);
+
+            const actions = document.createElement("div");
+            actions.className = "attachment-actions-row";
+            if (attachment.url) {
+                const link = document.createElement("a");
+                link.href = attachment.url;
+                link.target = "_blank";
+                link.rel = "noopener";
+                link.className = "button ghost";
+                link.textContent = "Open";
+                actions.appendChild(link);
+            }
+            const remove = document.createElement("button");
+            remove.type = "button";
+            remove.className = "secondary danger";
+            remove.textContent = "Remove";
+            remove.addEventListener("click", () => removeAttachment(attachment.id));
+            actions.appendChild(remove);
+
+            item.appendChild(meta);
+            item.appendChild(actions);
+            attachmentList.appendChild(item);
+        });
+    }
+
+    function uploadAttachment(file) {
+        const payload = new FormData();
+        payload.append("file", file);
+        return fetch(`/api/channels/${encodeURIComponent(broadcaster)}/assets/${currentAssetId}/attachments`, {
+            method: "POST",
+            body: payload,
+        }).then((response) => {
+            if (!response.ok) {
+                throw new Error("Failed to upload attachment");
+            }
+            return response.json();
+        });
+    }
+
+    function removeAttachment(attachmentId) {
+        if (!attachmentId || !currentAssetId) {
+            return;
+        }
+        fetch(
+            `/api/channels/${encodeURIComponent(broadcaster)}/assets/${currentAssetId}/attachments/${attachmentId}`,
+            { method: "DELETE" },
+        )
+            .then((response) => {
+                if (!response.ok) {
+                    throw new Error("Failed to delete attachment");
+                }
+                attachmentState = attachmentState.filter((attachment) => attachment.id !== attachmentId);
+                renderAttachmentList();
+                showToast?.("Attachment removed.", "success");
+            })
+            .catch((error) => {
+                console.error(error);
+                showToast?.("Unable to remove attachment. Please try again.", "error");
+            });
+    }
 
     function saveCodeAsset({ name, src, assetId }) {
         const payload = { name, source: src };

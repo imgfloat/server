@@ -1,7 +1,9 @@
 package dev.kruhlmann.imgfloat.service;
 
 import dev.kruhlmann.imgfloat.model.Asset;
+import dev.kruhlmann.imgfloat.model.ScriptAssetAttachment;
 import dev.kruhlmann.imgfloat.repository.AssetRepository;
+import dev.kruhlmann.imgfloat.repository.ScriptAssetAttachmentRepository;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
@@ -19,10 +21,16 @@ public class AssetCleanupService {
 
     private final AssetRepository assetRepository;
     private final AssetStorageService assetStorageService;
+    private final ScriptAssetAttachmentRepository scriptAssetAttachmentRepository;
 
-    public AssetCleanupService(AssetRepository assetRepository, AssetStorageService assetStorageService) {
+    public AssetCleanupService(
+        AssetRepository assetRepository,
+        AssetStorageService assetStorageService,
+        ScriptAssetAttachmentRepository scriptAssetAttachmentRepository
+    ) {
         this.assetRepository = assetRepository;
         this.assetStorageService = assetStorageService;
+        this.scriptAssetAttachmentRepository = scriptAssetAttachmentRepository;
     }
 
     @Async
@@ -31,7 +39,18 @@ public class AssetCleanupService {
     public void cleanup() {
         logger.info("Collecting referenced assets");
 
-        Set<String> referencedIds = assetRepository.findAll().stream().map(Asset::getId).collect(Collectors.toSet());
+        Set<String> referencedIds = assetRepository
+            .findAll()
+            .stream()
+            .map(Asset::getId)
+            .collect(Collectors.toSet());
+        referencedIds.addAll(
+            scriptAssetAttachmentRepository
+                .findAll()
+                .stream()
+                .map(ScriptAssetAttachment::getId)
+                .collect(Collectors.toSet())
+        );
 
         assetStorageService.deleteOrphanedAssets(referencedIds);
     }
