@@ -20,6 +20,7 @@ export class BroadcastRenderer {
         this.renderIntervalId = null;
         this.scriptWorker = null;
         this.scriptWorkerReady = false;
+        this.scriptErrorKeys = new Set();
 
         this.obsBrowser = !!globalThis.obsstudio;
         this.supportsAnimatedDecode =
@@ -388,6 +389,7 @@ export class BroadcastRenderer {
         }
         const offscreen = this.scriptCanvas.transferControlToOffscreen();
         this.scriptWorker = new Worker("/js/broadcast/script-worker.js");
+        this.scriptWorker.addEventListener("message", (event) => this.handleScriptWorkerMessage(event));
         this.scriptWorker.postMessage(
             {
                 type: "init",
@@ -414,6 +416,24 @@ export class BroadcastRenderer {
                 height: this.scriptCanvas.height,
             },
         });
+    }
+
+    handleScriptWorkerMessage(event) {
+        const { type, payload } = event.data || {};
+        if (type !== "scriptError" || !payload?.id) {
+            return;
+        }
+        const key = `${payload.id}:${payload.stage || "unknown"}`;
+        if (this.scriptErrorKeys.has(key)) {
+            return;
+        }
+        this.scriptErrorKeys.add(key);
+        const details = payload.message || "Unknown error";
+        if (this.showToast) {
+            this.showToast(`Script ${payload.id} ${payload.stage || "error"}: ${details}`, "error");
+        } else {
+            console.error(`Script ${payload.id} ${payload.stage || "error"}`, payload);
+        }
     }
 
     async spawnUserJavaScriptWorker(asset) {

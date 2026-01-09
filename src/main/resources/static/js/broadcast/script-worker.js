@@ -5,6 +5,27 @@ let channelName = "";
 let tickIntervalId = null;
 let lastTick = 0;
 let startTime = 0;
+const errorKeys = new Set();
+
+function reportScriptError(id, stage, error) {
+    if (!id) {
+        return;
+    }
+    const key = `${id}:${stage}:${error?.message ?? error}`;
+    if (errorKeys.has(key)) {
+        return;
+    }
+    errorKeys.add(key);
+    self.postMessage({
+        type: "scriptError",
+        payload: {
+            id,
+            stage,
+            message: error?.message ?? String(error),
+            stack: error?.stack || "",
+        },
+    });
+}
 
 function updateScriptContexts() {
     scripts.forEach((script) => {
@@ -119,6 +140,7 @@ self.addEventListener("message", (event) => {
             handlers = createScriptHandlers(payload.source, context, state);
         } catch (error) {
             console.error(`Script ${payload.id} failed to initialize`, error);
+            reportScriptError(payload.id, "initialize", error);
             return;
         }
         const script = {
@@ -134,6 +156,7 @@ self.addEventListener("message", (event) => {
                 script.init(script.context, script.state);
             } catch (error) {
                 console.error(`Script ${payload.id} init failed`, error);
+                reportScriptError(payload.id, "init", error);
             }
         }
         ensureTickLoop();
