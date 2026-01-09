@@ -62,6 +62,7 @@ public class ViewController {
             model.addAttribute("username", sessionUsername);
             model.addAttribute("channel", sessionUsername);
             model.addAttribute("adminChannels", channelDirectoryService.adminChannelsFor(sessionUsername));
+            model.addAttribute("isSystemAdmin", authorizationService.userIsSystemAdministrator(sessionUsername));
             addVersionAttributes(model);
             return "dashboard";
         }

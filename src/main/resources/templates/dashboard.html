@@ -31,6 +31,7 @@
                 <div class="panel-actions">
                     <a class="button block" th:href="@{'/view/' + ${channel} + '/broadcast'}">Open broadcast overlay</a>
                     <a class="button ghost block" th:href="@{'/view/' + ${channel} + '/admin'}">Open admin console</a>
+                    <a class="button ghost block" th:if="${isSystemAdmin}" href="/settings">Application settings</a>
                     <a class="button ghost block" href="/channels">Browse channels</a>
                     <form class="block" th:action="@{/logout}" method="post">
                         <button class="secondary block" type="submit">Logout</button>
