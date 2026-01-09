@@ -20,13 +20,11 @@ public class VersionService {
     private static final Pattern PACKAGE_VERSION_PATTERN = Pattern.compile("\"version\"\\s*:\\s*\"([^\"]+)\"");
 
     private final String serverVersion;
-    private final String clientVersion;
     private final String releaseVersion;
 
     public VersionService() throws IOException {
         this.serverVersion = resolveServerVersion();
-        this.clientVersion = resolveClientVersion();
-        this.releaseVersion = normalizeReleaseVersion(this.clientVersion);
+        this.releaseVersion = normalizeReleaseVersion(serverVersion);
     }
 
     public String getVersion() {
@@ -142,23 +140,5 @@ public class VersionService {
             LOG.warn("Unable to parse version from pom.xml", e);
         }
         return null;
-    }
-
-    private String resolveClientVersion() throws IOException {
-        Path packageJsonPath = Paths.get("package.json");
-        if (!Files.exists(packageJsonPath) || !Files.isRegularFile(packageJsonPath)) {
-            throw new FileNotFoundException("package.json not found at " + packageJsonPath.toAbsolutePath());
-        }
-
-        String packageJson = Files.readString(packageJsonPath, StandardCharsets.UTF_8);
-        Matcher matcher = PACKAGE_VERSION_PATTERN.matcher(packageJson);
-        if (matcher.find()) {
-            String version = matcher.group(1);
-            if (version != null && !version.isBlank()) {
-                return version.trim();
-            }
-        }
-
-        throw new IllegalStateException("Version not found or invalid in package.json");
     }
 }
