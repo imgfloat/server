@@ -26,13 +26,23 @@ public class SQLiteOAuth2AuthorizedClientService implements OAuth2AuthorizedClie
     private final JdbcOperations jdbcOperations;
     private final ClientRegistrationRepository clientRegistrationRepository;
     private final RowMapper<OAuth2AuthorizedClient> rowMapper;
+    private final OAuthTokenCipher tokenCipher;
 
     public SQLiteOAuth2AuthorizedClientService(
         JdbcOperations jdbcOperations,
         ClientRegistrationRepository clientRegistrationRepository
     ) {
+        this(jdbcOperations, clientRegistrationRepository, OAuthTokenCipher.fromEnvironment());
+    }
+
+    SQLiteOAuth2AuthorizedClientService(
+        JdbcOperations jdbcOperations,
+        ClientRegistrationRepository clientRegistrationRepository,
+        OAuthTokenCipher tokenCipher
+    ) {
         this.jdbcOperations = jdbcOperations;
         this.clientRegistrationRepository = clientRegistrationRepository;
+        this.tokenCipher = tokenCipher;
         this.rowMapper = (rs, rowNum) -> {
             String registrationId = rs.getString("client_registration_id");
             String principalName = rs.getString("principal_name");
@@ -41,18 +51,41 @@ public class SQLiteOAuth2AuthorizedClientService implements OAuth2AuthorizedClie
                 return null;
             }
 
+            String accessTokenValue = decryptToken(
+                registrationId,
+                principalName,
+                rs.getString("access_token_value"),
+                "access"
+            );
+            if (accessTokenValue == null) {
+                return null;
+            }
+
             OAuth2AccessToken accessToken = new OAuth2AccessToken(
                 OAuth2AccessToken.TokenType.BEARER,
-                rs.getString("access_token_value"),
+                accessTokenValue,
                 toInstant(rs.getObject("access_token_issued_at")),
                 toInstant(rs.getObject("access_token_expires_at")),
                 scopesFrom(rs.getString("access_token_scopes"))
             );
 
             Object refreshValue = rs.getObject("refresh_token_value");
-            OAuth2RefreshToken refreshToken = refreshValue == null
-                ? null
-                : new OAuth2RefreshToken(refreshValue.toString(), toInstant(rs.getObject("refresh_token_issued_at")));
+            OAuth2RefreshToken refreshToken = null;
+            if (refreshValue != null) {
+                String refreshTokenValue = decryptToken(
+                    registrationId,
+                    principalName,
+                    refreshValue.toString(),
+                    "refresh"
+                );
+                if (refreshTokenValue == null) {
+                    return null;
+                }
+                refreshToken = new OAuth2RefreshToken(
+                    refreshTokenValue,
+                    toInstant(rs.getObject("refresh_token_issued_at"))
+                );
+            }
 
             return new OAuth2AuthorizedClient(registration, principalName, accessToken, refreshToken);
         };
@@ -104,7 +137,7 @@ public class SQLiteOAuth2AuthorizedClientService implements OAuth2AuthorizedClie
                 preparedStatement.setString(6, scopesToString(authorizedClient.getAccessToken().getScopes()));
                 OAuth2RefreshToken refreshToken = authorizedClient.getRefreshToken();
                 if (refreshToken != null) {
-                    preparedStatement.setString(7, refreshToken.getTokenValue());
+                    preparedStatement.setString(7, tokenCipher.encrypt(refreshToken.getTokenValue()));
                     preparedStatement.setObject(8, toEpochMillis(refreshToken.getIssuedAt()), java.sql.Types.BIGINT);
                 } else {
                     preparedStatement.setNull(7, java.sql.Types.VARCHAR);
@@ -134,8 +167,32 @@ public class SQLiteOAuth2AuthorizedClientService implements OAuth2AuthorizedClie
 
     private void setToken(java.sql.PreparedStatement ps, int startIndex, OAuth2AccessToken token)
         throws java.sql.SQLException {
-        ps.setString(startIndex, token.getTokenValue());
+        ps.setString(startIndex, tokenCipher.encrypt(token.getTokenValue()));
         ps.setObject(startIndex + 1, toEpochMillis(token.getIssuedAt()), java.sql.Types.BIGINT);
+    }
+
+    private String decryptToken(
+        String registrationId,
+        String principalName,
+        String tokenValue,
+        String tokenType
+    ) {
+        if (tokenValue == null) {
+            return null;
+        }
+        try {
+            return tokenCipher.decrypt(tokenValue);
+        } catch (RuntimeException ex) {
+            LOG.warn(
+                "Failed to decrypt {} token for registration ID '{}' and principal '{}'; clearing stored tokens",
+                tokenType,
+                registrationId,
+                principalName,
+                ex
+            );
+            removeAuthorizedClient(registrationId, principalName);
+            return null;
+        }
     }
 
     private Instant toInstant(Object value) {
