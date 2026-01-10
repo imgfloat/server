@@ -41,9 +41,11 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataAccessException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -424,7 +426,20 @@ public class ChannelDirectoryService {
     public List<ScriptMarketplaceEntry> listMarketplaceScripts(String query) {
         String q = normalizeDescription(query);
         String normalizedQuery = q == null ? null : q.toLowerCase(Locale.ROOT);
-        List<ScriptAsset> scripts = scriptAssetRepository.findByIsPublicTrue();
+        List<ScriptMarketplaceEntry> entries = new ArrayList<>();
+        DefaultMarketplaceScript.entryForQuery(normalizedQuery).ifPresent(entries::add);
+        List<ScriptAsset> scripts;
+        try {
+            scripts = scriptAssetRepository.findByIsPublicTrue();
+        } catch (DataAccessException ex) {
+            logger.warn("Unable to load marketplace scripts", ex);
+            return entries
+                .stream()
+                .sorted(
+                    Comparator.comparing(ScriptMarketplaceEntry::name, Comparator.nullsLast(String::compareToIgnoreCase))
+                )
+                .toList();
+        }
         if (normalizedQuery != null && !normalizedQuery.isBlank()) {
             scripts =
                 scripts
@@ -442,42 +457,62 @@ public class ChannelDirectoryService {
             .stream()
             .collect(Collectors.toMap(Asset::getId, (asset) -> asset));
 
-        return scripts
+        entries.addAll(
+            scripts
+                .stream()
+                .map((script) -> {
+                    Asset asset = assets.get(script.getId());
+                    String broadcaster = asset != null ? asset.getBroadcaster() : "";
+                    String logoUrl = script.getLogoFileId() == null
+                        ? null
+                        : "/api/marketplace/scripts/" + script.getId() + "/logo";
+                    return new ScriptMarketplaceEntry(
+                        script.getId(),
+                        script.getName(),
+                        script.getDescription(),
+                        logoUrl,
+                        broadcaster
+                    );
+                })
+                .toList()
+        );
+
+        return entries
             .stream()
-            .map((script) -> {
-                Asset asset = assets.get(script.getId());
-                String broadcaster = asset != null ? asset.getBroadcaster() : "";
-                String logoUrl = script.getLogoFileId() == null
-                    ? null
-                    : "/api/marketplace/scripts/" + script.getId() + "/logo";
-                return new ScriptMarketplaceEntry(
-                    script.getId(),
-                    script.getName(),
-                    script.getDescription(),
-                    logoUrl,
-                    broadcaster
-                );
-            })
             .sorted(Comparator.comparing(ScriptMarketplaceEntry::name, Comparator.nullsLast(String::compareToIgnoreCase)))
             .toList();
     }
 
     public Optional<AssetContent> getMarketplaceLogo(String scriptId) {
-        return scriptAssetRepository
-            .findById(scriptId)
-            .filter(ScriptAsset::isPublic)
-            .map(ScriptAsset::getLogoFileId)
-            .flatMap((logoFileId) -> scriptAssetFileRepository.findById(logoFileId))
-            .flatMap((file) ->
-                assetStorageService.loadAssetFileSafely(file.getBroadcaster(), file.getId(), file.getMediaType())
-            );
+        if (DefaultMarketplaceScript.matches(scriptId)) {
+            return DefaultMarketplaceScript.logoContent();
+        }
+        try {
+            return scriptAssetRepository
+                .findById(scriptId)
+                .filter(ScriptAsset::isPublic)
+                .map(ScriptAsset::getLogoFileId)
+                .flatMap((logoFileId) -> scriptAssetFileRepository.findById(logoFileId))
+                .flatMap((file) ->
+                    assetStorageService.loadAssetFileSafely(file.getBroadcaster(), file.getId(), file.getMediaType())
+                );
+        } catch (DataAccessException ex) {
+            logger.warn("Unable to load marketplace logo", ex);
+            return Optional.empty();
+        }
     }
 
     public Optional<AssetView> importMarketplaceScript(String targetBroadcaster, String scriptId) {
-        ScriptAsset sourceScript = scriptAssetRepository
-            .findById(scriptId)
-            .filter(ScriptAsset::isPublic)
-            .orElse(null);
+        if (DefaultMarketplaceScript.matches(scriptId)) {
+            return importDefaultMarketplaceScript(targetBroadcaster);
+        }
+        ScriptAsset sourceScript;
+        try {
+            sourceScript = scriptAssetRepository.findById(scriptId).filter(ScriptAsset::isPublic).orElse(null);
+        } catch (DataAccessException ex) {
+            logger.warn("Unable to import marketplace script {}", scriptId, ex);
+            return Optional.empty();
+        }
         Asset sourceAsset = sourceScript == null ? null : assetRepository.findById(scriptId).orElse(null);
         if (sourceScript == null || sourceAsset == null) {
             return Optional.empty();
@@ -532,6 +567,69 @@ public class ChannelDirectoryService {
         if (!newAttachments.isEmpty()) {
             scriptAssetAttachmentRepository.saveAll(newAttachments);
         }
+        script.setAttachments(loadScriptAttachments(asset.getBroadcaster(), asset.getId(), null));
+        AssetView view = AssetView.fromScript(asset.getBroadcaster(), asset, script);
+        messagingTemplate.convertAndSend(topicFor(targetBroadcaster), AssetEvent.created(targetBroadcaster, view));
+        return Optional.of(view);
+    }
+
+    private Optional<AssetView> importDefaultMarketplaceScript(String targetBroadcaster) {
+        AssetContent sourceContent = DefaultMarketplaceScript.sourceContent().orElse(null);
+        AssetContent attachmentContent = DefaultMarketplaceScript.attachmentContent().orElse(null);
+        if (sourceContent == null || attachmentContent == null) {
+            return Optional.empty();
+        }
+
+        Asset asset = new Asset(targetBroadcaster, AssetType.SCRIPT);
+        ScriptAssetFile sourceFile = new ScriptAssetFile(asset.getBroadcaster(), AssetType.SCRIPT);
+        sourceFile.setId(asset.getId());
+        sourceFile.setMediaType(sourceContent.mediaType());
+        sourceFile.setOriginalMediaType(sourceContent.mediaType());
+        try {
+            assetStorageService.storeAsset(
+                sourceFile.getBroadcaster(),
+                sourceFile.getId(),
+                sourceContent.bytes(),
+                sourceContent.mediaType()
+            );
+        } catch (IOException e) {
+            throw new ResponseStatusException(BAD_REQUEST, "Unable to store custom script", e);
+        }
+        assetRepository.save(asset);
+        scriptAssetFileRepository.save(sourceFile);
+
+        ScriptAssetFile attachmentFile = new ScriptAssetFile(asset.getBroadcaster(), AssetType.IMAGE);
+        attachmentFile.setMediaType(attachmentContent.mediaType());
+        attachmentFile.setOriginalMediaType(attachmentContent.mediaType());
+        try {
+            assetStorageService.storeAsset(
+                attachmentFile.getBroadcaster(),
+                attachmentFile.getId(),
+                attachmentContent.bytes(),
+                attachmentContent.mediaType()
+            );
+        } catch (IOException e) {
+            throw new ResponseStatusException(BAD_REQUEST, "Unable to store script attachment", e);
+        }
+        scriptAssetFileRepository.save(attachmentFile);
+
+        ScriptAsset script = new ScriptAsset(asset.getId(), DefaultMarketplaceScript.SCRIPT_NAME);
+        script.setDescription(DefaultMarketplaceScript.SCRIPT_DESCRIPTION);
+        script.setPublic(false);
+        script.setMediaType(sourceContent.mediaType());
+        script.setOriginalMediaType(sourceContent.mediaType());
+        script.setSourceFileId(sourceFile.getId());
+        script.setLogoFileId(attachmentFile.getId());
+        script.setAttachments(List.of());
+        scriptAssetRepository.save(script);
+
+        ScriptAssetAttachment attachment = new ScriptAssetAttachment(asset.getId(), DefaultMarketplaceScript.ATTACHMENT_NAME);
+        attachment.setFileId(attachmentFile.getId());
+        attachment.setMediaType(attachmentContent.mediaType());
+        attachment.setOriginalMediaType(attachmentContent.mediaType());
+        attachment.setAssetType(AssetType.IMAGE);
+        scriptAssetAttachmentRepository.save(attachment);
+
         script.setAttachments(loadScriptAttachments(asset.getBroadcaster(), asset.getId(), null));
         AssetView view = AssetView.fromScript(asset.getBroadcaster(), asset, script);
         messagingTemplate.convertAndSend(topicFor(targetBroadcaster), AssetEvent.created(targetBroadcaster, view));
@@ -750,6 +848,7 @@ public class ChannelDirectoryService {
             });
     }
 
+    @Transactional
     public boolean deleteAsset(String assetId) {
         return assetRepository
             .findById(assetId)

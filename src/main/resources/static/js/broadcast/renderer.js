@@ -21,6 +21,7 @@ export class BroadcastRenderer {
         this.scriptWorker = null;
         this.scriptWorkerReady = false;
         this.scriptErrorKeys = new Set();
+        this.scriptAttachmentCache = new Map();
 
         this.obsBrowser = !!globalThis.obsstudio;
         this.supportsAnimatedDecode =
@@ -487,12 +488,12 @@ export class BroadcastRenderer {
             payload: {
                 id: asset.id,
                 source: assetSource,
-                attachments: asset.scriptAttachments || [],
+                attachments: await this.resolveScriptAttachments(asset.scriptAttachments),
             },
         });
     }
 
-    updateScriptWorkerAttachments(asset) {
+    async updateScriptWorkerAttachments(asset) {
         if (!this.scriptWorker || !this.scriptWorkerReady || !asset?.id) {
             return;
         }
@@ -500,7 +501,7 @@ export class BroadcastRenderer {
             type: "updateAttachments",
             payload: {
                 id: asset.id,
-                attachments: asset.scriptAttachments || [],
+                attachments: await this.resolveScriptAttachments(asset.scriptAttachments),
             },
         });
     }
@@ -513,5 +514,36 @@ export class BroadcastRenderer {
             type: "removeScript",
             payload: { id: assetId },
         });
+    }
+
+    async resolveScriptAttachments(attachments) {
+        if (!Array.isArray(attachments) || attachments.length === 0) {
+            return [];
+        }
+        const resolved = await Promise.all(
+            attachments.map(async (attachment) => {
+                if (!attachment?.url || !attachment.mediaType?.startsWith("image/")) {
+                    return attachment;
+                }
+                const cacheKey = attachment.id || attachment.url;
+                const cached = this.scriptAttachmentCache.get(cacheKey);
+                if (cached?.blob) {
+                    return { ...attachment, blob: cached.blob };
+                }
+                try {
+                    const response = await fetch(attachment.url);
+                    if (!response.ok) {
+                        throw new Error("Failed to fetch script attachment");
+                    }
+                    const blob = await response.blob();
+                    this.scriptAttachmentCache.set(cacheKey, { blob });
+                    return { ...attachment, blob };
+                } catch (error) {
+                    console.error("Unable to load script attachment", error);
+                    return attachment;
+                }
+            }),
+        );
+        return resolved;
     }
 }

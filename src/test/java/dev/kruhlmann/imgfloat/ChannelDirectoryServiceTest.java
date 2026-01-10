@@ -22,9 +22,11 @@ import dev.kruhlmann.imgfloat.repository.AudioAssetRepository;
 import dev.kruhlmann.imgfloat.repository.ChannelRepository;
 import dev.kruhlmann.imgfloat.repository.ScriptAssetRepository;
 import dev.kruhlmann.imgfloat.repository.ScriptAssetAttachmentRepository;
+import dev.kruhlmann.imgfloat.repository.ScriptAssetFileRepository;
 import dev.kruhlmann.imgfloat.repository.VisualAssetRepository;
 import dev.kruhlmann.imgfloat.service.AssetStorageService;
 import dev.kruhlmann.imgfloat.service.ChannelDirectoryService;
+import dev.kruhlmann.imgfloat.service.DefaultMarketplaceScript;
 import dev.kruhlmann.imgfloat.service.SettingsService;
 import dev.kruhlmann.imgfloat.service.media.MediaDetectionService;
 import dev.kruhlmann.imgfloat.service.media.MediaOptimizationService;
@@ -58,6 +60,7 @@ class ChannelDirectoryServiceTest {
     private AudioAssetRepository audioAssetRepository;
     private ScriptAssetRepository scriptAssetRepository;
     private ScriptAssetAttachmentRepository scriptAssetAttachmentRepository;
+    private ScriptAssetFileRepository scriptAssetFileRepository;
     private SettingsService settingsService;
 
     @BeforeEach
@@ -69,6 +72,7 @@ class ChannelDirectoryServiceTest {
         audioAssetRepository = mock(AudioAssetRepository.class);
         scriptAssetRepository = mock(ScriptAssetRepository.class);
         scriptAssetAttachmentRepository = mock(ScriptAssetAttachmentRepository.class);
+        scriptAssetFileRepository = mock(ScriptAssetFileRepository.class);
         settingsService = mock(SettingsService.class);
         when(settingsService.get()).thenReturn(Settings.defaults());
         setupInMemoryPersistence();
@@ -86,6 +90,7 @@ class ChannelDirectoryServiceTest {
             audioAssetRepository,
             scriptAssetRepository,
             scriptAssetAttachmentRepository,
+            scriptAssetFileRepository,
             messagingTemplate,
             assetStorageService,
             mediaDetectionService,
@@ -171,6 +176,16 @@ class ChannelDirectoryServiceTest {
         assertThat(view.speed()).isEqualTo(0.1);
         assertThat(view.audioVolume()).isEqualTo(0.01);
         assertThat(view.zIndex()).isEqualTo(1);
+    }
+
+    @Test
+    void includesDefaultMarketplaceScript() {
+        when(scriptAssetRepository.findByIsPublicTrue()).thenReturn(List.of());
+
+        List<dev.kruhlmann.imgfloat.model.ScriptMarketplaceEntry> entries = service.listMarketplaceScripts(null);
+
+        assertThat(entries)
+            .anyMatch((entry) -> DefaultMarketplaceScript.SCRIPT_ID.equals(entry.id()));
     }
 
     private byte[] samplePng() throws IOException {
