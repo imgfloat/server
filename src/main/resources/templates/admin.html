@@ -368,6 +368,47 @@
                 </section>
             </div>
         </div>
+        <div id="custom-asset-launch-modal" class="modal hidden">
+            <section class="modal-inner small">
+                <h1>Custom scripts</h1>
+                <p>Start a new script or browse scripts shared by other creators.</p>
+                <div class="form-actions split">
+                    <button type="button" class="secondary" id="custom-asset-launch-marketplace">
+                        Browse marketplace
+                    </button>
+                    <button type="button" class="primary" id="custom-asset-launch-new">
+                        Create new script
+                    </button>
+                </div>
+            </section>
+        </div>
+        <div id="custom-asset-marketplace-modal" class="modal hidden">
+            <section class="modal-inner wide">
+                <div class="modal-header-row">
+                    <div>
+                        <h1>Custom script marketplace</h1>
+                        <p>Search public scripts by name or description.</p>
+                    </div>
+                    <button type="button" class="ghost icon-button" id="custom-asset-marketplace-close" aria-label="Close">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                <div class="form-group">
+                    <label for="custom-asset-marketplace-search">Search scripts</label>
+                    <input
+                        id="custom-asset-marketplace-search"
+                        type="search"
+                        class="text-input"
+                        placeholder="Search by name or description"
+                    />
+                </div>
+                <div class="form-group">
+                    <label for="custom-asset-marketplace-channel">Import into channel</label>
+                    <select id="custom-asset-marketplace-channel" class="text-input"></select>
+                </div>
+                <div class="marketplace-list" id="custom-asset-marketplace-list"></div>
+            </section>
+        </div>
         <div id="custom-asset-modal" class="modal hidden">
             <section class="modal-inner">
                 <h1>Create Custom Asset</h1>
@@ -381,6 +422,39 @@
                             placeholder="Enter asset name"
                             required
                         />
+                    </div>
+                    <div class="form-group">
+                        <label for="custom-asset-description">Description</label>
+                        <textarea
+                            id="custom-asset-description"
+                            class="text-input"
+                            placeholder="Describe what this script does"
+                            rows="3"
+                        ></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Logo (optional)</label>
+                        <div class="attachment-actions">
+                            <input
+                                id="custom-asset-logo-file"
+                                class="file-input-field"
+                                type="file"
+                                accept="image/*"
+                            />
+                            <label for="custom-asset-logo-file" class="file-input-trigger small">
+                                <span class="file-input-icon"><i class="fa-solid fa-image"></i></span>
+                                <span class="file-input-copy">
+                                    <strong>Upload logo</strong>
+                                    <small>PNG, JPG, or GIF</small>
+                                </span>
+                            </label>
+                            <button type="button" class="secondary" id="custom-asset-logo-clear">Remove logo</button>
+                        </div>
+                        <div class="logo-preview" id="custom-asset-logo-preview"></div>
+                    </div>
+                    <div class="form-group checkbox-row">
+                        <input id="custom-asset-public" type="checkbox" />
+                        <label for="custom-asset-public">Make this script public in the marketplace</label>
                     </div>
                     <div class="form-group">
                         <label for="custom-asset-type">Asset code</label>
@@ -434,6 +508,7 @@
             const username = /*[[${username}]]*/ "";
             const UPLOAD_LIMIT_BYTES = /*[[${uploadLimitBytes}]]*/ 0;
             const SETTINGS = JSON.parse(/*[[${settingsJson}]]*/);
+            const ADMIN_CHANNELS = /*[[${adminChannels}]]*/ [];
         </script>
         <script src="/js/cookie-consent.js"></script>
         <script src="/js/toast.js"></script>

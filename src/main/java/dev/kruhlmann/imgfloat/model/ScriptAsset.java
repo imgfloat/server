@@ -19,8 +19,19 @@ public class ScriptAsset {
     @Column(nullable = false)
     private String name;
 
+    private String description;
+
+    @Column(name = "is_public")
+    private boolean isPublic;
+
     private String mediaType;
     private String originalMediaType;
+
+    @Column(name = "logo_file_id")
+    private String logoFileId;
+
+    @Column(name = "source_file_id")
+    private String sourceFileId;
 
     @Transient
     private List<ScriptAssetAttachmentView> attachments = List.of();
@@ -70,6 +81,38 @@ public class ScriptAsset {
 
     public void setOriginalMediaType(String originalMediaType) {
         this.originalMediaType = originalMediaType;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public boolean isPublic() {
+        return isPublic;
+    }
+
+    public void setPublic(boolean isPublic) {
+        this.isPublic = isPublic;
+    }
+
+    public String getLogoFileId() {
+        return logoFileId;
+    }
+
+    public void setLogoFileId(String logoFileId) {
+        this.logoFileId = logoFileId;
+    }
+
+    public String getSourceFileId() {
+        return sourceFileId;
+    }
+
+    public void setSourceFileId(String sourceFileId) {
+        this.sourceFileId = sourceFileId;
     }
 
     public List<ScriptAssetAttachmentView> getAttachments() {

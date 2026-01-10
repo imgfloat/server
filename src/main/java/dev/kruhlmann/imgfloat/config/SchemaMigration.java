@@ -129,8 +129,12 @@ public class SchemaMigration implements ApplicationRunner {
                 CREATE TABLE IF NOT EXISTS script_assets (
                     id TEXT PRIMARY KEY,
                     name TEXT NOT NULL,
+                    description TEXT,
+                    is_public BOOLEAN,
                     media_type TEXT,
-                    original_media_type TEXT
+                    original_media_type TEXT,
+                    logo_file_id TEXT,
+                    source_file_id TEXT
                 )
                 """
             );
@@ -139,6 +143,7 @@ public class SchemaMigration implements ApplicationRunner {
                 CREATE TABLE IF NOT EXISTS script_asset_attachments (
                     id TEXT PRIMARY KEY,
                     script_asset_id TEXT NOT NULL,
+                    file_id TEXT,
                     name TEXT NOT NULL,
                     media_type TEXT,
                     original_media_type TEXT,
@@ -146,9 +151,72 @@ public class SchemaMigration implements ApplicationRunner {
                 )
                 """
             );
+            jdbcTemplate.execute(
+                """
+                CREATE TABLE IF NOT EXISTS script_asset_files (
+                    id TEXT PRIMARY KEY,
+                    broadcaster TEXT NOT NULL,
+                    media_type TEXT,
+                    original_media_type TEXT,
+                    asset_type TEXT NOT NULL
+                )
+                """
+            );
+            ensureScriptAssetColumns();
             backfillAssetTypes(assetColumns);
         } catch (DataAccessException ex) {
             logger.warn("Unable to ensure asset type tables", ex);
+        }
+    }
+
+    private void ensureScriptAssetColumns() {
+        List<String> scriptColumns;
+        List<String> attachmentColumns;
+        try {
+            scriptColumns = jdbcTemplate.query("PRAGMA table_info(script_assets)", (rs, rowNum) -> rs.getString("name"));
+            attachmentColumns =
+                jdbcTemplate.query("PRAGMA table_info(script_asset_attachments)", (rs, rowNum) -> rs.getString("name"));
+        } catch (DataAccessException ex) {
+            logger.warn("Unable to inspect script asset tables", ex);
+            return;
+        }
+
+        if (!scriptColumns.isEmpty()) {
+            addColumnIfMissing("script_assets", scriptColumns, "description", "TEXT", "NULL");
+            addColumnIfMissing("script_assets", scriptColumns, "is_public", "BOOLEAN", "0");
+            addColumnIfMissing("script_assets", scriptColumns, "logo_file_id", "TEXT", "NULL");
+            addColumnIfMissing("script_assets", scriptColumns, "source_file_id", "TEXT", "NULL");
+        }
+
+        if (!attachmentColumns.isEmpty()) {
+            addColumnIfMissing("script_asset_attachments", attachmentColumns, "file_id", "TEXT", "NULL");
+        }
+
+        try {
+            jdbcTemplate.execute("UPDATE script_assets SET source_file_id = id WHERE source_file_id IS NULL");
+            jdbcTemplate.execute(
+                """
+                INSERT OR IGNORE INTO script_asset_files (
+                    id, broadcaster, media_type, original_media_type, asset_type
+                )
+                SELECT s.id, a.broadcaster, s.media_type, s.original_media_type, 'SCRIPT'
+                FROM script_assets s
+                JOIN assets a ON a.id = s.id
+                """
+            );
+            jdbcTemplate.execute(
+                """
+                INSERT OR IGNORE INTO script_asset_files (
+                    id, broadcaster, media_type, original_media_type, asset_type
+                )
+                SELECT sa.id, a.broadcaster, sa.media_type, sa.original_media_type, sa.asset_type
+                FROM script_asset_attachments sa
+                JOIN assets a ON a.id = sa.script_asset_id
+                """
+            );
+            jdbcTemplate.execute("UPDATE script_asset_attachments SET file_id = id WHERE file_id IS NULL");
+        } catch (DataAccessException ex) {
+            logger.warn("Unable to backfill script asset files", ex);
         }
     }
 

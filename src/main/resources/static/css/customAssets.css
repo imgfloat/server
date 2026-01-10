@@ -21,6 +21,21 @@
     overflow: auto;
 }
 
+.modal .modal-inner.small {
+    width: 460px;
+}
+
+.modal .modal-inner.wide {
+    width: 960px;
+}
+
+.modal .modal-inner .modal-header-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+}
+
 .modal .modal-inner form {
     display: flex;
     flex-direction: column;
@@ -36,6 +51,17 @@
 .modal .modal-inner .form-actions {
     display: flex;
     justify-content: space-between;
+}
+
+.modal .modal-inner .form-actions.split {
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.modal .modal-inner .checkbox-row {
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
 }
 
 .modal .modal-inner textarea {
@@ -54,6 +80,7 @@
     display: flex;
     gap: 12px;
     align-items: center;
+    flex-wrap: wrap;
 }
 
 .modal .modal-inner .attachment-actions .file-input-trigger.small {
@@ -99,4 +126,80 @@
 .modal .modal-inner .attachment-empty {
     color: rgba(226, 232, 240, 0.7);
     font-size: 0.9rem;
+}
+
+.modal .modal-inner .logo-preview {
+    margin-top: 8px;
+    min-height: 60px;
+    border-radius: 8px;
+    border: 1px dashed rgba(148, 163, 184, 0.35);
+    padding: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal .modal-inner .logo-preview img {
+    max-height: 80px;
+    max-width: 100%;
+    border-radius: 8px;
+}
+
+.modal .modal-inner .marketplace-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 8px;
+}
+
+.modal .modal-inner .marketplace-card {
+    display: grid;
+    grid-template-columns: 80px 1fr auto;
+    gap: 16px;
+    align-items: center;
+    padding: 12px;
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    border-radius: 10px;
+    background-color: rgba(15, 23, 42, 0.6);
+}
+
+.modal .modal-inner .marketplace-logo {
+    width: 72px;
+    height: 72px;
+    border-radius: 12px;
+    background: rgba(15, 23, 42, 0.8);
+    display: grid;
+    place-items: center;
+    object-fit: cover;
+    border: 1px solid rgba(148, 163, 184, 0.3);
+}
+
+.modal .modal-inner .marketplace-logo.placeholder {
+    color: rgba(226, 232, 240, 0.7);
+    font-size: 24px;
+}
+
+.modal .modal-inner .marketplace-content {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.modal .modal-inner .marketplace-content p {
+    margin: 0;
+    color: rgba(226, 232, 240, 0.8);
+}
+
+.modal .modal-inner .marketplace-actions {
+    display: flex;
+    align-items: center;
+}
+
+.modal .modal-inner .marketplace-empty,
+.modal .modal-inner .marketplace-loading {
+    padding: 14px;
+    border-radius: 8px;
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px dashed rgba(148, 163, 184, 0.3);
+    color: rgba(226, 232, 240, 0.8);
 }

@@ -17,6 +17,8 @@ import dev.kruhlmann.imgfloat.model.PlaybackRequest;
 import dev.kruhlmann.imgfloat.model.ScriptAsset;
 import dev.kruhlmann.imgfloat.model.ScriptAssetAttachment;
 import dev.kruhlmann.imgfloat.model.ScriptAssetAttachmentView;
+import dev.kruhlmann.imgfloat.model.ScriptAssetFile;
+import dev.kruhlmann.imgfloat.model.ScriptMarketplaceEntry;
 import dev.kruhlmann.imgfloat.model.Settings;
 import dev.kruhlmann.imgfloat.model.TransformRequest;
 import dev.kruhlmann.imgfloat.model.VisibilityRequest;
@@ -26,6 +28,7 @@ import dev.kruhlmann.imgfloat.repository.AudioAssetRepository;
 import dev.kruhlmann.imgfloat.repository.ChannelRepository;
 import dev.kruhlmann.imgfloat.repository.ScriptAssetRepository;
 import dev.kruhlmann.imgfloat.repository.ScriptAssetAttachmentRepository;
+import dev.kruhlmann.imgfloat.repository.ScriptAssetFileRepository;
 import dev.kruhlmann.imgfloat.repository.VisualAssetRepository;
 import dev.kruhlmann.imgfloat.service.media.AssetContent;
 import dev.kruhlmann.imgfloat.service.media.MediaDetectionService;
@@ -57,6 +60,7 @@ public class ChannelDirectoryService {
     private final AudioAssetRepository audioAssetRepository;
     private final ScriptAssetRepository scriptAssetRepository;
     private final ScriptAssetAttachmentRepository scriptAssetAttachmentRepository;
+    private final ScriptAssetFileRepository scriptAssetFileRepository;
     private final SimpMessagingTemplate messagingTemplate;
     private final AssetStorageService assetStorageService;
     private final MediaDetectionService mediaDetectionService;
@@ -72,6 +76,7 @@ public class ChannelDirectoryService {
         AudioAssetRepository audioAssetRepository,
         ScriptAssetRepository scriptAssetRepository,
         ScriptAssetAttachmentRepository scriptAssetAttachmentRepository,
+        ScriptAssetFileRepository scriptAssetFileRepository,
         SimpMessagingTemplate messagingTemplate,
         AssetStorageService assetStorageService,
         MediaDetectionService mediaDetectionService,
@@ -85,6 +90,7 @@ public class ChannelDirectoryService {
         this.audioAssetRepository = audioAssetRepository;
         this.scriptAssetRepository = scriptAssetRepository;
         this.scriptAssetAttachmentRepository = scriptAssetAttachmentRepository;
+        this.scriptAssetFileRepository = scriptAssetFileRepository;
         this.messagingTemplate = messagingTemplate;
         this.assetStorageService = assetStorageService;
         this.mediaDetectionService = mediaDetectionService;
@@ -226,8 +232,14 @@ public class ChannelDirectoryService {
             ScriptAsset script = new ScriptAsset(asset.getId(), safeName);
             script.setMediaType(optimized.mediaType());
             script.setOriginalMediaType(mediaType);
+            script.setSourceFileId(asset.getId());
             script.setAttachments(List.of());
             scriptAssetRepository.save(script);
+            ScriptAssetFile sourceFile = new ScriptAssetFile(asset.getBroadcaster(), AssetType.SCRIPT);
+            sourceFile.setId(asset.getId());
+            sourceFile.setMediaType(optimized.mediaType());
+            sourceFile.setOriginalMediaType(mediaType);
+            scriptAssetFileRepository.save(sourceFile);
             view = AssetView.fromScript(channel.getBroadcaster(), asset, script);
         } else {
             double defaultWidth = 640;
@@ -257,17 +269,30 @@ public class ChannelDirectoryService {
         enforceUploadLimit(bytes.length);
 
         Asset asset = new Asset(channel.getBroadcaster(), AssetType.SCRIPT);
+        ScriptAssetFile sourceFile = new ScriptAssetFile(asset.getBroadcaster(), AssetType.SCRIPT);
+        sourceFile.setId(asset.getId());
+        sourceFile.setMediaType(DEFAULT_CODE_MEDIA_TYPE);
+        sourceFile.setOriginalMediaType(DEFAULT_CODE_MEDIA_TYPE);
 
         try {
-            assetStorageService.storeAsset(channel.getBroadcaster(), asset.getId(), bytes, DEFAULT_CODE_MEDIA_TYPE);
+            assetStorageService.storeAsset(
+                sourceFile.getBroadcaster(),
+                sourceFile.getId(),
+                bytes,
+                DEFAULT_CODE_MEDIA_TYPE
+            );
         } catch (IOException e) {
             throw new ResponseStatusException(BAD_REQUEST, "Unable to store custom script", e);
         }
 
         asset = assetRepository.save(asset);
+        scriptAssetFileRepository.save(sourceFile);
         ScriptAsset script = new ScriptAsset(asset.getId(), request.getName().trim());
         script.setOriginalMediaType(DEFAULT_CODE_MEDIA_TYPE);
         script.setMediaType(DEFAULT_CODE_MEDIA_TYPE);
+        script.setSourceFileId(sourceFile.getId());
+        script.setDescription(normalizeDescription(request.getDescription()));
+        script.setPublic(Boolean.TRUE.equals(request.getIsPublic()));
         script.setAttachments(List.of());
         scriptAssetRepository.save(script);
         AssetView view = AssetView.fromScript(channel.getBroadcaster(), asset, script);
@@ -291,12 +316,38 @@ public class ChannelDirectoryService {
                 ScriptAsset script = scriptAssetRepository
                     .findById(asset.getId())
                     .orElseThrow(() -> new ResponseStatusException(BAD_REQUEST, "Asset is not a script"));
+                String sourceFileId = script.getSourceFileId();
+                if (sourceFileId == null || sourceFileId.isBlank()) {
+                    sourceFileId = asset.getId();
+                    script.setSourceFileId(sourceFileId);
+                }
+                String resolvedSourceFileId = sourceFileId;
+                ScriptAssetFile sourceFile = scriptAssetFileRepository
+                    .findById(resolvedSourceFileId)
+                    .orElseGet(() -> {
+                        ScriptAssetFile file = new ScriptAssetFile(asset.getBroadcaster(), AssetType.SCRIPT);
+                        file.setId(resolvedSourceFileId);
+                        file.setMediaType(DEFAULT_CODE_MEDIA_TYPE);
+                        file.setOriginalMediaType(DEFAULT_CODE_MEDIA_TYPE);
+                        return scriptAssetFileRepository.save(file);
+                    });
                 script.setName(request.getName().trim());
+                if (request.getDescription() != null) {
+                    script.setDescription(normalizeDescription(request.getDescription()));
+                }
+                if (request.getIsPublic() != null) {
+                    script.setPublic(request.getIsPublic());
+                }
                 script.setOriginalMediaType(DEFAULT_CODE_MEDIA_TYPE);
                 script.setMediaType(DEFAULT_CODE_MEDIA_TYPE);
                 script.setAttachments(loadScriptAttachments(normalized, asset.getId(), null));
                 try {
-                    assetStorageService.storeAsset(broadcaster, asset.getId(), bytes, DEFAULT_CODE_MEDIA_TYPE);
+                    assetStorageService.storeAsset(
+                        sourceFile.getBroadcaster(),
+                        sourceFile.getId(),
+                        bytes,
+                        DEFAULT_CODE_MEDIA_TYPE
+                    );
                 } catch (IOException e) {
                     throw new ResponseStatusException(BAD_REQUEST, "Unable to store custom script", e);
                 }
@@ -306,6 +357,185 @@ public class ChannelDirectoryService {
                 messagingTemplate.convertAndSend(topicFor(broadcaster), AssetEvent.updated(broadcaster, view));
                 return view;
             });
+    }
+
+    public Optional<AssetView> updateScriptLogo(String broadcaster, String assetId, MultipartFile file)
+        throws IOException {
+        Asset asset = requireScriptAssetForBroadcaster(broadcaster, assetId);
+        byte[] bytes = file.getBytes();
+        enforceUploadLimit(bytes.length);
+        String mediaType = mediaDetectionService
+            .detectAllowedMediaType(file, bytes)
+            .orElseThrow(() -> new ResponseStatusException(BAD_REQUEST, "Unsupported media type"));
+        OptimizedAsset optimized = mediaOptimizationService.optimizeAsset(bytes, mediaType);
+        if (optimized == null) {
+            return Optional.empty();
+        }
+        AssetType assetType = AssetType.fromMediaType(optimized.mediaType(), mediaType);
+        if (assetType != AssetType.IMAGE) {
+            throw new ResponseStatusException(BAD_REQUEST, "Logo must be an image.");
+        }
+        ScriptAsset script = scriptAssetRepository
+            .findById(asset.getId())
+            .orElseThrow(() -> new ResponseStatusException(BAD_REQUEST, "Asset is not a script"));
+
+        String previousLogoFileId = script.getLogoFileId();
+        ScriptAssetFile logoFile = new ScriptAssetFile(asset.getBroadcaster(), AssetType.IMAGE);
+        logoFile.setMediaType(optimized.mediaType());
+        logoFile.setOriginalMediaType(mediaType);
+        scriptAssetFileRepository.save(logoFile);
+
+        assetStorageService.storeAsset(
+            logoFile.getBroadcaster(),
+            logoFile.getId(),
+            optimized.bytes(),
+            optimized.mediaType()
+        );
+
+        script.setLogoFileId(logoFile.getId());
+        script.setAttachments(loadScriptAttachments(asset.getBroadcaster(), asset.getId(), null));
+        scriptAssetRepository.save(script);
+
+        removeScriptAssetFileIfOrphaned(previousLogoFileId);
+
+        AssetView view = AssetView.fromScript(asset.getBroadcaster(), asset, script);
+        messagingTemplate.convertAndSend(topicFor(broadcaster), AssetEvent.updated(broadcaster, view));
+        return Optional.of(view);
+    }
+
+    public Optional<AssetView> clearScriptLogo(String broadcaster, String assetId) {
+        Asset asset = requireScriptAssetForBroadcaster(broadcaster, assetId);
+        ScriptAsset script = scriptAssetRepository
+            .findById(asset.getId())
+            .orElseThrow(() -> new ResponseStatusException(BAD_REQUEST, "Asset is not a script"));
+        String previousLogoFileId = script.getLogoFileId();
+        if (previousLogoFileId == null) {
+            return Optional.empty();
+        }
+        script.setLogoFileId(null);
+        script.setAttachments(loadScriptAttachments(asset.getBroadcaster(), asset.getId(), null));
+        scriptAssetRepository.save(script);
+        removeScriptAssetFileIfOrphaned(previousLogoFileId);
+        AssetView view = AssetView.fromScript(asset.getBroadcaster(), asset, script);
+        messagingTemplate.convertAndSend(topicFor(broadcaster), AssetEvent.updated(broadcaster, view));
+        return Optional.of(view);
+    }
+
+    public List<ScriptMarketplaceEntry> listMarketplaceScripts(String query) {
+        String q = normalizeDescription(query);
+        String normalizedQuery = q == null ? null : q.toLowerCase(Locale.ROOT);
+        List<ScriptAsset> scripts = scriptAssetRepository.findByIsPublicTrue();
+        if (normalizedQuery != null && !normalizedQuery.isBlank()) {
+            scripts =
+                scripts
+                    .stream()
+                    .filter((script) -> {
+                        String name = Optional.ofNullable(script.getName()).orElse("");
+                        String description = Optional.ofNullable(script.getDescription()).orElse("");
+                        return name.toLowerCase(Locale.ROOT).contains(normalizedQuery) ||
+                        description.toLowerCase(Locale.ROOT).contains(normalizedQuery);
+                    })
+                    .toList();
+        }
+        Map<String, Asset> assets = assetRepository
+            .findAllById(scripts.stream().map(ScriptAsset::getId).toList())
+            .stream()
+            .collect(Collectors.toMap(Asset::getId, (asset) -> asset));
+
+        return scripts
+            .stream()
+            .map((script) -> {
+                Asset asset = assets.get(script.getId());
+                String broadcaster = asset != null ? asset.getBroadcaster() : "";
+                String logoUrl = script.getLogoFileId() == null
+                    ? null
+                    : "/api/marketplace/scripts/" + script.getId() + "/logo";
+                return new ScriptMarketplaceEntry(
+                    script.getId(),
+                    script.getName(),
+                    script.getDescription(),
+                    logoUrl,
+                    broadcaster
+                );
+            })
+            .sorted(Comparator.comparing(ScriptMarketplaceEntry::name, Comparator.nullsLast(String::compareToIgnoreCase)))
+            .toList();
+    }
+
+    public Optional<AssetContent> getMarketplaceLogo(String scriptId) {
+        return scriptAssetRepository
+            .findById(scriptId)
+            .filter(ScriptAsset::isPublic)
+            .map(ScriptAsset::getLogoFileId)
+            .flatMap((logoFileId) -> scriptAssetFileRepository.findById(logoFileId))
+            .flatMap((file) ->
+                assetStorageService.loadAssetFileSafely(file.getBroadcaster(), file.getId(), file.getMediaType())
+            );
+    }
+
+    public Optional<AssetView> importMarketplaceScript(String targetBroadcaster, String scriptId) {
+        ScriptAsset sourceScript = scriptAssetRepository
+            .findById(scriptId)
+            .filter(ScriptAsset::isPublic)
+            .orElse(null);
+        Asset sourceAsset = sourceScript == null ? null : assetRepository.findById(scriptId).orElse(null);
+        if (sourceScript == null || sourceAsset == null) {
+            return Optional.empty();
+        }
+        AssetContent sourceContent = loadScriptSourceContent(sourceAsset, sourceScript).orElse(null);
+        if (sourceContent == null) {
+            return Optional.empty();
+        }
+
+        Asset asset = new Asset(targetBroadcaster, AssetType.SCRIPT);
+        ScriptAssetFile sourceFile = new ScriptAssetFile(asset.getBroadcaster(), AssetType.SCRIPT);
+        sourceFile.setId(asset.getId());
+        sourceFile.setMediaType(sourceContent.mediaType());
+        sourceFile.setOriginalMediaType(sourceContent.mediaType());
+        try {
+            assetStorageService.storeAsset(
+                sourceFile.getBroadcaster(),
+                sourceFile.getId(),
+                sourceContent.bytes(),
+                sourceContent.mediaType()
+            );
+        } catch (IOException e) {
+            throw new ResponseStatusException(BAD_REQUEST, "Unable to store custom script", e);
+        }
+        assetRepository.save(asset);
+        scriptAssetFileRepository.save(sourceFile);
+
+        ScriptAsset script = new ScriptAsset(asset.getId(), sourceScript.getName());
+        script.setDescription(sourceScript.getDescription());
+        script.setPublic(false);
+        script.setMediaType(sourceContent.mediaType());
+        script.setOriginalMediaType(sourceContent.mediaType());
+        script.setSourceFileId(sourceFile.getId());
+        script.setLogoFileId(sourceScript.getLogoFileId());
+        script.setAttachments(List.of());
+        scriptAssetRepository.save(script);
+
+        List<ScriptAssetAttachment> sourceAttachments = scriptAssetAttachmentRepository
+            .findByScriptAssetId(sourceScript.getId());
+        List<ScriptAssetAttachment> newAttachments = sourceAttachments
+            .stream()
+            .map((attachment) -> {
+                ScriptAssetAttachment copy = new ScriptAssetAttachment(asset.getId(), attachment.getName());
+                String fileId = attachment.getFileId() != null ? attachment.getFileId() : attachment.getId();
+                copy.setFileId(fileId);
+                copy.setMediaType(attachment.getMediaType());
+                copy.setOriginalMediaType(attachment.getOriginalMediaType());
+                copy.setAssetType(attachment.getAssetType());
+                return copy;
+            })
+            .toList();
+        if (!newAttachments.isEmpty()) {
+            scriptAssetAttachmentRepository.saveAll(newAttachments);
+        }
+        script.setAttachments(loadScriptAttachments(asset.getBroadcaster(), asset.getId(), null));
+        AssetView view = AssetView.fromScript(asset.getBroadcaster(), asset, script);
+        messagingTemplate.convertAndSend(topicFor(targetBroadcaster), AssetEvent.created(targetBroadcaster, view));
+        return Optional.of(view);
     }
 
     private String sanitizeFilename(String original) {
@@ -524,16 +754,30 @@ public class ChannelDirectoryService {
         return assetRepository
             .findById(assetId)
             .map((asset) -> {
-                deleteAssetStorage(asset);
-                switch (asset.getAssetType()) {
-                    case AUDIO -> audioAssetRepository.deleteById(asset.getId());
-                    case SCRIPT -> {
-                        scriptAssetAttachmentRepository.deleteByScriptAssetId(asset.getId());
-                        scriptAssetRepository.deleteById(asset.getId());
+                if (asset.getAssetType() == AssetType.SCRIPT) {
+                    ScriptAsset script = scriptAssetRepository.findById(asset.getId()).orElse(null);
+                    List<String> attachmentFileIds = scriptAssetAttachmentRepository
+                        .findByScriptAssetId(asset.getId())
+                        .stream()
+                        .map((attachment) -> attachment.getFileId() != null ? attachment.getFileId() : attachment.getId())
+                        .toList();
+                    scriptAssetAttachmentRepository.deleteByScriptAssetId(asset.getId());
+                    scriptAssetRepository.deleteById(asset.getId());
+                    assetRepository.delete(asset);
+                    if (script != null) {
+                        removeScriptAssetFileIfOrphaned(script.getSourceFileId());
+                        removeScriptAssetFileIfOrphaned(script.getLogoFileId());
                     }
-                    default -> visualAssetRepository.deleteById(asset.getId());
+                    attachmentFileIds.forEach(this::removeScriptAssetFileIfOrphaned);
+                } else {
+                    deleteAssetStorage(asset);
+                    switch (asset.getAssetType()) {
+                        case AUDIO -> audioAssetRepository.deleteById(asset.getId());
+                        case SCRIPT -> scriptAssetRepository.deleteById(asset.getId());
+                        default -> visualAssetRepository.deleteById(asset.getId());
+                    }
+                    assetRepository.delete(asset);
                 }
-                assetRepository.delete(asset);
                 messagingTemplate.convertAndSend(
                     topicFor(asset.getBroadcaster()),
                     AssetEvent.deleted(asset.getBroadcaster(), assetId)
@@ -590,12 +834,23 @@ public class ChannelDirectoryService {
             .filter((s) -> !s.isBlank())
             .orElse("script_attachment_" + System.currentTimeMillis());
 
+        ScriptAssetFile attachmentFile = new ScriptAssetFile(asset.getBroadcaster(), assetType);
+        attachmentFile.setMediaType(optimized.mediaType());
+        attachmentFile.setOriginalMediaType(mediaType);
+        scriptAssetFileRepository.save(attachmentFile);
+
         ScriptAssetAttachment attachment = new ScriptAssetAttachment(asset.getId(), safeName);
+        attachment.setFileId(attachmentFile.getId());
         attachment.setMediaType(optimized.mediaType());
         attachment.setOriginalMediaType(mediaType);
         attachment.setAssetType(assetType);
 
-        assetStorageService.storeAsset(asset.getBroadcaster(), attachment.getId(), optimized.bytes(), optimized.mediaType());
+        assetStorageService.storeAsset(
+            attachmentFile.getBroadcaster(),
+            attachmentFile.getId(),
+            optimized.bytes(),
+            optimized.mediaType()
+        );
         attachment = scriptAssetAttachmentRepository.save(attachment);
         ScriptAssetAttachmentView view = ScriptAssetAttachmentView.fromAttachment(asset.getBroadcaster(), attachment);
 
@@ -618,13 +873,9 @@ public class ChannelDirectoryService {
         if (attachment == null) {
             return false;
         }
-        assetStorageService.deleteAsset(
-            asset.getBroadcaster(),
-            attachment.getId(),
-            attachment.getMediaType(),
-            false
-        );
+        String fileId = attachment.getFileId() != null ? attachment.getFileId() : attachment.getId();
         scriptAssetAttachmentRepository.deleteById(attachment.getId());
+        removeScriptAssetFileIfOrphaned(fileId);
 
         ScriptAsset script = scriptAssetRepository
             .findById(asset.getId())
@@ -651,12 +902,17 @@ public class ChannelDirectoryService {
         return scriptAssetAttachmentRepository
             .findById(attachmentId)
             .filter((item) -> item.getScriptAssetId().equals(scriptAssetId))
-            .flatMap((attachment) ->
-                assetStorageService.loadAssetFileSafely(
-                    asset.getBroadcaster(),
-                    attachment.getId(),
-                    attachment.getMediaType()
-                )
+            .flatMap((attachment) -> loadScriptAttachmentContent(asset, attachment));
+    }
+
+    public Optional<AssetContent> getScriptLogoContent(String broadcaster, String scriptAssetId) {
+        Asset asset = requireScriptAssetForBroadcaster(broadcaster, scriptAssetId);
+        return scriptAssetRepository
+            .findById(asset.getId())
+            .map(ScriptAsset::getLogoFileId)
+            .flatMap((logoFileId) -> scriptAssetFileRepository.findById(logoFileId))
+            .flatMap((file) ->
+                assetStorageService.loadAssetFileSafely(file.getBroadcaster(), file.getId(), file.getMediaType())
             );
     }
 
@@ -699,6 +955,32 @@ public class ChannelDirectoryService {
         if (source == null || source.isBlank()) {
             throw new ResponseStatusException(BAD_REQUEST, "Script source is required");
         }
+    }
+
+    private String normalizeDescription(String description) {
+        if (description == null) {
+            return null;
+        }
+        String trimmed = description.trim();
+        return trimmed.isBlank() ? null : trimmed;
+    }
+
+    private void removeScriptAssetFileIfOrphaned(String fileId) {
+        if (fileId == null || fileId.isBlank()) {
+            return;
+        }
+        long attachmentRefs = scriptAssetAttachmentRepository.countByFileId(fileId);
+        long sourceRefs = scriptAssetRepository.countBySourceFileId(fileId);
+        long logoRefs = scriptAssetRepository.countByLogoFileId(fileId);
+        if (attachmentRefs + sourceRefs + logoRefs > 0) {
+            return;
+        }
+        scriptAssetFileRepository
+            .findById(fileId)
+            .ifPresent((file) -> {
+                assetStorageService.deleteAsset(file.getBroadcaster(), file.getId(), file.getMediaType(), false);
+                scriptAssetFileRepository.delete(file);
+            });
     }
 
     private void enforceUploadLimit(long sizeBytes) {
@@ -851,13 +1133,7 @@ public class ChannelDirectoryService {
             case SCRIPT -> {
                 return scriptAssetRepository
                     .findById(asset.getId())
-                    .flatMap((script) ->
-                        assetStorageService.loadAssetFileSafely(
-                            asset.getBroadcaster(),
-                            asset.getId(),
-                            script.getMediaType()
-                        )
-                    );
+                    .flatMap((script) -> loadScriptSourceContent(asset, script));
             }
             default -> {
                 return visualAssetRepository
@@ -871,6 +1147,44 @@ public class ChannelDirectoryService {
                     );
             }
         }
+    }
+
+    private Optional<AssetContent> loadScriptSourceContent(Asset asset, ScriptAsset script) {
+        if (script == null || asset == null) {
+            return Optional.empty();
+        }
+        String sourceFileId = script.getSourceFileId() != null ? script.getSourceFileId() : script.getId();
+        return scriptAssetFileRepository
+            .findById(sourceFileId)
+            .flatMap((file) ->
+                assetStorageService.loadAssetFileSafely(file.getBroadcaster(), file.getId(), file.getMediaType())
+            )
+            .or(() ->
+                assetStorageService.loadAssetFileSafely(
+                    asset.getBroadcaster(),
+                    sourceFileId,
+                    script.getMediaType()
+                )
+            );
+    }
+
+    private Optional<AssetContent> loadScriptAttachmentContent(Asset asset, ScriptAssetAttachment attachment) {
+        if (attachment == null || asset == null) {
+            return Optional.empty();
+        }
+        String fileId = attachment.getFileId() != null ? attachment.getFileId() : attachment.getId();
+        return scriptAssetFileRepository
+            .findById(fileId)
+            .flatMap((file) ->
+                assetStorageService.loadAssetFileSafely(file.getBroadcaster(), file.getId(), file.getMediaType())
+            )
+            .or(() ->
+                assetStorageService.loadAssetFileSafely(
+                    asset.getBroadcaster(),
+                    fileId,
+                    attachment.getMediaType()
+                )
+            );
     }
 
     private List<ScriptAssetAttachmentView> loadScriptAttachments(
@@ -930,15 +1244,13 @@ public class ChannelDirectoryService {
             case SCRIPT -> scriptAssetRepository
                 .findById(asset.getId())
                 .ifPresent((script) -> {
-                    assetStorageService.deleteAsset(asset.getBroadcaster(), asset.getId(), script.getMediaType(), false);
+                    removeScriptAssetFileIfOrphaned(script.getSourceFileId());
+                    removeScriptAssetFileIfOrphaned(script.getLogoFileId());
                     scriptAssetAttachmentRepository
                         .findByScriptAssetId(asset.getId())
                         .forEach((attachment) ->
-                            assetStorageService.deleteAsset(
-                                asset.getBroadcaster(),
-                                attachment.getId(),
-                                attachment.getMediaType(),
-                                false
+                            removeScriptAssetFileIfOrphaned(
+                                attachment.getFileId() != null ? attachment.getFileId() : attachment.getId()
                             )
                         );
                 });

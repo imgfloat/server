@@ -8,23 +8,18 @@ import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import java.util.Locale;
 import java.util.UUID;
 
 @Entity
-@Table(name = "script_asset_attachments")
-public class ScriptAssetAttachment {
+@Table(name = "script_asset_files")
+public class ScriptAssetFile {
 
     @Id
     private String id;
 
-    @Column(name = "script_asset_id", nullable = false)
-    private String scriptAssetId;
-
-    @Column(name = "file_id")
-    private String fileId;
-
     @Column(nullable = false)
-    private String name;
+    private String broadcaster;
 
     private String mediaType;
     private String originalMediaType;
@@ -33,13 +28,12 @@ public class ScriptAssetAttachment {
     @Column(name = "asset_type", nullable = false)
     private AssetType assetType;
 
-    public ScriptAssetAttachment() {}
+    public ScriptAssetFile() {}
 
-    public ScriptAssetAttachment(String scriptAssetId, String name) {
+    public ScriptAssetFile(String broadcaster, AssetType assetType) {
         this.id = UUID.randomUUID().toString();
-        this.scriptAssetId = scriptAssetId;
-        this.name = name;
-        this.assetType = AssetType.OTHER;
+        this.broadcaster = normalize(broadcaster);
+        this.assetType = assetType == null ? AssetType.OTHER : assetType;
     }
 
     @PrePersist
@@ -48,9 +42,7 @@ public class ScriptAssetAttachment {
         if (this.id == null) {
             this.id = UUID.randomUUID().toString();
         }
-        if (this.name == null || this.name.isBlank()) {
-            this.name = this.id;
-        }
+        this.broadcaster = normalize(broadcaster);
         if (this.assetType == null) {
             this.assetType = AssetType.OTHER;
         }
@@ -64,28 +56,12 @@ public class ScriptAssetAttachment {
         this.id = id;
     }
 
-    public String getScriptAssetId() {
-        return scriptAssetId;
+    public String getBroadcaster() {
+        return broadcaster;
     }
 
-    public void setScriptAssetId(String scriptAssetId) {
-        this.scriptAssetId = scriptAssetId;
-    }
-
-    public String getFileId() {
-        return fileId;
-    }
-
-    public void setFileId(String fileId) {
-        this.fileId = fileId;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
+    public void setBroadcaster(String broadcaster) {
+        this.broadcaster = normalize(broadcaster);
     }
 
     public String getMediaType() {
@@ -110,5 +86,9 @@ public class ScriptAssetAttachment {
 
     public void setAssetType(AssetType assetType) {
         this.assetType = assetType == null ? AssetType.OTHER : assetType;
+    }
+
+    private static String normalize(String value) {
+        return value == null ? null : value.toLowerCase(Locale.ROOT);
     }
 }

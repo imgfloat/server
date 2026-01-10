@@ -11,4 +11,6 @@ public interface ScriptAssetAttachmentRepository extends JpaRepository<ScriptAss
     List<ScriptAssetAttachment> findByScriptAssetIdIn(Collection<String> scriptAssetIds);
 
     void deleteByScriptAssetId(String scriptAssetId);
+
+    long countByFileId(String fileId);
 }

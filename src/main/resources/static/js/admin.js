@@ -4,6 +4,7 @@ import { createCustomAssetModal } from "./customAssets.js";
 let adminConsole;
 const customAssetModal = createCustomAssetModal({
     broadcaster,
+    adminChannels: ADMIN_CHANNELS,
     showToast: globalThis.showToast,
     onAssetSaved: (asset) => adminConsole?.handleCustomAssetSaved(asset),
 });

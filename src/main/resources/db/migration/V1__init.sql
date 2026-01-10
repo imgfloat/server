@@ -40,13 +40,26 @@ CREATE TABLE IF NOT EXISTS audio_assets (
 CREATE TABLE IF NOT EXISTS script_assets (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
+    description TEXT,
+    is_public BOOLEAN,
     media_type TEXT,
-    original_media_type TEXT
+    original_media_type TEXT,
+    logo_file_id TEXT,
+    source_file_id TEXT
+);
+
+CREATE TABLE IF NOT EXISTS script_asset_files (
+    id TEXT PRIMARY KEY,
+    broadcaster TEXT NOT NULL,
+    media_type TEXT,
+    original_media_type TEXT,
+    asset_type TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS script_asset_attachments (
     id TEXT PRIMARY KEY,
     script_asset_id TEXT NOT NULL,
+    file_id TEXT,
     name TEXT NOT NULL,
     media_type TEXT,
     original_media_type TEXT,

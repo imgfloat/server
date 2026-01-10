@@ -111,8 +111,8 @@ export function createAdminConsole({
             });
         }
         const customAssetButton = document.getElementById("custom-asset-button");
-        if (customAssetButton && customAssetModal?.openNew) {
-            customAssetButton.addEventListener("click", () => customAssetModal.openNew());
+        if (customAssetButton && customAssetModal?.openLauncher) {
+            customAssetButton.addEventListener("click", () => customAssetModal.openLauncher());
         }
         globalThis.addEventListener("resize", () => {
             resizeCanvas();

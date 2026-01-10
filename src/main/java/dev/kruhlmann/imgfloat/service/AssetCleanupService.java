@@ -2,8 +2,10 @@ package dev.kruhlmann.imgfloat.service;
 
 import dev.kruhlmann.imgfloat.model.Asset;
 import dev.kruhlmann.imgfloat.model.ScriptAssetAttachment;
+import dev.kruhlmann.imgfloat.model.ScriptAsset;
 import dev.kruhlmann.imgfloat.repository.AssetRepository;
 import dev.kruhlmann.imgfloat.repository.ScriptAssetAttachmentRepository;
+import dev.kruhlmann.imgfloat.repository.ScriptAssetRepository;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
@@ -22,15 +24,18 @@ public class AssetCleanupService {
     private final AssetRepository assetRepository;
     private final AssetStorageService assetStorageService;
     private final ScriptAssetAttachmentRepository scriptAssetAttachmentRepository;
+    private final ScriptAssetRepository scriptAssetRepository;
 
     public AssetCleanupService(
         AssetRepository assetRepository,
         AssetStorageService assetStorageService,
-        ScriptAssetAttachmentRepository scriptAssetAttachmentRepository
+        ScriptAssetAttachmentRepository scriptAssetAttachmentRepository,
+        ScriptAssetRepository scriptAssetRepository
     ) {
         this.assetRepository = assetRepository;
         this.assetStorageService = assetStorageService;
         this.scriptAssetAttachmentRepository = scriptAssetAttachmentRepository;
+        this.scriptAssetRepository = scriptAssetRepository;
     }
 
     @Async
@@ -48,7 +53,23 @@ public class AssetCleanupService {
             scriptAssetAttachmentRepository
                 .findAll()
                 .stream()
-                .map(ScriptAssetAttachment::getId)
+                .map((attachment) -> attachment.getFileId() != null ? attachment.getFileId() : attachment.getId())
+                .collect(Collectors.toSet())
+        );
+        referencedIds.addAll(
+            scriptAssetRepository
+                .findAll()
+                .stream()
+                .map(ScriptAsset::getSourceFileId)
+                .filter((id) -> id != null && !id.isBlank())
+                .collect(Collectors.toSet())
+        );
+        referencedIds.addAll(
+            scriptAssetRepository
+                .findAll()
+                .stream()
+                .map(ScriptAsset::getLogoFileId)
+                .filter((id) -> id != null && !id.isBlank())
                 .collect(Collectors.toSet())
         );
 

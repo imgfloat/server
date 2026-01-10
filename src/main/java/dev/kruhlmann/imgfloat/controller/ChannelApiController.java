@@ -41,6 +41,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
@@ -415,6 +416,29 @@ public class ChannelApiController {
             .orElseThrow(() -> createAsset404());
     }
 
+    @GetMapping("/assets/{assetId}/logo")
+    public ResponseEntity<byte[]> getScriptLogo(
+        @PathVariable("broadcaster") String broadcaster,
+        @PathVariable("assetId") String assetId,
+        OAuth2AuthenticationToken oauthToken
+    ) {
+        String sessionUsername = OauthSessionUser.from(oauthToken).login();
+        authorizationService.userIsBroadcasterOrChannelAdminForBroadcasterOrThrowHttpError(
+            broadcaster,
+            sessionUsername
+        );
+        return channelDirectoryService
+            .getScriptLogoContent(broadcaster, assetId)
+            .map((content) ->
+                ResponseEntity.ok()
+                    .header("X-Content-Type-Options", "nosniff")
+                    .header(HttpHeaders.CONTENT_DISPOSITION, contentDispositionFor(content.mediaType()))
+                    .contentType(MediaType.parseMediaType(content.mediaType()))
+                    .body(content.bytes())
+            )
+            .orElseThrow(() -> createAsset404());
+    }
+
     @GetMapping("/assets/{assetId}/preview")
     public ResponseEntity<byte[]> getAssetPreview(
         @PathVariable("broadcaster") String broadcaster,
@@ -485,7 +509,7 @@ public class ChannelApiController {
     public ResponseEntity<ScriptAssetAttachmentView> createScriptAttachment(
         @PathVariable("broadcaster") String broadcaster,
         @PathVariable("assetId") String assetId,
-        @org.springframework.web.bind.annotation.RequestPart("file") MultipartFile file,
+        @RequestPart("file") MultipartFile file,
         OAuth2AuthenticationToken oauthToken
     ) {
         String sessionUsername = OauthSessionUser.from(oauthToken).login();
@@ -505,6 +529,47 @@ public class ChannelApiController {
             LOG.error("Failed to process attachment upload for {} by {}", broadcaster, sessionUsername, e);
             throw new ResponseStatusException(BAD_REQUEST, "Failed to process attachment", e);
         }
+    }
+
+    @PostMapping(value = "/assets/{assetId}/logo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<AssetView> updateScriptLogo(
+        @PathVariable("broadcaster") String broadcaster,
+        @PathVariable("assetId") String assetId,
+        @RequestPart("file") MultipartFile file,
+        OAuth2AuthenticationToken oauthToken
+    ) {
+        String sessionUsername = OauthSessionUser.from(oauthToken).login();
+        authorizationService.userIsBroadcasterOrChannelAdminForBroadcasterOrThrowHttpError(
+            broadcaster,
+            sessionUsername
+        );
+        if (file == null || file.isEmpty()) {
+            throw new ResponseStatusException(BAD_REQUEST, "Logo file is required");
+        }
+        try {
+            return channelDirectoryService
+                .updateScriptLogo(broadcaster, assetId, file)
+                .map(ResponseEntity::ok)
+                .orElseThrow(() -> new ResponseStatusException(BAD_REQUEST, "Unable to save logo"));
+        } catch (IOException e) {
+            LOG.error("Failed to process logo upload for {} by {}", broadcaster, sessionUsername, e);
+            throw new ResponseStatusException(BAD_REQUEST, "Failed to process logo", e);
+        }
+    }
+
+    @DeleteMapping("/assets/{assetId}/logo")
+    public ResponseEntity<Void> deleteScriptLogo(
+        @PathVariable("broadcaster") String broadcaster,
+        @PathVariable("assetId") String assetId,
+        OAuth2AuthenticationToken oauthToken
+    ) {
+        String sessionUsername = OauthSessionUser.from(oauthToken).login();
+        authorizationService.userIsBroadcasterOrChannelAdminForBroadcasterOrThrowHttpError(
+            broadcaster,
+            sessionUsername
+        );
+        channelDirectoryService.clearScriptLogo(broadcaster, assetId);
+        return ResponseEntity.ok().build();
     }
 
     @DeleteMapping("/assets/{assetId}/attachments/{attachmentId}")

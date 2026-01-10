@@ -10,6 +10,10 @@ public class CodeAssetRequest {
     @NotBlank
     private String source;
 
+    private String description;
+
+    private Boolean isPublic;
+
     public String getName() {
         return name;
     }
@@ -24,5 +28,21 @@ public class CodeAssetRequest {
 
     public void setSource(String source) {
         this.source = source;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public Boolean getIsPublic() {
+        return isPublic;
+    }
+
+    public void setIsPublic(Boolean isPublic) {
+        this.isPublic = isPublic;
     }
 }

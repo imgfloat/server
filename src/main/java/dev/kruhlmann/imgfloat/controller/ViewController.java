@@ -136,6 +136,7 @@ public class ViewController {
         Settings settings = settingsService.get();
         model.addAttribute("broadcaster", broadcaster.toLowerCase());
         model.addAttribute("username", sessionUsername);
+        model.addAttribute("adminChannels", channelDirectoryService.adminChannelsFor(sessionUsername));
         model.addAttribute("uploadLimitBytes", uploadLimitBytes);
         try {
             model.addAttribute("settingsJson", objectMapper.writeValueAsString(settings));

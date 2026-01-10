@@ -7,4 +7,10 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface ScriptAssetRepository extends JpaRepository<ScriptAsset, String> {
     List<ScriptAsset> findByIdIn(Collection<String> ids);
+
+    List<ScriptAsset> findByIsPublicTrue();
+
+    long countBySourceFileId(String sourceFileId);
+
+    long countByLogoFileId(String logoFileId);
 }
