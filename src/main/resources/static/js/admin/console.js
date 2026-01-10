@@ -110,9 +110,9 @@ export function createAdminConsole({
                 handleFileSelection(event.target);
             });
         }
-        const customAssetButton = document.getElementById("custom-asset-button");
-        if (customAssetButton && customAssetModal?.openLauncher) {
-            customAssetButton.addEventListener("click", () => customAssetModal.openLauncher());
+        const assetLauncherButton = document.getElementById("asset-launcher-button");
+        if (assetLauncherButton && customAssetModal?.openLauncher) {
+            assetLauncherButton.addEventListener("click", () => customAssetModal.openLauncher());
         }
         globalThis.addEventListener("resize", () => {
             resizeCanvas();

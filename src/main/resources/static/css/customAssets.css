@@ -25,8 +25,12 @@
     width: 460px;
 }
 
+.modal .modal-inner.medium {
+    width: 720px;
+}
+
 .modal .modal-inner.wide {
-    width: 960px;
+    width: 1120px;
 }
 
 .modal .modal-inner .modal-header-row {
@@ -56,6 +60,51 @@
 .modal .modal-inner .form-actions.split {
     justify-content: flex-end;
     gap: 10px;
+}
+
+.modal .modal-inner .launch-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+    margin-top: 16px;
+}
+
+.modal .modal-inner .launch-tile {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-start;
+    padding: 16px;
+    border-radius: 12px;
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    background: rgba(15, 23, 42, 0.75);
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+    min-height: 140px;
+    width: 100%;
+    transition: border-color 0.2s ease, background-color 0.2s ease, transform 0.2s ease;
+}
+
+.modal .modal-inner .launch-tile:hover,
+.modal .modal-inner .launch-tile:focus-visible {
+    border-color: rgba(226, 232, 240, 0.7);
+    background: rgba(30, 41, 59, 0.8);
+    transform: translateY(-1px);
+}
+
+.modal .modal-inner .launch-tile .tile-icon {
+    font-size: 1.4rem;
+    color: rgba(226, 232, 240, 0.9);
+}
+
+.modal .modal-inner .launch-tile .tile-title {
+    font-weight: 600;
+}
+
+.modal .modal-inner .launch-tile .tile-subtitle {
+    color: rgba(226, 232, 240, 0.7);
+    font-size: 0.9rem;
 }
 
 .modal .modal-inner .checkbox-row {
@@ -146,21 +195,22 @@
 }
 
 .modal .modal-inner .marketplace-list {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    margin-top: 8px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 16px;
+    margin-top: 12px;
 }
 
 .modal .modal-inner .marketplace-card {
-    display: grid;
-    grid-template-columns: 80px 1fr auto;
-    gap: 16px;
-    align-items: center;
-    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 16px;
     border: 1px solid rgba(148, 163, 184, 0.3);
     border-radius: 10px;
     background-color: rgba(15, 23, 42, 0.6);
+    min-height: 240px;
 }
 
 .modal .modal-inner .marketplace-logo {
@@ -193,6 +243,9 @@
 .modal .modal-inner .marketplace-actions {
     display: flex;
     align-items: center;
+    margin-top: auto;
+    width: 100%;
+    justify-content: flex-end;
 }
 
 .modal .modal-inner .marketplace-empty,

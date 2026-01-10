@@ -7,6 +7,7 @@ export function createCustomAssetModal({
     const launchModal = document.getElementById("custom-asset-launch-modal");
     const launchNewButton = document.getElementById("custom-asset-launch-new");
     const launchMarketplaceButton = document.getElementById("custom-asset-launch-marketplace");
+    const assetFileInput = document.getElementById("asset-file");
     const marketplaceModal = document.getElementById("custom-asset-marketplace-modal");
     const marketplaceCloseButton = document.getElementById("custom-asset-marketplace-close");
     const marketplaceSearchInput = document.getElementById("custom-asset-marketplace-search");
@@ -233,6 +234,13 @@ export function createCustomAssetModal({
     }
     if (launchMarketplaceButton) {
         launchMarketplaceButton.addEventListener("click", () => openMarketplaceModal());
+    }
+    if (assetFileInput) {
+        assetFileInput.addEventListener("change", (event) => {
+            if (event.target?.files?.length) {
+                closeLaunchModal();
+            }
+        });
     }
     if (marketplaceModal) {
         marketplaceModal.addEventListener("click", (event) => {

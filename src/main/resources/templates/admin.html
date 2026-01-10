@@ -47,27 +47,13 @@
             <div class="admin-workspace">
                 <aside class="admin-rail">
                     <div class="upload-row">
-                        <input
-                            id="asset-file"
-                            class="file-input-field"
-                            type="file"
-                            accept="image/*,video/*,audio/*,application/javascript,text/javascript,.js,.mjs"
-                        />
-                        <label for="asset-file" class="file-input-trigger">
-                            <span class="file-input-icon"><i class="fa-solid fa-cloud-arrow-up"></i></span>
+                        <button type="button" class="file-input-trigger" id="asset-launcher-button">
+                            <span class="file-input-icon"><i class="fa-solid fa-layer-group"></i></span>
                             <span class="file-input-copy">
-                                <strong>Upload asset</strong>
-                                <small id="asset-file-name">No file chosen</small>
+                                <strong>Add asset</strong>
+                                <small>Upload, build, or browse scripts</small>
                             </span>
-                        </label>
-                    </div>
-                    <div class="upload-row">
-                        <label class="file-input-trigger" id="custom-asset-button">
-                            <span class="file-input-icon"><i class="fa-solid fa-code"></i></span>
-                            <span class="file-input-copy">
-                                <strong>Create custom asset</strong>
-                            </span>
-                        </label>
+                        </button>
                     </div>
                     <div class="rail-body">
                         <div class="rail-scroll">
@@ -369,15 +355,30 @@
             </div>
         </div>
         <div id="custom-asset-launch-modal" class="modal hidden">
-            <section class="modal-inner small">
-                <h1>Custom scripts</h1>
-                <p>Start a new script or browse scripts shared by other creators.</p>
-                <div class="form-actions split">
-                    <button type="button" class="secondary" id="custom-asset-launch-marketplace">
-                        Browse marketplace
+            <section class="modal-inner medium">
+                <h1>Custom assets</h1>
+                <p>Upload media, build new scripts, or pull from the marketplace.</p>
+                <div class="launch-grid">
+                    <input
+                        id="asset-file"
+                        class="file-input-field"
+                        type="file"
+                        accept="image/*,video/*,audio/*,application/javascript,text/javascript,.js,.mjs"
+                    />
+                    <label for="asset-file" class="launch-tile">
+                        <span class="tile-icon"><i class="fa-solid fa-cloud-arrow-up"></i></span>
+                        <span class="tile-title">Upload asset</span>
+                        <span class="tile-subtitle" id="asset-file-name">No file chosen</span>
+                    </label>
+                    <button type="button" class="launch-tile" id="custom-asset-launch-new">
+                        <span class="tile-icon"><i class="fa-solid fa-code"></i></span>
+                        <span class="tile-title">Create script</span>
+                        <span class="tile-subtitle">Start from a blank template</span>
                     </button>
-                    <button type="button" class="primary" id="custom-asset-launch-new">
-                        Create new script
+                    <button type="button" class="launch-tile" id="custom-asset-launch-marketplace">
+                        <span class="tile-icon"><i class="fa-solid fa-store"></i></span>
+                        <span class="tile-title">Browse marketplace</span>
+                        <span class="tile-subtitle">Find community scripts</span>
                     </button>
                 </div>
             </section>
