@@ -118,6 +118,46 @@
     resize: vertical;
 }
 
+.modal .modal-inner .code-editor.CodeMirror {
+    height: 420px;
+    border-radius: 10px;
+    border: 1px solid #1f2937;
+    background: #0f172a;
+    color: #e2e8f0;
+    font-size: 14px;
+}
+
+.modal .modal-inner .code-editor.CodeMirror-focused {
+    border-color: #7c3aed;
+    box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.25);
+}
+
+.modal .modal-inner .code-editor .CodeMirror-cursor {
+    border-left: 2px solid #e2e8f0;
+}
+
+.modal .modal-inner .code-editor .CodeMirror-selected {
+    background: rgba(124, 58, 237, 0.35);
+}
+
+.modal .modal-inner .code-editor .CodeMirror-gutters {
+    background: #0b1220;
+    border-right: 1px solid #1f2937;
+}
+
+.modal .modal-inner .code-editor .CodeMirror-linenumber {
+    color: rgba(148, 163, 184, 0.8);
+}
+
+.modal .modal-inner .code-editor.CodeMirror-disabled {
+    background: #020617;
+    color: #64748b;
+}
+
+.modal .modal-inner .code-editor .CodeMirror-placeholder {
+    color: #475569;
+}
+
 .modal .modal-inner .form-error {
     padding: 8px;
     background-color: rgba(200, 0, 0, 0.3);

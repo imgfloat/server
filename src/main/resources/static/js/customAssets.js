@@ -21,6 +21,7 @@ export function createCustomAssetModal({
     const logoPreview = document.getElementById("custom-asset-logo-preview");
     const logoClearButton = document.getElementById("custom-asset-logo-clear");
     const userSourceTextArea = document.getElementById("custom-asset-code");
+    let codeEditor = null;
     const formErrorWrapper = document.getElementById("custom-asset-error");
     const jsErrorTitle = document.getElementById("js-error-title");
     const jsErrorDetails = document.getElementById("js-error-details");
@@ -44,6 +45,187 @@ export function createCustomAssetModal({
         }
         if (jsErrorDetails) {
             jsErrorDetails.textContent = "";
+        }
+    };
+
+    const registerCodeEditorLint = () => {
+        const CodeMirror = globalThis.CodeMirror;
+        if (!CodeMirror?.registerHelper || CodeMirror.__customAssetLintRegistered) {
+            return;
+        }
+        CodeMirror.__customAssetLintRegistered = true;
+        CodeMirror.registerHelper("lint", "javascript", (text) => {
+            const parser = globalThis.acorn;
+            if (!parser) {
+                return [];
+            }
+            if (!text.trim()) {
+                return [];
+            }
+
+            let ast;
+            try {
+                ast = parser.parse(text, {
+                    ecmaVersion: "latest",
+                    sourceType: "script",
+                    locations: true,
+                });
+            } catch (e) {
+                const line = Math.max(0, (e.loc?.line || 1) - 1);
+                const ch = Math.max(0, e.loc?.column || 0);
+                return [
+                    {
+                        from: CodeMirror.Pos(line, ch),
+                        to: CodeMirror.Pos(line, ch + 1),
+                        message: e.message,
+                        severity: "error",
+                    },
+                ];
+            }
+
+            let hasInit = false;
+            let hasTick = false;
+
+            const isFunctionNode = (node) =>
+                node && (node.type === "FunctionExpression" || node.type === "ArrowFunctionExpression");
+
+            const markFunctionName = (name) => {
+                if (name === "init") hasInit = true;
+                if (name === "tick") hasTick = true;
+            };
+
+            const isModuleExportsMember = (node) =>
+                node &&
+                node.type === "MemberExpression" &&
+                node.object?.type === "Identifier" &&
+                node.object.name === "module" &&
+                node.property?.type === "Identifier" &&
+                node.property.name === "exports";
+
+            const checkObjectExpression = (objectExpression) => {
+                if (!objectExpression || objectExpression.type !== "ObjectExpression") {
+                    return;
+                }
+                for (const property of objectExpression.properties || []) {
+                    if (property.type !== "Property") {
+                        continue;
+                    }
+                    const keyName = property.key?.type === "Identifier" ? property.key.name : property.key?.value;
+                    if (keyName && isFunctionNode(property.value)) {
+                        markFunctionName(keyName);
+                    }
+                }
+            };
+
+            for (const node of ast.body) {
+                if (node.type === "FunctionDeclaration") {
+                    markFunctionName(node.id?.name);
+                    continue;
+                }
+
+                if (node.type !== "ExpressionStatement") continue;
+
+                const expr = node.expression;
+                if (expr.type !== "AssignmentExpression") continue;
+
+                const left = expr.left;
+                const right = expr.right;
+
+                if (left.type === "Identifier" && left.name === "exports" && right.type === "ObjectExpression") {
+                    checkObjectExpression(right);
+                    continue;
+                }
+
+                if (isModuleExportsMember(left) && right.type === "ObjectExpression") {
+                    checkObjectExpression(right);
+                    continue;
+                }
+
+                if (left.type === "MemberExpression" && left.property.type === "Identifier" && isFunctionNode(right)) {
+                    if (
+                        (left.object.type === "Identifier" && left.object.name === "exports") ||
+                        isModuleExportsMember(left.object)
+                    ) {
+                        markFunctionName(left.property.name);
+                    }
+                }
+            }
+
+            const annotations = [];
+            if (!hasInit) {
+                annotations.push({
+                    from: CodeMirror.Pos(0, 0),
+                    to: CodeMirror.Pos(0, 1),
+                    message: "Missing function: init",
+                    severity: "error",
+                });
+            }
+
+            if (!hasTick) {
+                annotations.push({
+                    from: CodeMirror.Pos(0, 0),
+                    to: CodeMirror.Pos(0, 1),
+                    message: "Missing function: tick",
+                    severity: "error",
+                });
+            }
+
+            return annotations;
+        });
+    };
+
+    const createCodeEditor = () => {
+        const CodeMirror = globalThis.CodeMirror;
+        if (!CodeMirror || !userSourceTextArea) {
+            return;
+        }
+
+        registerCodeEditorLint();
+        codeEditor = CodeMirror.fromTextArea(userSourceTextArea, {
+            mode: "javascript",
+            lineNumbers: true,
+            lineWrapping: true,
+            indentUnit: 2,
+            tabSize: 2,
+            gutters: ["CodeMirror-lint-markers"],
+            lint: true,
+            placeholder: userSourceTextArea.placeholder,
+        });
+        codeEditor.getWrapperElement().classList.add("code-editor");
+        codeEditor.setSize(null, "420px");
+        codeEditor.on("change", () => {
+            userSourceTextArea.value = codeEditor.getValue();
+        });
+    };
+
+    const getCodeSource = () => (codeEditor ? codeEditor.getValue() : userSourceTextArea?.value);
+
+    const setCodeValue = (value) => {
+        if (codeEditor) {
+            codeEditor.setValue(value ?? "");
+            codeEditor.save();
+            codeEditor.refresh();
+        } else if (userSourceTextArea) {
+            userSourceTextArea.value = value ?? "";
+        }
+    };
+
+    const setCodeReadOnly = (isReadOnly) => {
+        if (codeEditor) {
+            codeEditor.setOption("readOnly", isReadOnly ? "nocursor" : false);
+            codeEditor.refresh();
+        }
+        if (userSourceTextArea) {
+            userSourceTextArea.disabled = isReadOnly;
+        }
+    };
+
+    const setCodePlaceholder = (placeholder) => {
+        if (codeEditor) {
+            codeEditor.setOption("placeholder", placeholder);
+        }
+        if (userSourceTextArea) {
+            userSourceTextArea.placeholder = placeholder;
         }
     };
 
@@ -92,12 +274,13 @@ export function createCustomAssetModal({
         }
         resetLogoState();
         if (userSourceTextArea) {
-            userSourceTextArea.value = "";
-            userSourceTextArea.disabled = false;
             userSourceTextArea.dataset.assetId = "";
-            userSourceTextArea.placeholder =
-                "function init(context, state) {\n  const { assets } = context;\n\n}\n\nfunction tick(context, state) {\n\n}\n\n// or\n// module.exports.init = (context, state) => {};\n// module.exports.tick = (context, state) => {};";
         }
+        setCodeValue("");
+        setCodeReadOnly(false);
+        setCodePlaceholder(
+            "function init(context, state) {\n  const { assets } = context;\n\n}\n\nfunction tick(context, state) {\n\n}\n\n// or\n// module.exports.init = (context, state) => {};\n// module.exports.tick = (context, state) => {};",
+        );
         setAttachmentState(null, []);
         resetErrors();
         openModal();
@@ -125,11 +308,11 @@ export function createCustomAssetModal({
             logoPreview.appendChild(img);
         }
         if (userSourceTextArea) {
-            userSourceTextArea.value = "";
-            userSourceTextArea.placeholder = "Loading script...";
-            userSourceTextArea.disabled = true;
             userSourceTextArea.dataset.assetId = asset.id;
         }
+        setCodeValue("");
+        setCodeReadOnly(true);
+        setCodePlaceholder("Loading script...");
         setAttachmentState(asset.id, asset.scriptAttachments || []);
         openModal();
 
@@ -141,23 +324,19 @@ export function createCustomAssetModal({
                 return response.text();
             })
             .then((text) => {
-                if (userSourceTextArea) {
-                    userSourceTextArea.disabled = false;
-                    userSourceTextArea.value = text;
-                }
+                setCodeReadOnly(false);
+                setCodeValue(text);
             })
             .catch(() => {
-                if (userSourceTextArea) {
-                    userSourceTextArea.disabled = false;
-                    userSourceTextArea.value = "";
-                }
+                setCodeReadOnly(false);
+                setCodeValue("");
                 showToast?.("Unable to load script content.", "error");
             });
     };
 
     const handleFormSubmit = (formEvent) => {
         formEvent.preventDefault();
-        const src = userSourceTextArea?.value;
+        const src = getCodeSource();
         const error = getUserJavaScriptSourceError(src);
         if (error) {
             if (jsErrorTitle) {
@@ -169,6 +348,7 @@ export function createCustomAssetModal({
             if (formErrorWrapper) {
                 formErrorWrapper.classList.remove("hidden");
             }
+            codeEditor?.performLint?.();
             return false;
         }
         resetErrors();
@@ -221,6 +401,8 @@ export function createCustomAssetModal({
             });
         return false;
     };
+
+    createCodeEditor();
 
     if (launchModal) {
         launchModal.addEventListener("click", (event) => {
