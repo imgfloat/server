@@ -13,3 +13,5 @@
     - Source code
     - Logo (optional)
     - Assets (optional)
+* Set up staging server
+* Buy domain
