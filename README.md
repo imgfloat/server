@@ -17,6 +17,7 @@ Define the following required environment variables:
 | `IMGFLOAT_GITHUB_CLIENT_OWNER` | GitHub user or org which has the client repository | imgfloat |
 | `IMGFLOAT_GITHUB_CLIENT_REPO` | Client repository name | client |
 | `IMGFLOAT_GITHUB_CLIENT_VERSION` | Client release version used for download links | 1.2.3 |
+| `IMGFLOAT_TOKEN_ENCRYPTION_KEY` | Base64-encoded 256-bit (32 byte) key used to encrypt OAuth tokens at rest (store in a secret manager or KMS) | x5A8tS8Lk4q2qY0xRkz8r9bq2bx0R4A9a0m0k5Y8mCk= |
 | `SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE` | Maximum upload file size | 10MB |
 | `SPRING_SERVLET_MULTIPART_MAX_REQUEST_SIZE` | Maximum upload request size | 10MB |
 | `TWITCH_CLIENT_ID` | Oauth2 client id | i1bjnh4whieht5kzn307nvu3rn5pqi |
@@ -27,7 +28,10 @@ Optional:
 | Variable | Description | Example Value |
 |----------|-------------|---------------|
 | `IMGFLOAT_COMMIT_URL_PREFIX` | Git commit URL prefix used for the build link badge (unset to hide the badge) | https://github.com/imgfloat/server/commit/ |
+| `IMGFLOAT_TOKEN_ENCRYPTION_PREVIOUS_KEYS` | Comma-delimited base64 keys to allow decryption after key rotation (oldest last) | oldKey1==,oldKey2== |
 | `TWITCH_REDIRECT_URI` | Override default redirect URI | http://localhost:8080/login/oauth2/code/twitch |
+
+OAuth tokens are encrypted at rest using the key provided by `IMGFLOAT_TOKEN_ENCRYPTION_KEY`. Store this key in a secret manager or KMS and inject it via environment variables or a secret provider in production. When rotating keys, update `IMGFLOAT_TOKEN_ENCRYPTION_KEY` with the new key and populate `IMGFLOAT_TOKEN_ENCRYPTION_PREVIOUS_KEYS` with the old keys so existing tokens can be decrypted. After rotation, re-authenticate users or clear the `oauth2_authorized_client` table to re-encrypt tokens with the new key.
 
 During development environment variables can be placed in the `.env` file at the project root to automatically load them. Be aware that these are only loaded when using the [Makefile](./Makefile) command `make run`.
 
