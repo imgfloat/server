@@ -733,7 +733,9 @@ public class ChannelDirectoryService {
             BAD_REQUEST,
             "Canvas width out of range [0 to " + canvasMaxSizePixels + "]"
         );
-        if (req.getHeight() == null || req.getHeight() <= 0) throw new ResponseStatusException(
+        if (
+            req.getHeight() == null || req.getHeight() <= 0 || req.getHeight() > canvasMaxSizePixels
+        ) throw new ResponseStatusException(
             BAD_REQUEST,
             "Canvas height out of range [0 to " + canvasMaxSizePixels + "]"
         );
