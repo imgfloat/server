@@ -16,3 +16,6 @@
 * Set up staging server
 * Buy domain
 * Fix windows nt platform transparency
+* Migrate broadcast view to client repository
+    - Remove css and js references
+    - Find a way to configure a domain for the client
