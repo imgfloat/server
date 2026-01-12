@@ -17,7 +17,7 @@ Define the following required environment variables:
 | `IMGFLOAT_GITHUB_CLIENT_OWNER` | GitHub user or org which has the client repository | imgfloat |
 | `IMGFLOAT_GITHUB_CLIENT_REPO` | Client repository name | client |
 | `IMGFLOAT_GITHUB_CLIENT_VERSION` | Client release version used for download links | 1.2.3 |
-| `IMGFLOAT_TOKEN_ENCRYPTION_KEY` | Base64-encoded 256-bit (32 byte) key used to encrypt OAuth tokens at rest (store in a secret manager or KMS) | x5A8tS8Lk4q2qY0xRkz8r9bq2bx0R4A9a0m0k5Y8mCk= |
+| `IMGFLOAT_TOKEN_ENCRYPTION_KEY` | Base64/Base64URL-encoded 256-bit (32 byte) key used to encrypt OAuth tokens at rest (store in a secret manager or KMS) | x5A8tS8Lk4q2qY0xRkz8r9bq2bx0R4A9a0m0k5Y8mCk= |
 | `SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE` | Maximum upload file size | 10MB |
 | `SPRING_SERVLET_MULTIPART_MAX_REQUEST_SIZE` | Maximum upload request size | 10MB |
 | `TWITCH_CLIENT_ID` | Oauth2 client id | i1bjnh4whieht5kzn307nvu3rn5pqi |

@@ -126,12 +126,28 @@ public class OAuthTokenCipher {
     }
 
     private static SecretKey decodeKey(String base64Key, String source) {
-        byte[] decoded = Base64.getDecoder().decode(base64Key);
+        byte[] decoded = decodeBase64(base64Key, source);
         if (decoded.length != 32) {
             throw new IllegalArgumentException(
                 source + " must be a base64-encoded 256-bit (32 byte) key"
             );
         }
         return new SecretKeySpec(decoded, "AES");
+    }
+
+    private static byte[] decodeBase64(String base64Key, String source) {
+        try {
+            return Base64.getDecoder().decode(base64Key);
+        } catch (IllegalArgumentException ex) {
+            try {
+                return Base64.getUrlDecoder().decode(base64Key);
+            } catch (IllegalArgumentException urlEx) {
+                ex.addSuppressed(urlEx);
+                throw new IllegalArgumentException(
+                    source + " must be a base64-encoded 256-bit (32 byte) key",
+                    ex
+                );
+            }
+        }
     }
 }
