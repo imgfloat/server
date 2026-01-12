@@ -15,3 +15,4 @@
     - Assets (optional)
 * Set up staging server
 * Buy domain
+* Fix windows nt platform transparency
