@@ -2,6 +2,7 @@ package dev.kruhlmann.imgfloat.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
 import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClientService;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
@@ -14,9 +15,14 @@ public class OAuth2AuthorizedClientPersistenceConfig {
     @Bean
     OAuth2AuthorizedClientService oauth2AuthorizedClientService(
         JdbcOperations jdbcOperations,
-        ClientRegistrationRepository clientRegistrationRepository
+        ClientRegistrationRepository clientRegistrationRepository,
+        Environment environment
     ) {
-        return new SQLiteOAuth2AuthorizedClientService(jdbcOperations, clientRegistrationRepository);
+        return new SQLiteOAuth2AuthorizedClientService(
+            jdbcOperations,
+            clientRegistrationRepository,
+            OAuthTokenCipher.fromEnvironment(environment)
+        );
     }
 
     @Bean

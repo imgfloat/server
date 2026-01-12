@@ -18,6 +18,8 @@ import org.springframework.test.web.servlet.MockMvc;
     properties = {
         "spring.security.oauth2.client.registration.twitch.client-id=test-client-id",
         "spring.security.oauth2.client.registration.twitch.client-secret=test-client-secret",
+        "spring.datasource.url=jdbc:sqlite:target/test-${random.uuid}.db",
+        "IMGFLOAT_TOKEN_ENCRYPTION_KEY=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
     }
 )
 @AutoConfigureMockMvc

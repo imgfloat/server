@@ -12,6 +12,7 @@ import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.env.Environment;
 
 public class OAuthTokenCipher {
 
@@ -40,6 +41,28 @@ public class OAuthTokenCipher {
         keys.add(primaryKey);
 
         String previousKeys = System.getenv(PREVIOUS_KEYS_ENV);
+        if (previousKeys != null && !previousKeys.isBlank()) {
+            for (String value : previousKeys.split(",")) {
+                String trimmed = value.trim();
+                if (!trimmed.isEmpty()) {
+                    keys.add(decodeKey(trimmed, PREVIOUS_KEYS_ENV));
+                }
+            }
+        }
+
+        return new OAuthTokenCipher(primaryKey, keys);
+    }
+
+    public static OAuthTokenCipher fromEnvironment(Environment environment) {
+        String base64Key = environment.getProperty(KEY_ENV);
+        if (base64Key == null || base64Key.isBlank()) {
+            throw new IllegalStateException(KEY_ENV + " is required to encrypt OAuth tokens");
+        }
+        SecretKey primaryKey = decodeKey(base64Key, KEY_ENV);
+        List<SecretKey> keys = new ArrayList<>();
+        keys.add(primaryKey);
+
+        String previousKeys = environment.getProperty(PREVIOUS_KEYS_ENV);
         if (previousKeys != null && !previousKeys.isBlank()) {
             for (String value : previousKeys.split(",")) {
                 String trimmed = value.trim();
