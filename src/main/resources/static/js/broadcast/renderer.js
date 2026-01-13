@@ -24,6 +24,7 @@ export class BroadcastRenderer {
         this.scriptWorkerReady = false;
         this.scriptErrorKeys = new Set();
         this.scriptAttachmentCache = new Map();
+        this.chatMessages = [];
 
         this.obsBrowser = !!globalThis.obsstudio;
         this.supportsAnimatedDecode =
@@ -409,6 +410,7 @@ export class BroadcastRenderer {
             },
         );
         this.scriptWorkerReady = true;
+        this.updateScriptWorkerChatMessages();
     }
 
     updateScriptWorkerCanvas() {
@@ -422,6 +424,29 @@ export class BroadcastRenderer {
                 height: this.state.canvasSettings.height,
             },
         });
+    }
+
+    updateScriptWorkerChatMessages() {
+        if (!this.scriptWorker || !this.scriptWorkerReady) {
+            return;
+        }
+        this.scriptWorker.postMessage({
+            type: "chatMessages",
+            payload: {
+                messages: this.chatMessages,
+            },
+        });
+    }
+
+    receiveChatMessage(message) {
+        if (!message) {
+            return;
+        }
+        const now = Date.now();
+        const entry = { ...message, timestamp: now };
+        const cutoff = now - 120_000;
+        this.chatMessages = [...this.chatMessages, entry].filter((item) => item.timestamp >= cutoff);
+        this.updateScriptWorkerChatMessages();
     }
 
     extractScriptErrorLocation(stack, scriptId) {

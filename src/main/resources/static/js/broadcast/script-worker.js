@@ -9,6 +9,7 @@ const errorKeys = new Set();
 const allowedImportUrls = new Set();
 const nativeImportScripts = typeof self.importScripts === "function" ? self.importScripts.bind(self) : null;
 const sharedDependencyUrls = ["/js/vendor/three.min.js", "/js/vendor/GLTFLoader.js", "/js/vendor/OBJLoader.js"];
+let chatMessages = [];
 
 function normalizeUrl(url) {
     try {
@@ -137,6 +138,7 @@ function updateScriptContexts() {
         script.context.channelName = channelName;
         script.context.width = script.canvas?.width ?? 0;
         script.context.height = script.canvas?.height ?? 0;
+        script.context.chatMessages = chatMessages;
     });
 }
 
@@ -180,7 +182,7 @@ function stopTickLoopIfIdle() {
 
 function createScriptHandlers(source, context, state, sourceLabel = "") {
     const contextPrelude =
-        "const { canvas, ctx, channelName, width, height, now, deltaMs, elapsedMs, assets } = context;";
+        "const { canvas, ctx, channelName, width, height, now, deltaMs, elapsedMs, assets, chatMessages } = context;";
     const sourceUrl = sourceLabel ? `\n//# sourceURL=${sourceLabel}` : "";
     const factory = new Function(
         "context",
@@ -239,6 +241,7 @@ self.addEventListener("message", (event) => {
             deltaMs: 0,
             elapsedMs: 0,
             assets: Array.isArray(payload.attachments) ? payload.attachments : [],
+            chatMessages,
         };
         let handlers = {};
         try {
@@ -290,5 +293,10 @@ self.addEventListener("message", (event) => {
         }
         script.context.assets = Array.isArray(payload.attachments) ? payload.attachments : [];
         refreshAllowedFetchUrls();
+    }
+
+    if (type === "chatMessages") {
+        chatMessages = Array.isArray(payload?.messages) ? payload.messages : [];
+        updateScriptContexts();
     }
 });

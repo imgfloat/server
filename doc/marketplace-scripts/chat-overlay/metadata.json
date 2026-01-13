@@ -1,0 +1,5 @@
+{
+  "name": "Chat Overlay",
+  "description": "Render the last two minutes of Twitch chat messages on the broadcast canvas.",
+  "broadcaster": "System"
+}
