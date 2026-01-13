@@ -1,0 +1,4 @@
+{
+  "name": "Checkerboard test",
+  "description": "Animated checkerboard pattern with a moving offset to spot scaling artifacts."
+}

@@ -196,9 +196,9 @@ public class MarketplaceScriptSeedLoader {
         if (rootPath != null && !rootPath.isBlank()) {
             return Path.of(rootPath);
         }
-        Path devPath = Path.of("dev", "marketplace-scripts");
-        if (Files.isDirectory(devPath)) {
-            return devPath;
+        Path docsPath = Path.of("doc", "marketplace-scripts");
+        if (Files.isDirectory(docsPath)) {
+            return docsPath;
         }
         return null;
     }

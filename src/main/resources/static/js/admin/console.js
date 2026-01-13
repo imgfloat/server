@@ -1482,6 +1482,14 @@ export function createAdminConsole({
 
     function createPreviewElement(asset) {
         if (isCodeAsset(asset)) {
+            if (asset.logoUrl) {
+                const img = document.createElement("img");
+                img.className = "asset-preview";
+                img.src = asset.logoUrl;
+                img.alt = asset.name || "Script logo";
+                img.loading = "lazy";
+                return img;
+            }
             const icon = document.createElement("div");
             icon.className = "asset-preview code-icon";
             icon.innerHTML = '<i class="fa-solid fa-code" aria-hidden="true"></i>';

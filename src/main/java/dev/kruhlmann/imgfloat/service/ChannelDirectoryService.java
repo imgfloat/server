@@ -643,6 +643,7 @@ public class ChannelDirectoryService {
         }
 
         script.setAttachments(loadScriptAttachments(asset.getBroadcaster(), asset.getId(), null));
+        scriptAssetRepository.save(script);
         AssetView view = AssetView.fromScript(asset.getBroadcaster(), asset, script);
         messagingTemplate.convertAndSend(topicFor(targetBroadcaster), AssetEvent.created(targetBroadcaster, view));
         return Optional.of(view);
