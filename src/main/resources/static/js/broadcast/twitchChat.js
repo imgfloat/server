@@ -47,6 +47,7 @@ const parseIrcMessage = (rawLine) => {
         params,
         prefix,
         tags,
+        raw: rawLine,
     };
 };
 
@@ -64,6 +65,9 @@ const extractChatMessage = (ircMessage) => {
         channel,
         displayName,
         message,
+        tags: ircMessage.tags,
+        prefix: ircMessage.prefix,
+        raw: ircMessage.raw,
     };
 };
 
@@ -80,7 +84,7 @@ export const connectTwitchChat = (channelName, onMessage = console.log) => {
     socket.addEventListener("open", () => {
         socket.send(`PASS ${ANON_PASSWORD}`);
         socket.send(`NICK ${nick}`);
-        socket.send("CAP REQ :twitch.tv/tags twitch.tv/commands");
+        socket.send("CAP REQ :twitch.tv/tags twitch.tv/commands twitch.tv/membership");
         socket.send(`JOIN #${normalizedChannel}`);
     });
 
@@ -102,6 +106,9 @@ export const connectTwitchChat = (channelName, onMessage = console.log) => {
                     channel: chatMessage.channel,
                     displayName: chatMessage.displayName,
                     message: chatMessage.message,
+                    tags: chatMessage.tags,
+                    prefix: chatMessage.prefix,
+                    raw: chatMessage.raw,
                 });
             }
         });
