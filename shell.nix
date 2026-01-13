@@ -6,5 +6,6 @@ pkgs.mkShell {
     pkgs.libxkbcommon
     pkgs.maven
     pkgs.openjdk
+    pkgs.git-lfs
   ];
 }
