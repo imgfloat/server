@@ -24,6 +24,7 @@ export class BroadcastRenderer {
         this.scriptWorkerReady = false;
         this.scriptErrorKeys = new Set();
         this.scriptAttachmentCache = new Map();
+        this.scriptAttachmentsByAssetId = new Map();
         this.chatMessages = [];
 
         this.obsBrowser = !!globalThis.obsstudio;
@@ -470,6 +471,10 @@ export class BroadcastRenderer {
 
     handleScriptWorkerMessage(event) {
         const { type, payload } = event.data || {};
+        if (type === "scriptAudio") {
+            this.playScriptAudio(payload);
+            return;
+        }
         if (type !== "scriptError" || !payload?.id) {
             return;
         }
@@ -519,6 +524,8 @@ export class BroadcastRenderer {
             console.error(`Unable to fetch asset ${asset.id} from ${asset.url}`, error);
             return;
         }
+        const attachments = await this.resolveScriptAttachments(asset.scriptAttachments);
+        this.scriptAttachmentsByAssetId.set(asset.id, attachments);
         this.scriptWorker.postMessage({
             type: "addScript",
             payload: {
@@ -527,7 +534,7 @@ export class BroadcastRenderer {
                 canvas: offscreen,
                 width: scriptCanvas.width,
                 height: scriptCanvas.height,
-                attachments: await this.resolveScriptAttachments(asset.scriptAttachments),
+                attachments,
             },
         }, [offscreen]);
     }
@@ -536,11 +543,13 @@ export class BroadcastRenderer {
         if (!this.scriptWorker || !this.scriptWorkerReady || !asset?.id) {
             return;
         }
+        const attachments = await this.resolveScriptAttachments(asset.scriptAttachments);
+        this.scriptAttachmentsByAssetId.set(asset.id, attachments);
         this.scriptWorker.postMessage({
             type: "updateAttachments",
             payload: {
                 id: asset.id,
-                attachments: await this.resolveScriptAttachments(asset.scriptAttachments),
+                attachments,
             },
         });
     }
@@ -553,7 +562,27 @@ export class BroadcastRenderer {
             type: "removeScript",
             payload: { id: assetId },
         });
+        this.scriptAttachmentsByAssetId.delete(assetId);
         this.removeScriptCanvas(assetId);
+    }
+
+    playScriptAudio(payload) {
+        if (!payload?.scriptId || !payload?.attachmentId) {
+            return;
+        }
+        const attachments = this.scriptAttachmentsByAssetId.get(payload.scriptId);
+        if (!Array.isArray(attachments)) {
+            return;
+        }
+        const attachment = attachments.find((item) => item?.id === payload.attachmentId);
+        if (!attachment?.url || !attachment?.mediaType?.startsWith("audio/")) {
+            return;
+        }
+        const audioAsset = {
+            id: `script-${payload.scriptId}-${attachment.id}`,
+            url: attachment.url,
+        };
+        this.audioManager.playAudioImmediately(audioAsset);
     }
 
     ensureScriptCanvas(assetId) {

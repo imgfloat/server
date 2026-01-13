@@ -1,5 +1,4 @@
 {
   "name": "Teapot 3D Viewer",
-  "description": "Renders the classic Utah teapot using a 3D model attachment.",
-  "broadcaster": "System"
+  "description": "Renders the classic Utah teapot using a 3D model attachment."
 }

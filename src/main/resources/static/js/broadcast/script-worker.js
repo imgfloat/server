@@ -182,7 +182,7 @@ function stopTickLoopIfIdle() {
 
 function createScriptHandlers(source, context, state, sourceLabel = "") {
     const contextPrelude =
-        "const { canvas, ctx, channelName, width, height, now, deltaMs, elapsedMs, assets, chatMessages } = context;";
+        "const { canvas, ctx, channelName, width, height, now, deltaMs, elapsedMs, assets, chatMessages, playAudio } = context;";
     const sourceUrl = sourceLabel ? `\n//# sourceURL=${sourceLabel}` : "";
     const factory = new Function(
         "context",
@@ -242,6 +242,19 @@ self.addEventListener("message", (event) => {
             elapsedMs: 0,
             assets: Array.isArray(payload.attachments) ? payload.attachments : [],
             chatMessages,
+            playAudio: (attachment) => {
+                const attachmentId = typeof attachment === "string" ? attachment : attachment?.id;
+                if (!attachmentId) {
+                    return;
+                }
+                self.postMessage({
+                    type: "scriptAudio",
+                    payload: {
+                        scriptId: payload.id,
+                        attachmentId,
+                    },
+                });
+            },
         };
         let handlers = {};
         try {
