@@ -35,10 +35,13 @@ import dev.kruhlmann.imgfloat.service.media.MediaDetectionService;
 import dev.kruhlmann.imgfloat.service.media.MediaOptimizationService;
 import dev.kruhlmann.imgfloat.service.media.OptimizedAsset;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
@@ -69,6 +72,7 @@ public class ChannelDirectoryService {
     private final MediaOptimizationService mediaOptimizationService;
     private final SettingsService settingsService;
     private final long uploadLimitBytes;
+    private final MarketplaceScriptSeedLoader marketplaceScriptSeedLoader;
 
     @Autowired
     public ChannelDirectoryService(
@@ -84,7 +88,8 @@ public class ChannelDirectoryService {
         MediaDetectionService mediaDetectionService,
         MediaOptimizationService mediaOptimizationService,
         SettingsService settingsService,
-        long uploadLimitBytes
+        long uploadLimitBytes,
+        MarketplaceScriptSeedLoader marketplaceScriptSeedLoader
     ) {
         this.channelRepository = channelRepository;
         this.assetRepository = assetRepository;
@@ -99,6 +104,7 @@ public class ChannelDirectoryService {
         this.mediaOptimizationService = mediaOptimizationService;
         this.settingsService = settingsService;
         this.uploadLimitBytes = uploadLimitBytes;
+        this.marketplaceScriptSeedLoader = marketplaceScriptSeedLoader;
     }
 
     public Channel getOrCreateChannel(String broadcaster) {
@@ -426,8 +432,7 @@ public class ChannelDirectoryService {
     public List<ScriptMarketplaceEntry> listMarketplaceScripts(String query) {
         String q = normalizeDescription(query);
         String normalizedQuery = q == null ? null : q.toLowerCase(Locale.ROOT);
-        List<ScriptMarketplaceEntry> entries = new ArrayList<>();
-        DefaultMarketplaceScript.entryForQuery(normalizedQuery).ifPresent(entries::add);
+        List<ScriptMarketplaceEntry> entries = new ArrayList<>(marketplaceScriptSeedLoader.listEntriesForQuery(normalizedQuery));
         List<ScriptAsset> scripts;
         try {
             scripts = scriptAssetRepository.findByIsPublicTrue();
@@ -484,8 +489,9 @@ public class ChannelDirectoryService {
     }
 
     public Optional<AssetContent> getMarketplaceLogo(String scriptId) {
-        if (DefaultMarketplaceScript.matches(scriptId)) {
-            return DefaultMarketplaceScript.logoContent();
+        Optional<MarketplaceScriptSeedLoader.SeedScript> seedScript = marketplaceScriptSeedLoader.findById(scriptId);
+        if (seedScript.isPresent()) {
+            return seedScript.get().loadLogo();
         }
         try {
             return scriptAssetRepository
@@ -503,8 +509,9 @@ public class ChannelDirectoryService {
     }
 
     public Optional<AssetView> importMarketplaceScript(String targetBroadcaster, String scriptId) {
-        if (DefaultMarketplaceScript.matches(scriptId)) {
-            return importDefaultMarketplaceScript(targetBroadcaster);
+        Optional<MarketplaceScriptSeedLoader.SeedScript> seedScript = marketplaceScriptSeedLoader.findById(scriptId);
+        if (seedScript.isPresent()) {
+            return importSeedMarketplaceScript(targetBroadcaster, seedScript.get());
         }
         ScriptAsset sourceScript;
         try {
@@ -573,10 +580,12 @@ public class ChannelDirectoryService {
         return Optional.of(view);
     }
 
-    private Optional<AssetView> importDefaultMarketplaceScript(String targetBroadcaster) {
-        AssetContent sourceContent = DefaultMarketplaceScript.sourceContent().orElse(null);
-        AssetContent attachmentContent = DefaultMarketplaceScript.attachmentContent().orElse(null);
-        if (sourceContent == null || attachmentContent == null) {
+    private Optional<AssetView> importSeedMarketplaceScript(
+        String targetBroadcaster,
+        MarketplaceScriptSeedLoader.SeedScript seedScript
+    ) {
+        AssetContent sourceContent = seedScript.loadSource().orElse(null);
+        if (sourceContent == null) {
             return Optional.empty();
         }
 
@@ -598,6 +607,72 @@ public class ChannelDirectoryService {
         assetRepository.save(asset);
         scriptAssetFileRepository.save(sourceFile);
 
+        ScriptAsset script = new ScriptAsset(asset.getId(), seedScript.name());
+        script.setDescription(seedScript.description());
+        script.setPublic(false);
+        script.setMediaType(sourceContent.mediaType());
+        script.setOriginalMediaType(sourceContent.mediaType());
+        script.setSourceFileId(sourceFile.getId());
+        script.setAttachments(List.of());
+        scriptAssetRepository.save(script);
+
+        String logoFileId = seedScript
+            .loadLogo()
+            .map((logoContent) -> storeScriptAttachmentFile(asset, logoContent))
+            .orElse(null);
+
+        List<ScriptAssetAttachment> attachments = new ArrayList<>();
+        if (logoFileId != null) {
+            script.setLogoFileId(logoFileId);
+        }
+        for (MarketplaceScriptSeedLoader.SeedAttachment attachment : seedScript.attachments()) {
+            AssetContent attachmentContent = loadSeedAttachment(attachment).orElse(null);
+            if (attachmentContent == null) {
+                continue;
+            }
+            String attachmentFileId = storeScriptAttachmentFile(asset, attachmentContent);
+            ScriptAssetAttachment scriptAttachment = new ScriptAssetAttachment(asset.getId(), attachment.name());
+            scriptAttachment.setFileId(attachmentFileId);
+            scriptAttachment.setMediaType(attachmentContent.mediaType());
+            scriptAttachment.setOriginalMediaType(attachmentContent.mediaType());
+            scriptAttachment.setAssetType(AssetType.IMAGE);
+            attachments.add(scriptAttachment);
+        }
+        if (!attachments.isEmpty()) {
+            scriptAssetAttachmentRepository.saveAll(attachments);
+        }
+
+        script.setAttachments(loadScriptAttachments(asset.getBroadcaster(), asset.getId(), null));
+        AssetView view = AssetView.fromScript(asset.getBroadcaster(), asset, script);
+        messagingTemplate.convertAndSend(topicFor(targetBroadcaster), AssetEvent.created(targetBroadcaster, view));
+        return Optional.of(view);
+    }
+
+    private Optional<AssetContent> loadSeedAttachment(MarketplaceScriptSeedLoader.SeedAttachment attachment) {
+        AtomicReference<byte[]> cache = attachment.bytes();
+        byte[] bytes = cache.get();
+        if (bytes == null) {
+            bytes = readSeedAttachment(attachment.path()).orElse(null);
+            if (bytes != null) {
+                cache.set(bytes);
+            }
+        }
+        if (bytes == null) {
+            return Optional.empty();
+        }
+        return Optional.of(new AssetContent(bytes, attachment.mediaType()));
+    }
+
+    private Optional<byte[]> readSeedAttachment(Path path) {
+        try {
+            return Optional.of(Files.readAllBytes(path));
+        } catch (IOException ex) {
+            logger.warn("Failed to read marketplace attachment {}", path, ex);
+            return Optional.empty();
+        }
+    }
+
+    private String storeScriptAttachmentFile(Asset asset, AssetContent attachmentContent) {
         ScriptAssetFile attachmentFile = new ScriptAssetFile(asset.getBroadcaster(), AssetType.IMAGE);
         attachmentFile.setMediaType(attachmentContent.mediaType());
         attachmentFile.setOriginalMediaType(attachmentContent.mediaType());
@@ -612,28 +687,7 @@ public class ChannelDirectoryService {
             throw new ResponseStatusException(BAD_REQUEST, "Unable to store script attachment", e);
         }
         scriptAssetFileRepository.save(attachmentFile);
-
-        ScriptAsset script = new ScriptAsset(asset.getId(), DefaultMarketplaceScript.SCRIPT_NAME);
-        script.setDescription(DefaultMarketplaceScript.SCRIPT_DESCRIPTION);
-        script.setPublic(false);
-        script.setMediaType(sourceContent.mediaType());
-        script.setOriginalMediaType(sourceContent.mediaType());
-        script.setSourceFileId(sourceFile.getId());
-        script.setLogoFileId(attachmentFile.getId());
-        script.setAttachments(List.of());
-        scriptAssetRepository.save(script);
-
-        ScriptAssetAttachment attachment = new ScriptAssetAttachment(asset.getId(), DefaultMarketplaceScript.ATTACHMENT_NAME);
-        attachment.setFileId(attachmentFile.getId());
-        attachment.setMediaType(attachmentContent.mediaType());
-        attachment.setOriginalMediaType(attachmentContent.mediaType());
-        attachment.setAssetType(AssetType.IMAGE);
-        scriptAssetAttachmentRepository.save(attachment);
-
-        script.setAttachments(loadScriptAttachments(asset.getBroadcaster(), asset.getId(), null));
-        AssetView view = AssetView.fromScript(asset.getBroadcaster(), asset, script);
-        messagingTemplate.convertAndSend(topicFor(targetBroadcaster), AssetEvent.created(targetBroadcaster, view));
-        return Optional.of(view);
+        return attachmentFile.getId();
     }
 
     private String sanitizeFilename(String original) {

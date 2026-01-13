@@ -13,3 +13,5 @@ src/main/resources/assets/icon/linux/16x16.png filter=lfs diff=lfs merge=lfs -te
 doc/demo.webm filter=lfs diff=lfs merge=lfs -text
 doc/raw.png filter=lfs diff=lfs merge=lfs -text
 doc/raw.xcf filter=lfs diff=lfs merge=lfs -text
+dev/marketplace-scripts/rotating-logo/attachments/rotate.png filter=lfs diff=lfs merge=lfs -text
+dev/marketplace-scripts/rotating-logo/logo.png filter=lfs diff=lfs merge=lfs -text

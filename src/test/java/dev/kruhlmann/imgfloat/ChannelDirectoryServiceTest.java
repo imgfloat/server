@@ -26,7 +26,7 @@ import dev.kruhlmann.imgfloat.repository.ScriptAssetFileRepository;
 import dev.kruhlmann.imgfloat.repository.VisualAssetRepository;
 import dev.kruhlmann.imgfloat.service.AssetStorageService;
 import dev.kruhlmann.imgfloat.service.ChannelDirectoryService;
-import dev.kruhlmann.imgfloat.service.DefaultMarketplaceScript;
+import dev.kruhlmann.imgfloat.service.MarketplaceScriptSeedLoader;
 import dev.kruhlmann.imgfloat.service.SettingsService;
 import dev.kruhlmann.imgfloat.service.media.MediaDetectionService;
 import dev.kruhlmann.imgfloat.service.media.MediaOptimizationService;
@@ -62,6 +62,7 @@ class ChannelDirectoryServiceTest {
     private ScriptAssetAttachmentRepository scriptAssetAttachmentRepository;
     private ScriptAssetFileRepository scriptAssetFileRepository;
     private SettingsService settingsService;
+    private MarketplaceScriptSeedLoader marketplaceScriptSeedLoader;
 
     @BeforeEach
     void setup() throws Exception {
@@ -83,6 +84,23 @@ class ChannelDirectoryServiceTest {
         MediaOptimizationService mediaOptimizationService = new MediaOptimizationService(mediaPreviewService);
         MediaDetectionService mediaDetectionService = new MediaDetectionService();
         long uploadLimitBytes = 5_000_000L;
+        Path marketplaceRoot = Files.createTempDirectory("imgfloat-marketplace-test");
+        Path scriptRoot = marketplaceRoot.resolve("rotating-logo");
+        Files.createDirectories(scriptRoot);
+        Files.createDirectories(scriptRoot.resolve("attachments"));
+        Files.writeString(
+            scriptRoot.resolve("metadata.json"),
+            """
+            {
+              "name": "Rotating logo",
+              "description": "Renders the Imgfloat logo and rotates it every tick."
+            }
+            """
+        );
+        Files.writeString(scriptRoot.resolve("source.js"), "console.log('seeded');");
+        Files.write(scriptRoot.resolve("logo.png"), samplePng());
+        Files.write(scriptRoot.resolve("attachments/rotate.png"), samplePng());
+        marketplaceScriptSeedLoader = new MarketplaceScriptSeedLoader(marketplaceRoot.toString());
         service = new ChannelDirectoryService(
             channelRepository,
             assetRepository,
@@ -96,7 +114,8 @@ class ChannelDirectoryServiceTest {
             mediaDetectionService,
             mediaOptimizationService,
             settingsService,
-            uploadLimitBytes
+            uploadLimitBytes,
+            marketplaceScriptSeedLoader
         );
     }
 
@@ -185,7 +204,7 @@ class ChannelDirectoryServiceTest {
         List<dev.kruhlmann.imgfloat.model.ScriptMarketplaceEntry> entries = service.listMarketplaceScripts(null);
 
         assertThat(entries)
-            .anyMatch((entry) -> DefaultMarketplaceScript.SCRIPT_ID.equals(entry.id()));
+            .anyMatch((entry) -> "rotating-logo".equals(entry.id()));
     }
 
     private byte[] samplePng() throws IOException {

@@ -1,0 +1,4 @@
+{
+  "name": "Rotating logo",
+  "description": "Renders the Imgfloat logo and rotates it every tick."
+}

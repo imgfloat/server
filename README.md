@@ -28,6 +28,7 @@ Optional:
 | Variable | Description | Example Value |
 |----------|-------------|---------------|
 | `IMGFLOAT_COMMIT_URL_PREFIX` | Git commit URL prefix used for the build link badge (unset to hide the badge) | https://github.com/imgfloat/server/commit/ |
+| `IMGFLOAT_MARKETPLACE_SCRIPTS_PATH` | Filesystem path to marketplace script seed directories (each containing `metadata.json`, optional `source.js`, optional `logo.png`, and optional `attachments/`) | /var/imgfloat/marketplace-scripts |
 | `TWITCH_REDIRECT_URI` | Override default redirect URI | http://localhost:8080/login/oauth2/code/twitch |
 | `IMGFLOAT_TOKEN_ENCRYPTION_PREVIOUS_KEYS` | Comma-delimited base64 keys to allow decryption after key rotation (oldest last) | oldKey1==,oldKey2== |
 
@@ -45,6 +46,35 @@ IMGFLOAT_GITHUB_CLIENT_REPO=...
 IMGFLOAT_GITHUB_CLIENT_VERSION=...
 IMGFLOAT_INITIAL_TWITCH_USERNAME_SYSADMIN=...
 ```
+
+### Marketplace seed scripts
+
+To pre-seed marketplace scripts from the filesystem, set `IMGFLOAT_MARKETPLACE_SCRIPTS_PATH` to a directory of script seed folders. Each folder name can be anything (it is not used for display); the folder name is the listing identifier and the metadata controls the title.
+
+Each script folder supports the following structure (files marked optional can be omitted). The folder name is used as the marketplace script identifier, so keep it stable even if the display name changes:
+
+```
+marketplace-scripts/
+  <any-folder-name>/
+    metadata.json            # required
+    source.js                # required (script source)
+    logo.png                 # optional (logo image)
+    attachments/             # optional (additional attachments)
+      <any-filename>
+      rotate.png             # optional (example attachment copied from logo)
+```
+
+`metadata.json` fields:
+
+```json
+{
+  "name": "Script display name",
+  "description": "Short description",
+  "broadcaster": "Optional display name (defaults to System)"
+}
+```
+
+Only `name` is required. The folder name is used to identify the marketplace listing; when a script is imported, the asset receives a new generated ID. If `broadcaster` is omitted or blank, the script will be listed as coming from `System`. Media types are inferred from the files on disk. Attachments are loaded from the `attachments/` folder and appear in the imported script's attachments list, referenced by filename (for example `rotate.png`). Attachment filenames must be unique within a script. The logo is optional and remains separate from attachments; if you want to use the same image inside the script, add a copy of it under `attachments/`.
 
 ### Build and run
 
