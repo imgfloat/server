@@ -1,28 +1,78 @@
 const MAX_LINES = 8;
 const PADDING = 16;
 const LINE_HEIGHT = 22;
+const EMOTE_SIZE = 18;
 const FONT = "16px 'Helvetica Neue', Arial, sans-serif";
 
-function wrapLine(ctx, text, maxWidth) {
-    if (!text) {
-        return [""];
+function ensureEmoteCache(state) {
+    if (!state.emoteCache) {
+        state.emoteCache = new Map();
     }
-    const words = text.split(" ");
-    const lines = [];
-    let current = "";
-    words.forEach((word) => {
-        const test = current ? `${current} ${word}` : word;
-        if (ctx.measureText(test).width > maxWidth && current) {
-            lines.push(current);
-            current = word;
-        } else {
-            current = test;
+    return state.emoteCache;
+}
+
+function getEmoteBitmap(url, state) {
+    if (!url) {
+        return null;
+    }
+    const cache = ensureEmoteCache(state);
+    const existing = cache.get(url);
+    if (existing?.bitmap) {
+        return existing.bitmap;
+    }
+    if (existing?.loading) {
+        return null;
+    }
+    const entry = { loading: true, bitmap: null };
+    cache.set(url, entry);
+    fetch(url)
+        .then((response) => {
+            if (!response.ok) {
+                throw new Error("Failed to load emote");
+            }
+            return response.blob();
+        })
+        .then((blob) => createImageBitmap(blob))
+        .then((bitmap) => {
+            entry.bitmap = bitmap;
+            entry.loading = false;
+        })
+        .catch(() => {
+            cache.delete(url);
+        });
+    return null;
+}
+
+function normalizeFragments(message) {
+    if (Array.isArray(message?.fragments) && message.fragments.length) {
+        return message.fragments;
+    }
+    const text = message?.message || "";
+    return [{ type: "text", text }];
+}
+
+function tokenizeFragments(fragments) {
+    const tokens = [];
+    fragments.forEach((fragment) => {
+        if (fragment?.type === "emote" && fragment?.url) {
+            tokens.push({
+                type: "emote",
+                url: fragment.url,
+                text: fragment.text || fragment.name || "",
+                width: EMOTE_SIZE,
+            });
+            return;
         }
+        const text = fragment?.text || "";
+        const words = text.split(" ");
+        words.forEach((word, index) => {
+            const value = index < words.length - 1 ? `${word} ` : word;
+            if (value) {
+                tokens.push({ type: "text", text: value });
+            }
+        });
     });
-    if (current) {
-        lines.push(current);
-    }
-    return lines;
+    return tokens;
 }
 
 function formatLines(messages, ctx, width) {
@@ -30,66 +80,58 @@ function formatLines(messages, ctx, width) {
     const lines = [];
     messages.forEach((message) => {
         const prefixText = message.displayName ? `${message.displayName}: ` : "";
-        const bodyText = message.message || "";
         const nameColor = message.tags?.color || "#ffffff";
-        if (!prefixText) {
-            wrapLine(ctx, bodyText, maxWidth).forEach((line) =>
-                lines.push({
-                    prefixText: "",
-                    prefixWidth: 0,
-                    nameColor,
-                    text: line,
-                }),
-            );
+        const prefixWidth = ctx.measureText(prefixText).width;
+        const tokens = tokenizeFragments(normalizeFragments(message));
+        if (!tokens.length) {
+            lines.push({
+                prefixText,
+                prefixWidth,
+                nameColor,
+                fragments: [],
+                contentWidth: 0,
+            });
             return;
         }
 
-        const prefixWidth = ctx.measureText(prefixText).width;
-        const words = bodyText.split(" ");
-        let current = "";
         let isFirstLine = true;
-        let availableWidth = Math.max(maxWidth - prefixWidth, 0);
+        let availableWidth = Math.max(maxWidth - (prefixText ? prefixWidth : 0), 0);
+        let currentFragments = [];
+        let currentWidth = 0;
 
         const flushLine = () => {
             lines.push({
                 prefixText: isFirstLine ? prefixText : "",
                 prefixWidth: isFirstLine ? prefixWidth : 0,
                 nameColor,
-                text: current,
+                fragments: currentFragments,
+                contentWidth: currentWidth,
             });
-            current = "";
+            currentFragments = [];
+            currentWidth = 0;
             isFirstLine = false;
             availableWidth = maxWidth;
         };
 
-        if (!words.length || !bodyText.trim()) {
-            lines.push({
-                prefixText,
-                prefixWidth,
-                nameColor,
-                text: "",
-            });
-            return;
-        }
-
-        words.forEach((word) => {
-            const test = current ? `${current} ${word}` : word;
-            if (ctx.measureText(test).width > availableWidth && current) {
+        tokens.forEach((token) => {
+            const tokenWidth =
+                token.type === "emote" ? token.width : ctx.measureText(token.text || "").width;
+            if (tokenWidth > availableWidth && currentFragments.length) {
                 flushLine();
-                current = word;
-            } else {
-                current = test;
             }
+            currentFragments.push({ ...token, width: tokenWidth });
+            currentWidth += tokenWidth;
+            availableWidth = Math.max(availableWidth - tokenWidth, 0);
         });
 
-        if (current) {
+        if (currentFragments.length) {
             flushLine();
         }
     });
     return lines.slice(-MAX_LINES);
 }
 
-function tick(context) {
+function tick(context, state) {
     const { ctx, width, height, chatMessages } = context;
     if (!ctx) {
         return;
@@ -105,10 +147,7 @@ function tick(context) {
 
     const lines = formatLines(messages, ctx, width);
     const boxHeight = lines.length * LINE_HEIGHT + PADDING * 2;
-    const boxWidth = Math.max(
-        ...lines.map((line) => line.prefixWidth + ctx.measureText(line.text).width),
-        120,
-    );
+    const boxWidth = Math.max(...lines.map((line) => line.prefixWidth + line.contentWidth), 120);
 
     ctx.fillStyle = "rgba(0, 0, 0, 0.55)";
     ctx.fillRect(PADDING, height - boxHeight - PADDING, boxWidth + PADDING * 2, boxHeight);
@@ -120,7 +159,25 @@ function tick(context) {
             ctx.fillStyle = line.nameColor || "#ffffff";
             ctx.fillText(line.prefixText, x, y);
         }
-        ctx.fillStyle = "#ffffff";
-        ctx.fillText(line.text, x + line.prefixWidth, y);
+        let cursorX = x + line.prefixWidth;
+        line.fragments.forEach((fragment) => {
+            if (fragment.type === "emote" && fragment.url) {
+                const bitmap = getEmoteBitmap(fragment.url, state);
+                if (bitmap) {
+                    const yOffset = y + (LINE_HEIGHT - EMOTE_SIZE) / 2;
+                    ctx.drawImage(bitmap, cursorX, yOffset, EMOTE_SIZE, EMOTE_SIZE);
+                } else if (fragment.text) {
+                    ctx.fillStyle = "#ffffff";
+                    ctx.fillText(fragment.text, cursorX, y);
+                }
+                cursorX += fragment.width;
+                return;
+            }
+            if (fragment.text) {
+                ctx.fillStyle = "#ffffff";
+                ctx.fillText(fragment.text, cursorX, y);
+            }
+            cursorX += fragment.width;
+        });
     });
 }

@@ -26,6 +26,9 @@ export class BroadcastRenderer {
         this.scriptAttachmentCache = new Map();
         this.scriptAttachmentsByAssetId = new Map();
         this.chatMessages = [];
+        this.emoteCatalog = [];
+        this.emoteCatalogById = new Map();
+        this.lastChatPruneAt = 0;
 
         this.obsBrowser = !!globalThis.obsstudio;
         this.supportsAnimatedDecode =
@@ -322,6 +325,11 @@ export class BroadcastRenderer {
     }
 
     renderFrame() {
+        const now = Date.now();
+        if (now - this.lastChatPruneAt > 1000) {
+            this.lastChatPruneAt = now;
+            this.pruneChatMessages(now);
+        }
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         getRenderOrder(this.state).forEach((asset) => this.drawAsset(asset));
     }
@@ -412,6 +420,7 @@ export class BroadcastRenderer {
         );
         this.scriptWorkerReady = true;
         this.updateScriptWorkerChatMessages();
+        this.updateScriptWorkerEmoteCatalog();
     }
 
     updateScriptWorkerCanvas() {
@@ -439,14 +448,119 @@ export class BroadcastRenderer {
         });
     }
 
+    updateScriptWorkerEmoteCatalog() {
+        if (!this.scriptWorker || !this.scriptWorkerReady) {
+            return;
+        }
+        this.scriptWorker.postMessage({
+            type: "emoteCatalog",
+            payload: {
+                emotes: this.emoteCatalog,
+            },
+        });
+    }
+
+    setEmoteCatalog(catalog) {
+        const globalEmotes = Array.isArray(catalog?.global) ? catalog.global : [];
+        const channelEmotes = Array.isArray(catalog?.channel) ? catalog.channel : [];
+        this.emoteCatalog = [...globalEmotes, ...channelEmotes];
+        this.emoteCatalogById = new Map(
+            this.emoteCatalog.map((entry) => [String(entry?.id || ""), entry]).filter(([key]) => key),
+        );
+        if (this.chatMessages.length) {
+            this.chatMessages = this.chatMessages.map((message) => {
+                if (!Array.isArray(message.fragments)) {
+                    return message;
+                }
+                const fragments = message.fragments.map((fragment) => {
+                    if (fragment.type !== "emote" || fragment.url) {
+                        return fragment;
+                    }
+                    const emoteInfo = this.emoteCatalogById.get(String(fragment.id));
+                    if (!emoteInfo) {
+                        return fragment;
+                    }
+                    return { ...fragment, url: emoteInfo.url, name: emoteInfo.name || fragment.name };
+                });
+                return { ...message, fragments };
+            });
+            this.updateScriptWorkerChatMessages();
+        }
+        this.updateScriptWorkerEmoteCatalog();
+    }
+
+    pruneChatMessages(now = Date.now()) {
+        const cutoff = now - 120_000;
+        const pruned = this.chatMessages.filter((item) => item.timestamp >= cutoff);
+        if (pruned.length !== this.chatMessages.length) {
+            this.chatMessages = pruned;
+            this.updateScriptWorkerChatMessages();
+        }
+    }
+
+    parseEmoteOffsets(rawEmotes) {
+        if (!rawEmotes) {
+            return [];
+        }
+        return rawEmotes
+            .split("/")
+            .flatMap((emoteEntry) => {
+                if (!emoteEntry) {
+                    return [];
+                }
+                const [id, positions] = emoteEntry.split(":");
+                if (!id || !positions) {
+                    return [];
+                }
+                return positions.split(",").map((range) => {
+                    const [start, end] = range.split("-").map((value) => Number.parseInt(value, 10));
+                    return Number.isFinite(start) && Number.isFinite(end) ? { id, start, end } : null;
+                });
+            })
+            .filter(Boolean);
+    }
+
+    buildMessageFragments(message, tags) {
+        if (!message) {
+            return [];
+        }
+        const emotes = this.parseEmoteOffsets(tags?.emotes);
+        if (!emotes.length) {
+            return [{ type: "text", text: message }];
+        }
+        const sorted = emotes.sort((a, b) => a.start - b.start);
+        const fragments = [];
+        let cursor = 0;
+        sorted.forEach((emote) => {
+            if (emote.start > cursor) {
+                fragments.push({ type: "text", text: message.slice(cursor, emote.start) });
+            }
+            const emoteText = message.slice(emote.start, emote.end + 1);
+            const emoteInfo = this.emoteCatalogById.get(String(emote.id));
+            fragments.push({
+                type: "emote",
+                id: emote.id,
+                text: emoteText,
+                name: emoteInfo?.name || emoteText,
+                url: emoteInfo?.url || null,
+            });
+            cursor = emote.end + 1;
+        });
+        if (cursor < message.length) {
+            fragments.push({ type: "text", text: message.slice(cursor) });
+        }
+        return fragments;
+    }
+
     receiveChatMessage(message) {
         if (!message) {
             return;
         }
         const now = Date.now();
-        const entry = { ...message, timestamp: now };
-        const cutoff = now - 120_000;
-        this.chatMessages = [...this.chatMessages, entry].filter((item) => item.timestamp >= cutoff);
+        const fragments = this.buildMessageFragments(message.message || "", message.tags);
+        const entry = { ...message, fragments, timestamp: now };
+        this.chatMessages = [...this.chatMessages, entry];
+        this.pruneChatMessages(now);
         this.updateScriptWorkerChatMessages();
     }
 

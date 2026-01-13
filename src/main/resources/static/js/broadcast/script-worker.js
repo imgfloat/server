@@ -10,6 +10,7 @@ const allowedImportUrls = new Set();
 const nativeImportScripts = typeof self.importScripts === "function" ? self.importScripts.bind(self) : null;
 const sharedDependencyUrls = ["/js/vendor/three.min.js", "/js/vendor/GLTFLoader.js", "/js/vendor/OBJLoader.js"];
 let chatMessages = [];
+let emoteCatalog = [];
 
 function normalizeUrl(url) {
     try {
@@ -39,48 +40,6 @@ function importAllowedScripts(...urls) {
     return nativeImportScripts(...resolved);
 }
 
-function disableNetworkApis() {
-    const nativeFetch = typeof self.fetch === "function" ? self.fetch.bind(self) : null;
-    const blockedApis = {
-        fetch: (...args) => {
-            if (!nativeFetch) {
-                throw new Error("Network access is disabled in asset scripts.");
-            }
-            const request = new Request(...args);
-            const url = normalizeUrl(request.url);
-            if (!allowedFetchUrls.has(url)) {
-                throw new Error("Network access is disabled in asset scripts.");
-            }
-            return nativeFetch(request);
-        },
-        XMLHttpRequest: undefined,
-        WebSocket: undefined,
-        EventSource: undefined,
-        importScripts: (...urls) => importAllowedScripts(...urls),
-    };
-
-    Object.entries(blockedApis).forEach(([key, value]) => {
-        if (!(key in self)) {
-            return;
-        }
-        try {
-            Object.defineProperty(self, key, {
-                value,
-                writable: false,
-                configurable: false,
-            });
-        } catch (error) {
-            try {
-                self[key] = value;
-            } catch (_error) {
-                // ignore if the API cannot be overridden in this environment
-            }
-        }
-    });
-}
-
-disableNetworkApis();
-
 function loadSharedDependencies() {
     if (!nativeImportScripts || sharedDependencyUrls.length === 0) {
         return;
@@ -106,6 +65,32 @@ function refreshAllowedFetchUrls() {
             }
         });
     });
+    if (Array.isArray(emoteCatalog)) {
+        emoteCatalog.forEach((emote) => {
+            if (emote?.url) {
+                const normalized = normalizeUrl(emote.url);
+                if (normalized) {
+                    allowedFetchUrls.add(normalized);
+                }
+            }
+        });
+    }
+    if (Array.isArray(chatMessages)) {
+        chatMessages.forEach((message) => {
+            const fragments = message?.fragments;
+            if (!Array.isArray(fragments)) {
+                return;
+            }
+            fragments.forEach((fragment) => {
+                if (fragment?.url) {
+                    const normalized = normalizeUrl(fragment.url);
+                    if (normalized) {
+                        allowedFetchUrls.add(normalized);
+                    }
+                }
+            });
+        });
+    }
 }
 
 function reportScriptError(id, stage, error) {
@@ -139,6 +124,7 @@ function updateScriptContexts() {
         script.context.width = script.canvas?.width ?? 0;
         script.context.height = script.canvas?.height ?? 0;
         script.context.chatMessages = chatMessages;
+        script.context.emoteCatalog = emoteCatalog;
     });
 }
 
@@ -182,7 +168,7 @@ function stopTickLoopIfIdle() {
 
 function createScriptHandlers(source, context, state, sourceLabel = "") {
     const contextPrelude =
-        "const { canvas, ctx, channelName, width, height, now, deltaMs, elapsedMs, assets, chatMessages, playAudio } = context;";
+        "const { canvas, ctx, channelName, width, height, now, deltaMs, elapsedMs, assets, chatMessages, emoteCatalog, playAudio } = context;";
     const sourceUrl = sourceLabel ? `\n//# sourceURL=${sourceLabel}` : "";
     const factory = new Function(
         "context",
@@ -242,6 +228,7 @@ self.addEventListener("message", (event) => {
             elapsedMs: 0,
             assets: Array.isArray(payload.attachments) ? payload.attachments : [],
             chatMessages,
+            emoteCatalog,
             playAudio: (attachment) => {
                 const attachmentId = typeof attachment === "string" ? attachment : attachment?.id;
                 if (!attachmentId) {
@@ -310,6 +297,13 @@ self.addEventListener("message", (event) => {
 
     if (type === "chatMessages") {
         chatMessages = Array.isArray(payload?.messages) ? payload.messages : [];
+        refreshAllowedFetchUrls();
+        updateScriptContexts();
+    }
+
+    if (type === "emoteCatalog") {
+        emoteCatalog = Array.isArray(payload?.emotes) ? payload.emotes : [];
+        refreshAllowedFetchUrls();
         updateScriptContexts();
     }
 });
