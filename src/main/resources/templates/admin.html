@@ -24,6 +24,9 @@
         <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/javascript/javascript.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/lint/lint.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/display/placeholder.min.js"></script>
+        <script src="/js/vendor/three.min.js"></script>
+        <script src="/js/vendor/GLTFLoader.js"></script>
+        <script src="/js/vendor/OBJLoader.js"></script>
         <script src="/js/csrf.js"></script>
     </head>
     <body class="admin-body">
@@ -369,7 +372,7 @@
                         id="asset-file"
                         class="file-input-field"
                         type="file"
-                        accept="image/*,video/*,audio/*,application/javascript,text/javascript,.js,.mjs"
+                        accept="image/*,video/*,audio/*,model/*,.glb,.gltf,.obj,application/javascript,text/javascript,.js,.mjs"
                     />
                     <label for="asset-file" class="launch-tile">
                         <span class="tile-icon"><i class="fa-solid fa-cloud-arrow-up"></i></span>
@@ -483,13 +486,13 @@
                                 id="custom-asset-attachment-file"
                                 class="file-input-field"
                                 type="file"
-                                accept="image/*,video/*,audio/*"
+                                accept="image/*,video/*,audio/*,model/*,.glb,.gltf,.obj"
                             />
                             <label for="custom-asset-attachment-file" class="file-input-trigger small">
                                 <span class="file-input-icon"><i class="fa-solid fa-paperclip"></i></span>
                                 <span class="file-input-copy">
                                     <strong>Add attachment</strong>
-                                    <small>Images, video, or audio</small>
+                                    <small>Images, video, audio, or 3D models</small>
                                 </span>
                             </label>
                         </div>

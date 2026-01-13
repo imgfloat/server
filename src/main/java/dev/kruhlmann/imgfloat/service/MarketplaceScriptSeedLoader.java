@@ -28,6 +28,22 @@ public class MarketplaceScriptSeedLoader {
     private static final String ATTACHMENTS_DIR = "attachments";
     private static final String DEFAULT_SOURCE_MEDIA_TYPE = "application/javascript";
     private static final String DEFAULT_LOGO_MEDIA_TYPE = "image/png";
+    private static final java.util.Map<String, String> ATTACHMENT_MEDIA_TYPES = java.util.Map.ofEntries(
+        java.util.Map.entry("png", "image/png"),
+        java.util.Map.entry("jpg", "image/jpeg"),
+        java.util.Map.entry("jpeg", "image/jpeg"),
+        java.util.Map.entry("gif", "image/gif"),
+        java.util.Map.entry("webp", "image/webp"),
+        java.util.Map.entry("mp4", "video/mp4"),
+        java.util.Map.entry("webm", "video/webm"),
+        java.util.Map.entry("mov", "video/quicktime"),
+        java.util.Map.entry("mp3", "audio/mpeg"),
+        java.util.Map.entry("wav", "audio/wav"),
+        java.util.Map.entry("ogg", "audio/ogg"),
+        java.util.Map.entry("glb", "model/gltf-binary"),
+        java.util.Map.entry("gltf", "model/gltf+json"),
+        java.util.Map.entry("obj", "model/obj")
+    );
 
     private final List<SeedScript> scripts;
 
@@ -175,7 +191,7 @@ public class MarketplaceScriptSeedLoader {
                         logger.warn("Duplicate marketplace attachment name {}", name);
                         return Optional.empty();
                     }
-                    String mediaType = Files.probeContentType(attachment);
+                    String mediaType = detectAttachmentMediaType(attachment);
                     attachments.add(
                         new SeedAttachment(
                             name,
@@ -201,6 +217,32 @@ public class MarketplaceScriptSeedLoader {
             return docsPath;
         }
         return null;
+    }
+
+    private String detectAttachmentMediaType(Path attachment) {
+        try {
+            String mediaType = Files.probeContentType(attachment);
+            if (
+                mediaType != null &&
+                !mediaType.isBlank() &&
+                !"application/octet-stream".equals(mediaType) &&
+                !"text/plain".equals(mediaType)
+            ) {
+                return mediaType;
+            }
+        } catch (IOException ex) {
+            logger.warn("Failed to detect media type for {}", attachment, ex);
+        }
+        String filename = attachment.getFileName().toString().toLowerCase(Locale.ROOT);
+        int dot = filename.lastIndexOf('.');
+        if (dot > -1 && dot < filename.length() - 1) {
+            String extension = filename.substring(dot + 1);
+            String mapped = ATTACHMENT_MEDIA_TYPES.get(extension);
+            if (mapped != null) {
+                return mapped;
+            }
+        }
+        return "application/octet-stream";
     }
 
     private String normalizeBroadcaster(String broadcaster) {

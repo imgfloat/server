@@ -73,6 +73,10 @@ public class MediaOptimizationService {
             return new OptimizedAsset(bytes, mediaType, 0, 0, null);
         }
 
+        if (mediaType.startsWith("model/")) {
+            return new OptimizedAsset(bytes, mediaType, 0, 0, null);
+        }
+
         if (mediaType.startsWith("application/javascript") || mediaType.startsWith("text/javascript")) {
             return new OptimizedAsset(bytes, mediaType, 0, 0, null);
         }

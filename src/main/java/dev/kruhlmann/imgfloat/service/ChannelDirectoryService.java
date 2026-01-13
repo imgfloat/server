@@ -155,6 +155,7 @@ public class ChannelDirectoryService {
                 (asset) ->
                     asset.getAssetType() == AssetType.IMAGE ||
                     asset.getAssetType() == AssetType.VIDEO ||
+                    asset.getAssetType() == AssetType.MODEL ||
                     asset.getAssetType() == AssetType.OTHER
             )
             .map(Asset::getId)
@@ -635,7 +636,7 @@ public class ChannelDirectoryService {
             scriptAttachment.setFileId(attachmentFileId);
             scriptAttachment.setMediaType(attachmentContent.mediaType());
             scriptAttachment.setOriginalMediaType(attachmentContent.mediaType());
-            scriptAttachment.setAssetType(AssetType.IMAGE);
+            scriptAttachment.setAssetType(AssetType.fromMediaType(attachmentContent.mediaType(), attachmentContent.mediaType()));
             attachments.add(scriptAttachment);
         }
         if (!attachments.isEmpty()) {
@@ -674,7 +675,8 @@ public class ChannelDirectoryService {
     }
 
     private String storeScriptAttachmentFile(Asset asset, AssetContent attachmentContent) {
-        ScriptAssetFile attachmentFile = new ScriptAssetFile(asset.getBroadcaster(), AssetType.IMAGE);
+        AssetType assetType = AssetType.fromMediaType(attachmentContent.mediaType(), attachmentContent.mediaType());
+        ScriptAssetFile attachmentFile = new ScriptAssetFile(asset.getBroadcaster(), assetType);
         attachmentFile.setMediaType(attachmentContent.mediaType());
         attachmentFile.setOriginalMediaType(attachmentContent.mediaType());
         try {
@@ -981,8 +983,16 @@ public class ChannelDirectoryService {
         }
 
         AssetType assetType = AssetType.fromMediaType(optimized.mediaType(), mediaType);
-        if (assetType != AssetType.AUDIO && assetType != AssetType.IMAGE && assetType != AssetType.VIDEO) {
-            throw new ResponseStatusException(BAD_REQUEST, "Only image, video, or audio attachments are supported.");
+        if (
+            assetType != AssetType.AUDIO &&
+            assetType != AssetType.IMAGE &&
+            assetType != AssetType.VIDEO &&
+            assetType != AssetType.MODEL
+        ) {
+            throw new ResponseStatusException(
+                BAD_REQUEST,
+                "Only image, video, audio, or 3D model attachments are supported."
+            );
         }
 
         String safeName = Optional.ofNullable(file.getOriginalFilename())
@@ -1173,6 +1183,7 @@ public class ChannelDirectoryService {
                 (asset) ->
                     asset.getAssetType() == AssetType.IMAGE ||
                     asset.getAssetType() == AssetType.VIDEO ||
+                    asset.getAssetType() == AssetType.MODEL ||
                     asset.getAssetType() == AssetType.OTHER
             )
             .map(Asset::getId)
@@ -1220,7 +1231,9 @@ public class ChannelDirectoryService {
     private int nextZIndex(String broadcaster) {
         return (
             visualAssetRepository
-                .findByIdIn(assetsWithType(normalize(broadcaster), AssetType.IMAGE, AssetType.VIDEO, AssetType.OTHER))
+                .findByIdIn(
+                    assetsWithType(normalize(broadcaster), AssetType.IMAGE, AssetType.VIDEO, AssetType.MODEL, AssetType.OTHER)
+                )
                 .stream()
                 .mapToInt(VisualAsset::getZIndex)
                 .max()
@@ -1374,6 +1387,7 @@ public class ChannelDirectoryService {
         if (
             asset.getAssetType() != AssetType.VIDEO &&
             asset.getAssetType() != AssetType.IMAGE &&
+            asset.getAssetType() != AssetType.MODEL &&
             asset.getAssetType() != AssetType.OTHER
         ) {
             return Optional.empty();

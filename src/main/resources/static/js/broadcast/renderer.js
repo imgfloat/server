@@ -1,10 +1,11 @@
 import { AssetKind, MIN_FRAME_TIME, VISIBILITY_THRESHOLD } from "./constants.js";
 import { createBroadcastState } from "./state.js";
-import { getAssetKind, isCodeAsset, isVisualAsset, isVideoElement } from "./assetKinds.js";
+import { getAssetKind, isCodeAsset, isModelAsset, isVisualAsset, isVideoElement } from "./assetKinds.js";
 import { ensureLayerPosition, getLayerOrder, getRenderOrder } from "./layers.js";
 import { getVisibilityState, smoothState } from "./visibility.js";
 import { createAudioManager } from "./audioManager.js";
 import { createMediaManager } from "./mediaManager.js";
+import { createModelManager } from "../media/modelManager.js";
 
 export class BroadcastRenderer {
     constructor({ canvas, scriptCanvas, broadcaster, showToast }) {
@@ -37,6 +38,7 @@ export class BroadcastRenderer {
             supportsAnimatedDecode: this.supportsAnimatedDecode,
             canPlayProbe: this.canPlayProbe,
         });
+        this.modelManager = createModelManager({ requestDraw: () => this.draw() });
 
         this.applyCanvasSettings(this.state.canvasSettings);
         globalThis.addEventListener("resize", () => {
@@ -105,6 +107,7 @@ export class BroadcastRenderer {
         this.state.assets.delete(assetId);
         this.state.layerOrder = this.state.layerOrder.filter((id) => id !== assetId);
         this.mediaManager.clearMedia(assetId);
+        this.modelManager.clearModel(assetId);
         this.stopUserJavaScriptWorker(assetId);
         this.state.renderStates.delete(assetId);
         this.state.visibilityStates.delete(assetId);
@@ -348,9 +351,17 @@ export class BroadcastRenderer {
             return;
         }
 
-        const media = this.mediaManager.ensureMedia(asset);
-        const drawSource = media?.isAnimated ? media.bitmap : media;
-        const ready = this.isDrawable(media);
+        let drawSource = null;
+        let ready = false;
+        if (isModelAsset(asset)) {
+            const model = this.modelManager.ensureModel(asset);
+            drawSource = model?.canvas || null;
+            ready = !!model?.ready;
+        } else {
+            const media = this.mediaManager.ensureMedia(asset);
+            drawSource = media?.isAnimated ? media.bitmap : media;
+            ready = this.isDrawable(media);
+        }
         if (ready && drawSource) {
             this.ctx.drawImage(drawSource, -halfWidth, -halfHeight, renderState.width, renderState.height);
         }

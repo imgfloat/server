@@ -16,6 +16,13 @@ export function isVideoAsset(asset) {
     return asset?.mediaType?.startsWith("video/");
 }
 
+export function isModelAsset(asset) {
+    if (asset?.assetType) {
+        return asset.assetType === "MODEL";
+    }
+    return asset?.mediaType?.startsWith("model/");
+}
+
 export function isVideoElement(element) {
     return element?.tagName === "VIDEO";
 }

@@ -1,5 +1,6 @@
 import { isAudioAsset } from "../media/audio.js";
-import { isCodeAsset, isGifAsset, isVideoAsset, isVideoElement } from "../broadcast/assetKinds.js";
+import { isCodeAsset, isGifAsset, isModelAsset, isVideoAsset, isVideoElement } from "../broadcast/assetKinds.js";
+import { createModelManager } from "../media/modelManager.js";
 import {
     ensureLayerPosition as ensureLayerPositionForState,
     getLayerOrder as getLayerOrderForState,
@@ -75,6 +76,7 @@ export function createAdminConsole({
     const aspectLockState = new Map();
     const commitSizeChange = debounce(() => applyTransformFromInputs(), 180);
     const audioUnlockEvents = ["pointerdown", "keydown", "touchstart"];
+    const modelManager = createModelManager({ requestDraw: () => requestDraw() });
 
     let drawPending = false;
     let layerOrder = [];
@@ -693,7 +695,11 @@ export function createAdminConsole({
         let drawSource = null;
         let ready = false;
         let showPlayOverlay = false;
-        if (isVideoAsset(asset) || isGifAsset(asset)) {
+        if (isModelAsset(asset)) {
+            const model = modelManager.ensureModel(asset);
+            drawSource = model?.canvas || null;
+            ready = !!model?.ready;
+        } else if (isVideoAsset(asset) || isGifAsset(asset)) {
             drawSource = ensureCanvasPreview(asset);
             ready = isDrawable(drawSource);
             showPlayOverlay = true;
@@ -978,6 +984,7 @@ export function createAdminConsole({
                 IMAGE: "Image",
                 VIDEO: "Video",
                 AUDIO: "Audio",
+                MODEL: "3D Model",
                 SCRIPT: "Script",
                 OTHER: "Other",
             };
@@ -1020,6 +1027,7 @@ export function createAdminConsole({
 
     function clearMedia(assetId) {
         mediaCache.delete(assetId);
+        modelManager.clearModel(assetId);
         const cachedPreview = previewCache.get(assetId);
         if (cachedPreview && cachedPreview.startsWith("blob:")) {
             URL.revokeObjectURL(cachedPreview);
@@ -1140,6 +1148,10 @@ export function createAdminConsole({
         if (isAudioAsset(asset)) {
             ensureAudioController(asset);
             mediaCache.delete(asset.id);
+            return null;
+        }
+
+        if (isModelAsset(asset)) {
             return null;
         }
 

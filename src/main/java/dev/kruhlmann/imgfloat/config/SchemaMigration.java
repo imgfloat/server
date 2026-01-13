@@ -232,6 +232,7 @@ public class SchemaMigration implements ApplicationRunner {
                     WHEN media_type LIKE 'audio/%' THEN 'AUDIO'
                     WHEN media_type LIKE 'video/%' THEN 'VIDEO'
                     WHEN media_type LIKE 'image/%' THEN 'IMAGE'
+                    WHEN media_type LIKE 'model/%' THEN 'MODEL'
                     WHEN media_type LIKE 'application/javascript%' THEN 'SCRIPT'
                     WHEN media_type LIKE 'text/javascript%' THEN 'SCRIPT'
                     ELSE COALESCE(asset_type, 'OTHER')
@@ -248,7 +249,7 @@ public class SchemaMigration implements ApplicationRunner {
                 SELECT id, name, preview, x, y, width, height, rotation, speed, muted, media_type,
                        original_media_type, z_index, audio_volume, hidden
                 FROM assets
-                WHERE asset_type IN ('IMAGE', 'VIDEO', 'OTHER')
+                WHERE asset_type IN ('IMAGE', 'VIDEO', 'MODEL', 'OTHER')
                 """
             );
             jdbcTemplate.execute(

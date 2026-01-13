@@ -6,6 +6,7 @@ public enum AssetType {
     IMAGE,
     VIDEO,
     AUDIO,
+    MODEL,
     SCRIPT,
     OTHER;
 
@@ -23,6 +24,9 @@ public enum AssetType {
         }
         if (normalized.startsWith("audio/")) {
             return AUDIO;
+        }
+        if (normalized.startsWith("model/")) {
+            return MODEL;
         }
         if (normalized.startsWith("application/javascript") || normalized.startsWith("text/javascript")) {
             return SCRIPT;

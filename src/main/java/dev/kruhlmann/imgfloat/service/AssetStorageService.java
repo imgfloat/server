@@ -34,6 +34,9 @@ public class AssetStorageService {
         Map.entry("audio/ogg", ".ogg"),
         Map.entry("audio/webm", ".webm"),
         Map.entry("audio/flac", ".flac"),
+        Map.entry("model/gltf-binary", ".glb"),
+        Map.entry("model/gltf+json", ".gltf"),
+        Map.entry("model/obj", ".obj"),
         Map.entry("application/javascript", ".js"),
         Map.entry("text/javascript", ".js")
     );

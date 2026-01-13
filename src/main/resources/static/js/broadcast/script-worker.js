@@ -8,6 +8,37 @@ let lastTick = 0;
 let startTime = 0;
 const tickIntervalMs = 1000 / 60;
 const errorKeys = new Set();
+const allowedImportUrls = new Set();
+const nativeImportScripts = typeof self.importScripts === "function" ? self.importScripts.bind(self) : null;
+const sharedDependencyUrls = ["/js/vendor/three.min.js", "/js/vendor/GLTFLoader.js", "/js/vendor/OBJLoader.js"];
+
+function normalizeUrl(url) {
+    try {
+        return new URL(url, self.location?.href || "http://localhost").toString();
+    } catch (_error) {
+        return "";
+    }
+}
+
+function registerAllowedImport(url) {
+    const normalized = normalizeUrl(url);
+    if (normalized) {
+        allowedImportUrls.add(normalized);
+    }
+}
+
+sharedDependencyUrls.forEach(registerAllowedImport);
+
+function importAllowedScripts(...urls) {
+    if (!nativeImportScripts) {
+        throw new Error("Network access is disabled in asset scripts.");
+    }
+    const resolved = urls.map((url) => normalizeUrl(url));
+    if (resolved.some((url) => !allowedImportUrls.has(url))) {
+        throw new Error("Network access is disabled in asset scripts.");
+    }
+    return nativeImportScripts(...resolved);
+}
 
 function disableNetworkApis() {
     const nativeFetch = typeof self.fetch === "function" ? self.fetch.bind(self) : null;
@@ -26,9 +57,7 @@ function disableNetworkApis() {
         XMLHttpRequest: undefined,
         WebSocket: undefined,
         EventSource: undefined,
-        importScripts: () => {
-            throw new Error("Network access is disabled in asset scripts.");
-        },
+        importScripts: (...urls) => importAllowedScripts(...urls),
     };
 
     Object.entries(blockedApis).forEach(([key, value]) => {
@@ -53,13 +82,14 @@ function disableNetworkApis() {
 
 disableNetworkApis();
 
-function normalizeUrl(url) {
-    try {
-        return new URL(url, self.location?.href || "http://localhost").toString();
-    } catch (_error) {
-        return "";
+function loadSharedDependencies() {
+    if (!nativeImportScripts || sharedDependencyUrls.length === 0) {
+        return;
     }
+    importAllowedScripts(...sharedDependencyUrls);
 }
+
+loadSharedDependencies();
 
 function refreshAllowedFetchUrls() {
     allowedFetchUrls.clear();

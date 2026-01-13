@@ -28,6 +28,9 @@ public class MediaDetectionService {
         Map.entry("mp3", "audio/mpeg"),
         Map.entry("wav", "audio/wav"),
         Map.entry("ogg", "audio/ogg"),
+        Map.entry("glb", "model/gltf-binary"),
+        Map.entry("gltf", "model/gltf+json"),
+        Map.entry("obj", "model/obj"),
         Map.entry("js", "application/javascript"),
         Map.entry("mjs", "text/javascript")
     );
