@@ -12,6 +12,7 @@ import dev.kruhlmann.imgfloat.model.AudioAsset;
 import dev.kruhlmann.imgfloat.model.CanvasEvent;
 import dev.kruhlmann.imgfloat.model.CanvasSettingsRequest;
 import dev.kruhlmann.imgfloat.model.Channel;
+import dev.kruhlmann.imgfloat.model.ChannelScriptSettingsRequest;
 import dev.kruhlmann.imgfloat.model.CodeAssetRequest;
 import dev.kruhlmann.imgfloat.model.MarketplaceScriptHeart;
 import dev.kruhlmann.imgfloat.model.PlaybackRequest;
@@ -191,6 +192,28 @@ public class ChannelDirectoryService {
         CanvasSettingsRequest response = new CanvasSettingsRequest(channel.getCanvasWidth(), channel.getCanvasHeight());
         messagingTemplate.convertAndSend(topicFor(broadcaster), CanvasEvent.updated(broadcaster, response));
         return response;
+    }
+
+    public ChannelScriptSettingsRequest getChannelScriptSettings(String broadcaster) {
+        Channel channel = getOrCreateChannel(broadcaster);
+        return new ChannelScriptSettingsRequest(
+            channel.isAllowChannelEmotesForAssets(),
+            channel.isAllowScriptChatAccess()
+        );
+    }
+
+    public ChannelScriptSettingsRequest updateChannelScriptSettings(
+        String broadcaster,
+        ChannelScriptSettingsRequest request
+    ) {
+        Channel channel = getOrCreateChannel(broadcaster);
+        channel.setAllowChannelEmotesForAssets(request.isAllowChannelEmotesForAssets());
+        channel.setAllowScriptChatAccess(request.isAllowScriptChatAccess());
+        channelRepository.save(channel);
+        return new ChannelScriptSettingsRequest(
+            channel.isAllowChannelEmotesForAssets(),
+            channel.isAllowScriptChatAccess()
+        );
     }
 
     public Optional<AssetView> createAsset(String broadcaster, MultipartFile file) throws IOException {

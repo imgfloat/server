@@ -28,7 +28,11 @@ export class BroadcastRenderer {
         this.chatMessages = [];
         this.emoteCatalog = [];
         this.emoteCatalogById = new Map();
+        this.globalEmotes = [];
+        this.channelEmotes = [];
         this.lastChatPruneAt = 0;
+        this.allowChannelEmotesForAssets = true;
+        this.allowScriptChatAccess = true;
 
         this.obsBrowser = !!globalThis.obsstudio;
         this.supportsAnimatedDecode =
@@ -423,6 +427,17 @@ export class BroadcastRenderer {
         this.updateScriptWorkerEmoteCatalog();
     }
 
+    setScriptSettings(settings) {
+        this.allowChannelEmotesForAssets = settings?.allowChannelEmotesForAssets !== false;
+        this.allowScriptChatAccess = settings?.allowScriptChatAccess !== false;
+        if (!this.allowScriptChatAccess) {
+            this.chatMessages = [];
+        }
+        this.refreshEmoteCatalog();
+        this.updateScriptWorkerChatMessages();
+        this.updateScriptWorkerEmoteCatalog();
+    }
+
     updateScriptWorkerCanvas() {
         if (!this.scriptWorker || !this.scriptWorkerReady) {
             return;
@@ -443,7 +458,7 @@ export class BroadcastRenderer {
         this.scriptWorker.postMessage({
             type: "chatMessages",
             payload: {
-                messages: this.chatMessages,
+                messages: this.allowScriptChatAccess ? this.chatMessages : [],
             },
         });
     }
@@ -461,27 +476,20 @@ export class BroadcastRenderer {
     }
 
     setEmoteCatalog(catalog) {
-        const globalEmotes = Array.isArray(catalog?.global) ? catalog.global : [];
-        const channelEmotes = Array.isArray(catalog?.channel) ? catalog.channel : [];
-        this.emoteCatalog = [...globalEmotes, ...channelEmotes];
+        this.globalEmotes = Array.isArray(catalog?.global) ? catalog.global : [];
+        this.channelEmotes = Array.isArray(catalog?.channel) ? catalog.channel : [];
+        this.refreshEmoteCatalog();
+    }
+
+    refreshEmoteCatalog() {
+        const allowedChannelEmotes = this.allowChannelEmotesForAssets ? this.channelEmotes : [];
+        this.emoteCatalog = [...this.globalEmotes, ...allowedChannelEmotes];
         this.emoteCatalogById = new Map(
             this.emoteCatalog.map((entry) => [String(entry?.id || ""), entry]).filter(([key]) => key),
         );
         if (this.chatMessages.length) {
             this.chatMessages = this.chatMessages.map((message) => {
-                if (!Array.isArray(message.fragments)) {
-                    return message;
-                }
-                const fragments = message.fragments.map((fragment) => {
-                    if (fragment.type !== "emote" || fragment.url) {
-                        return fragment;
-                    }
-                    const emoteInfo = this.emoteCatalogById.get(String(fragment.id));
-                    if (!emoteInfo) {
-                        return fragment;
-                    }
-                    return { ...fragment, url: emoteInfo.url, name: emoteInfo.name || fragment.name };
-                });
+                const fragments = this.buildMessageFragments(message.message || "", message.tags);
                 return { ...message, fragments };
             });
             this.updateScriptWorkerChatMessages();
@@ -537,13 +545,17 @@ export class BroadcastRenderer {
             }
             const emoteText = message.slice(emote.start, emote.end + 1);
             const emoteInfo = this.emoteCatalogById.get(String(emote.id));
-            fragments.push({
-                type: "emote",
-                id: emote.id,
-                text: emoteText,
-                name: emoteInfo?.name || emoteText,
-                url: emoteInfo?.url || null,
-            });
+            if (emoteInfo) {
+                fragments.push({
+                    type: "emote",
+                    id: emote.id,
+                    text: emoteText,
+                    name: emoteInfo?.name || emoteText,
+                    url: emoteInfo?.url || null,
+                });
+            } else {
+                fragments.push({ type: "text", text: emoteText });
+            }
             cursor = emote.end + 1;
         });
         if (cursor < message.length) {
@@ -553,6 +565,9 @@ export class BroadcastRenderer {
     }
 
     receiveChatMessage(message) {
+        if (!this.allowScriptChatAccess) {
+            return;
+        }
         if (!message) {
             return;
         }

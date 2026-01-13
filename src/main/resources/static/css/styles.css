@@ -1929,6 +1929,12 @@ button:disabled:hover {
     color: #cbd5e1;
 }
 
+.control-grid .checkbox-row {
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+}
+
 .control-grid .inline-toggle {
     align-items: center;
     justify-content: space-between;

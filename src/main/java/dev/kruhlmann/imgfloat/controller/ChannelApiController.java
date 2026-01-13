@@ -7,6 +7,7 @@ import static org.springframework.http.HttpStatus.NOT_FOUND;
 import dev.kruhlmann.imgfloat.model.AdminRequest;
 import dev.kruhlmann.imgfloat.model.AssetView;
 import dev.kruhlmann.imgfloat.model.CanvasSettingsRequest;
+import dev.kruhlmann.imgfloat.model.ChannelScriptSettingsRequest;
 import dev.kruhlmann.imgfloat.model.CodeAssetRequest;
 import dev.kruhlmann.imgfloat.model.OauthSessionUser;
 import dev.kruhlmann.imgfloat.model.PlaybackRequest;
@@ -207,6 +208,25 @@ public class ChannelApiController {
             request.getHeight()
         );
         return channelDirectoryService.updateCanvasSettings(broadcaster, request);
+    }
+
+    @GetMapping("/settings")
+    public ChannelScriptSettingsRequest getScriptSettings(@PathVariable("broadcaster") String broadcaster) {
+        return channelDirectoryService.getChannelScriptSettings(broadcaster);
+    }
+
+    @PutMapping("/settings")
+    public ChannelScriptSettingsRequest updateScriptSettings(
+        @PathVariable("broadcaster") String broadcaster,
+        @Valid @RequestBody ChannelScriptSettingsRequest request,
+        OAuth2AuthenticationToken oauthToken
+    ) {
+        String sessionUsername = OauthSessionUser.from(oauthToken).login();
+        String logBroadcaster = LogSanitizer.sanitize(broadcaster);
+        String logSessionUsername = LogSanitizer.sanitize(sessionUsername);
+        authorizationService.userMatchesSessionUsernameOrThrowHttpError(broadcaster, sessionUsername);
+        LOG.info("Updating script settings for {} by {}", logBroadcaster, logSessionUsername);
+        return channelDirectoryService.updateChannelScriptSettings(broadcaster, request);
     }
 
     @PostMapping(value = "/assets", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

@@ -85,6 +85,28 @@
                 </div>
             </section>
 
+            <section class="card">
+                <p class="eyebrow">Script privacy</p>
+                <h3>Script asset access</h3>
+                <p class="muted">Control what data scripts can access in your channel.</p>
+                <div class="control-grid">
+                    <label class="checkbox-row">
+                        <input id="allow-channel-emotes" type="checkbox" checked />
+                        Allow script assets to use this channel's Twitch emotes.
+                    </label>
+                    <label class="checkbox-row">
+                        <input id="allow-script-chat" type="checkbox" checked />
+                        Allow script assets to access this channel's Twitch chat log.
+                    </label>
+                </div>
+                <div class="control-actions">
+                    <button id="save-script-settings-btn" type="button" onclick="saveScriptSettings()">
+                        Save script settings
+                    </button>
+                    <span id="script-settings-status" class="muted" role="status" aria-live="polite"></span>
+                </div>
+            </section>
+
             <section class="card-grid two-col">
                 <div class="card">
                     <div class="card-header">

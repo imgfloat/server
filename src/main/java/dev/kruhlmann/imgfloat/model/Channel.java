@@ -33,6 +33,12 @@ public class Channel {
 
     private double canvasHeight = 1080;
 
+    @Column(name = "allow_channel_emotes_for_assets", nullable = false)
+    private boolean allowChannelEmotesForAssets = true;
+
+    @Column(name = "allow_script_chat_access", nullable = false)
+    private boolean allowScriptChatAccess = true;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -77,6 +83,22 @@ public class Channel {
 
     public void setCanvasHeight(double canvasHeight) {
         this.canvasHeight = canvasHeight;
+    }
+
+    public boolean isAllowChannelEmotesForAssets() {
+        return allowChannelEmotesForAssets;
+    }
+
+    public void setAllowChannelEmotesForAssets(boolean allowChannelEmotesForAssets) {
+        this.allowChannelEmotesForAssets = allowChannelEmotesForAssets;
+    }
+
+    public boolean isAllowScriptChatAccess() {
+        return allowScriptChatAccess;
+    }
+
+    public void setAllowScriptChatAccess(boolean allowScriptChatAccess) {
+        this.allowScriptChatAccess = allowScriptChatAccess;
     }
 
     @PrePersist

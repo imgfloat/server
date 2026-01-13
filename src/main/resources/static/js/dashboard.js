@@ -7,6 +7,10 @@ const elements = {
     canvasHeight: document.getElementById("canvas-height"),
     canvasStatus: document.getElementById("canvas-status"),
     canvasSaveButton: document.getElementById("save-canvas-btn"),
+    allowChannelEmotes: document.getElementById("allow-channel-emotes"),
+    allowScriptChat: document.getElementById("allow-script-chat"),
+    scriptSettingsStatus: document.getElementById("script-settings-status"),
+    scriptSettingsSaveButton: document.getElementById("save-script-settings-btn"),
 };
 
 const apiBase = `/api/channels/${encodeURIComponent(broadcaster)}`;
@@ -242,6 +246,54 @@ async function saveCanvasSettings() {
     }
 }
 
+function renderScriptSettings(settings) {
+    if (elements.allowChannelEmotes) {
+        elements.allowChannelEmotes.checked = settings.allowChannelEmotesForAssets !== false;
+    }
+    if (elements.allowScriptChat) {
+        elements.allowScriptChat.checked = settings.allowScriptChatAccess !== false;
+    }
+}
+
+async function fetchScriptSettings() {
+    try {
+        const data = await fetchJson("/settings", {}, "Failed to load script settings");
+        renderScriptSettings(data);
+    } catch (error) {
+        renderScriptSettings({ allowChannelEmotesForAssets: true, allowScriptChatAccess: true });
+        showToast("Using default script settings. Unable to load saved preferences.", "warning");
+    }
+}
+
+async function saveScriptSettings() {
+    const allowChannelEmotesForAssets = elements.allowChannelEmotes?.checked ?? true;
+    const allowScriptChatAccess = elements.allowScriptChat?.checked ?? true;
+    if (elements.scriptSettingsStatus) elements.scriptSettingsStatus.textContent = "Saving...";
+    setButtonBusy(elements.scriptSettingsSaveButton, true, "Saving...");
+    try {
+        const settings = await fetchJson(
+            "/settings",
+            {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ allowChannelEmotesForAssets, allowScriptChatAccess }),
+            },
+            "Failed to save script settings",
+        );
+        renderScriptSettings(settings);
+        if (elements.scriptSettingsStatus) elements.scriptSettingsStatus.textContent = "Saved.";
+        showToast("Script settings saved successfully.", "success");
+        setTimeout(() => {
+            if (elements.scriptSettingsStatus) elements.scriptSettingsStatus.textContent = "";
+        }, 2000);
+    } catch (error) {
+        if (elements.scriptSettingsStatus) elements.scriptSettingsStatus.textContent = "Unable to save right now.";
+        showToast("Unable to save script settings. Please retry.", "error");
+    } finally {
+        setButtonBusy(elements.scriptSettingsSaveButton, false, "Saving...");
+    }
+}
+
 if (elements.adminInput) {
     elements.adminInput.addEventListener("keydown", (event) => {
         if (event.key === "Enter") {
@@ -254,3 +306,4 @@ if (elements.adminInput) {
 fetchAdmins();
 fetchSuggestedAdmins();
 fetchCanvasSettings();
+fetchScriptSettings();
