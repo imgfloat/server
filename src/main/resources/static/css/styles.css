@@ -2,6 +2,10 @@
     box-sizing: border-box;
 }
 
+:root {
+    --window-frame-height: 36px;
+}
+
 p {
     margin: 0;
 }
@@ -1140,6 +1144,71 @@ button:disabled:hover {
     margin: 0;
     overflow: hidden;
     background: transparent;
+}
+
+.window-frame {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: var(--window-frame-height);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 12px;
+    background: rgba(15, 23, 42, 0.9);
+    border-bottom: 1px solid rgba(30, 41, 59, 0.7);
+    z-index: 5;
+    -webkit-app-region: drag;
+}
+
+.broadcast-body.has-window-frame #broadcast-canvas,
+.broadcast-body.has-window-frame .broadcast-script-layer {
+    top: var(--window-frame-height);
+}
+
+.window-frame-title {
+    font-size: 12px;
+    letter-spacing: 0.3px;
+    color: #cbd5f5;
+    text-transform: uppercase;
+}
+
+.window-frame-controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    -webkit-app-region: no-drag;
+}
+
+.window-control {
+    width: 30px;
+    height: 24px;
+    padding: 0;
+    border-radius: 6px;
+    background: rgba(148, 163, 184, 0.2);
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    color: #e2e8f0;
+    font-size: 16px;
+    line-height: 1;
+    box-shadow: none;
+}
+
+.window-control:hover {
+    background: rgba(148, 163, 184, 0.35);
+}
+
+.window-control:active {
+    transform: none;
+}
+
+.window-control-close {
+    background: rgba(239, 68, 68, 0.3);
+    border-color: rgba(239, 68, 68, 0.4);
+}
+
+.window-control-close:hover {
+    background: rgba(239, 68, 68, 0.5);
 }
 
 .panel {
