@@ -28,10 +28,10 @@ Optional:
 | Variable | Description | Example Value |
 |----------|-------------|---------------|
 | `IMGFLOAT_COMMIT_URL_PREFIX` | Git commit URL prefix used for the build link badge (unset to hide the badge) | https://github.com/imgfloat/server/commit/ |
-| `IMGFLOAT_TOKEN_ENCRYPTION_PREVIOUS_KEYS` | Comma-delimited base64 keys to allow decryption after key rotation (oldest last) | oldKey1==,oldKey2== |
 | `TWITCH_REDIRECT_URI` | Override default redirect URI | http://localhost:8080/login/oauth2/code/twitch |
+| `IMGFLOAT_TOKEN_ENCRYPTION_PREVIOUS_KEYS` | Comma-delimited base64 keys to allow decryption after key rotation (oldest last) | oldKey1==,oldKey2== |
 
-OAuth tokens are encrypted at rest using the key provided by `IMGFLOAT_TOKEN_ENCRYPTION_KEY`. Store this key in a secret manager or KMS and inject it via environment variables or a secret provider in production. When rotating keys, update `IMGFLOAT_TOKEN_ENCRYPTION_KEY` with the new key and populate `IMGFLOAT_TOKEN_ENCRYPTION_PREVIOUS_KEYS` with the old keys so existing tokens can be decrypted. After rotation, re-authenticate users or clear the `oauth2_authorized_client` table to re-encrypt tokens with the new key.
+OAuth tokens are encrypted at rest using the key provided by `IMGFLOAT_TOKEN_ENCRYPTION_KEY` (you can generate it with `openssl rand -base64 32`. Store this key in a secret manager or KMS and inject it via environment variables or a secret provider in production. When rotating keys, update `IMGFLOAT_TOKEN_ENCRYPTION_KEY` with the new key and populate `IMGFLOAT_TOKEN_ENCRYPTION_PREVIOUS_KEYS` with the old keys so existing tokens can be decrypted. After rotation, re-authenticate users or clear the `oauth2_authorized_client` table to re-encrypt tokens with the new key.
 
 During development environment variables can be placed in the `.env` file at the project root to automatically load them. Be aware that these are only loaded when using the [Makefile](./Makefile) command `make run`.
 
