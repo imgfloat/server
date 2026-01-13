@@ -70,11 +70,10 @@ marketplace-scripts/
 {
   "name": "Script display name",
   "description": "Short description",
-  "broadcaster": "Optional display name (defaults to System)"
 }
 ```
 
-Only `name` is required. The folder name is used to identify the marketplace listing; when a script is imported, the asset receives a new generated ID. If `broadcaster` is omitted or blank, the script will be listed as coming from `System`. Media types are inferred from the files on disk. Attachments are loaded from the `attachments/` folder and appear in the imported script's attachments list, referenced by filename (for example `rotate.png`). Attachment filenames must be unique within a script. The logo is optional and remains separate from attachments; if you want to use the same image inside the script, add a copy of it under `attachments/`.
+Only `name` is required. The folder name is used to identify the marketplace listing; when a script is imported, the asset receives a new generated ID. Media types are inferred from the files on disk. Attachments are loaded from the `attachments/` folder and appear in the imported script's attachments list, referenced by filename (for example `rotate.png`). Attachment filenames must be unique within a script. The logo is optional and remains separate from attachments; if you want to use the same image inside the script, add a copy of it under `attachments/`.
 
 ### Build and run
 
