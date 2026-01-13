@@ -7,6 +7,7 @@ import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 import dev.kruhlmann.imgfloat.util.LogSanitizer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -17,13 +18,16 @@ public class AuthorizationService {
 
     private final ChannelDirectoryService channelDirectoryService;
     private final SystemAdministratorService systemAdministratorService;
+    private final boolean sysadminChannelAccessEnabled;
 
     public AuthorizationService(
         ChannelDirectoryService channelDirectoryService,
-        SystemAdministratorService systemAdministratorService
+        SystemAdministratorService systemAdministratorService,
+        @Value("${IMGFLOAT_SYSADMIN_CHANNEL_ACCESS_ENABLED:true}") boolean sysadminChannelAccessEnabled
     ) {
         this.channelDirectoryService = channelDirectoryService;
         this.systemAdministratorService = systemAdministratorService;
+        this.sysadminChannelAccessEnabled = sysadminChannelAccessEnabled;
     }
 
     public void userMatchesSessionUsernameOrThrowHttpError(String submittedUsername, String sessionUsername) {
@@ -98,7 +102,9 @@ public class AuthorizationService {
 
     public boolean userIsBroadcasterOrChannelAdminForBroadcaster(String broadcaster, String sessionUser) {
         return (
-            userIsBroadcaster(sessionUser, broadcaster) || userIsChannelAdminForBroadcaster(broadcaster, sessionUser)
+            userIsBroadcaster(sessionUser, broadcaster)
+                || userIsChannelAdminForBroadcaster(broadcaster, sessionUser)
+                || (sysadminChannelAccessEnabled && userIsSystemAdministrator(sessionUser))
         );
     }
 

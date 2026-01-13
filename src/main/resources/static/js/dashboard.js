@@ -1,3 +1,16 @@
+const elements = {
+    adminList: document.getElementById("admin-list"),
+    suggestionList: document.getElementById("admin-suggestions"),
+    adminInput: document.getElementById("new-admin"),
+    addAdminButton: document.getElementById("add-admin-btn"),
+    canvasWidth: document.getElementById("canvas-width"),
+    canvasHeight: document.getElementById("canvas-height"),
+    canvasStatus: document.getElementById("canvas-status"),
+    canvasSaveButton: document.getElementById("save-canvas-btn"),
+};
+
+const apiBase = `/api/channels/${encodeURIComponent(broadcaster)}`;
+
 function buildIdentity(admin) {
     const identity = document.createElement("div");
     identity.className = "identity-row";
@@ -29,13 +42,13 @@ function buildIdentity(admin) {
 }
 
 function renderAdmins(list) {
-    const adminList = document.getElementById("admin-list");
-    if (!adminList) return;
-    adminList.innerHTML = "";
+    if (!elements.adminList) return;
+    elements.adminList.innerHTML = "";
     if (!list || list.length === 0) {
         const empty = document.createElement("li");
-        empty.textContent = "No channel admins yet";
-        adminList.appendChild(empty);
+        empty.className = "stacked-list-item empty";
+        empty.textContent = "No channel admins yet.";
+        elements.adminList.appendChild(empty);
         return;
     }
 
@@ -56,20 +69,19 @@ function renderAdmins(list) {
 
         actions.appendChild(removeBtn);
         li.appendChild(actions);
-        adminList.appendChild(li);
+        elements.adminList.appendChild(li);
     });
 }
 
 function renderSuggestedAdmins(list) {
-    const suggestionList = document.getElementById("admin-suggestions");
-    if (!suggestionList) return;
+    if (!elements.suggestionList) return;
 
-    suggestionList.innerHTML = "";
+    elements.suggestionList.innerHTML = "";
     if (!list || list.length === 0) {
         const empty = document.createElement("li");
-        empty.className = "stacked-list-item";
-        empty.textContent = "No moderator suggestions right now";
-        suggestionList.appendChild(empty);
+        empty.className = "stacked-list-item empty";
+        empty.textContent = "No moderator suggestions right now.";
+        elements.suggestionList.appendChild(empty);
         return;
     }
 
@@ -90,139 +102,153 @@ function renderSuggestedAdmins(list) {
 
         actions.appendChild(addBtn);
         li.appendChild(actions);
-        suggestionList.appendChild(li);
+        elements.suggestionList.appendChild(li);
     });
 }
 
-function fetchSuggestedAdmins() {
-    fetch(`/api/channels/${broadcaster}/admins/suggestions`)
-        .then((r) => {
-            if (!r.ok) {
-                throw new Error("Failed to load admin suggestions");
-            }
-            return r.json();
-        })
-        .then(renderSuggestedAdmins)
-        .catch(() => {
-            renderSuggestedAdmins([]);
-        });
+function normalizeUsername(value) {
+    return (value || "").trim().replace(/^@+/, "");
 }
 
-function fetchAdmins() {
-    fetch(`/api/channels/${broadcaster}/admins`)
-        .then((r) => {
-            if (!r.ok) {
-                throw new Error("Failed to load admins");
-            }
-            return r.json();
-        })
-        .then(renderAdmins)
-        .catch(() => {
-            renderAdmins([]);
-            showToast("Unable to load admins right now. Please try again.", "error");
-        });
+function setButtonBusy(button, isBusy, busyLabel) {
+    if (!button) return;
+    if (!button.dataset.defaultLabel) {
+        button.dataset.defaultLabel = button.textContent;
+    }
+    button.disabled = isBusy;
+    if (busyLabel) {
+        button.textContent = isBusy ? busyLabel : button.dataset.defaultLabel;
+    }
 }
 
-function removeAdmin(username) {
+async function fetchJson(path, options = {}, errorMessage = "Request failed") {
+    const response = await fetch(`${apiBase}${path}`, options);
+    if (!response.ok) {
+        throw new Error(errorMessage);
+    }
+    return response.json();
+}
+
+async function fetchSuggestedAdmins() {
+    try {
+        const data = await fetchJson("/admins/suggestions", {}, "Failed to load admin suggestions");
+        renderSuggestedAdmins(data);
+    } catch (error) {
+        renderSuggestedAdmins([]);
+    }
+}
+
+async function fetchAdmins() {
+    try {
+        const data = await fetchJson("/admins", {}, "Failed to load admins");
+        renderAdmins(data);
+    } catch (error) {
+        renderAdmins([]);
+        showToast("Unable to load admins right now. Please try again.", "error");
+    }
+}
+
+async function removeAdmin(username) {
     if (!username) return;
-    fetch(`/api/channels/${encodeURIComponent(broadcaster)}/admins/${encodeURIComponent(username)}`, {
-        method: "DELETE",
-    })
-        .then((response) => {
-            if (!response.ok) {
-                throw new Error();
-            }
-            fetchAdmins();
-            fetchSuggestedAdmins();
-        })
-        .catch(() => {
-            showToast("Failed to remove admin. Please retry.", "error");
-        });
+    try {
+        const response = await fetch(
+            `${apiBase}/admins/${encodeURIComponent(username)}`,
+            { method: "DELETE" },
+        );
+        if (!response.ok) {
+            throw new Error("Remove admin failed");
+        }
+        await Promise.all([fetchAdmins(), fetchSuggestedAdmins()]);
+    } catch (error) {
+        showToast("Failed to remove admin. Please retry.", "error");
+    }
 }
 
-function addAdmin(usernameFromAction) {
-    const input = document.getElementById("new-admin");
-    const username = (usernameFromAction || input?.value || "").trim();
+async function addAdmin(usernameFromAction) {
+    const username = normalizeUsername(usernameFromAction || elements.adminInput?.value);
     if (!username) {
         showToast("Enter a Twitch username to add as an admin.", "info");
         return;
     }
 
-    fetch(`/api/channels/${broadcaster}/admins`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username }),
-    })
-        .then((response) => {
-            if (!response.ok) {
-                throw new Error("Add admin failed");
-            }
-            if (input) {
-                input.value = "";
-            }
-            showToast(`Added @${username} as an admin.`, "success");
-            fetchAdmins();
-            fetchSuggestedAdmins();
-        })
-        .catch(() => showToast("Unable to add admin right now. Please try again.", "error"));
+    setButtonBusy(elements.addAdminButton, true, "Adding...");
+    try {
+        await fetchJson(
+            "/admins",
+            {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ username }),
+            },
+            "Add admin failed",
+        );
+        if (elements.adminInput) {
+            elements.adminInput.value = "";
+        }
+        showToast(`Added @${username} as an admin.`, "success");
+        await Promise.all([fetchAdmins(), fetchSuggestedAdmins()]);
+    } catch (error) {
+        showToast("Unable to add admin right now. Please try again.", "error");
+    } finally {
+        setButtonBusy(elements.addAdminButton, false, "Adding...");
+    }
 }
 
 function renderCanvasSettings(settings) {
-    const widthInput = document.getElementById("canvas-width");
-    const heightInput = document.getElementById("canvas-height");
-    if (widthInput) widthInput.value = Math.round(settings.width);
-    if (heightInput) heightInput.value = Math.round(settings.height);
+    if (elements.canvasWidth) elements.canvasWidth.value = Math.round(settings.width);
+    if (elements.canvasHeight) elements.canvasHeight.value = Math.round(settings.height);
 }
 
-function fetchCanvasSettings() {
-    fetch(`/api/channels/${broadcaster}/canvas`)
-        .then((r) => {
-            if (!r.ok) {
-                throw new Error("Failed to load canvas settings");
-            }
-            return r.json();
-        })
-        .then(renderCanvasSettings)
-        .catch(() => {
-            renderCanvasSettings({ width: 1920, height: 1080 });
-            showToast("Using default canvas size. Unable to load saved settings.", "warning");
-        });
+async function fetchCanvasSettings() {
+    try {
+        const data = await fetchJson("/canvas", {}, "Failed to load canvas settings");
+        renderCanvasSettings(data);
+    } catch (error) {
+        renderCanvasSettings({ width: 1920, height: 1080 });
+        showToast("Using default canvas size. Unable to load saved settings.", "warning");
+    }
 }
 
-function saveCanvasSettings() {
-    const widthInput = document.getElementById("canvas-width");
-    const heightInput = document.getElementById("canvas-height");
-    const status = document.getElementById("canvas-status");
-    const width = parseFloat(widthInput?.value) || 0;
-    const height = parseFloat(heightInput?.value) || 0;
+async function saveCanvasSettings() {
+    const width = parseFloat(elements.canvasWidth?.value) || 0;
+    const height = parseFloat(elements.canvasHeight?.value) || 0;
     if (width <= 0 || height <= 0) {
         showToast("Please enter a valid width and height.", "info");
         return;
     }
-    if (status) status.textContent = "Saving...";
-    fetch(`/api/channels/${broadcaster}/canvas`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ width, height }),
-    })
-        .then((r) => {
-            if (!r.ok) {
-                throw new Error("Failed to save canvas");
-            }
-            return r.json();
-        })
-        .then((settings) => {
-            renderCanvasSettings(settings);
-            if (status) status.textContent = "Saved.";
-            showToast("Canvas size saved successfully.", "success");
-            setTimeout(() => {
-                if (status) status.textContent = "";
-            }, 2000);
-        })
-        .catch(() => {
-            if (status) status.textContent = "Unable to save right now.";
-            showToast("Unable to save canvas size. Please retry.", "error");
-        });
+    if (elements.canvasStatus) elements.canvasStatus.textContent = "Saving...";
+    setButtonBusy(elements.canvasSaveButton, true, "Saving...");
+    try {
+        const settings = await fetchJson(
+            "/canvas",
+            {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ width, height }),
+            },
+            "Failed to save canvas",
+        );
+        renderCanvasSettings(settings);
+        if (elements.canvasStatus) elements.canvasStatus.textContent = "Saved.";
+        showToast("Canvas size saved successfully.", "success");
+        setTimeout(() => {
+            if (elements.canvasStatus) elements.canvasStatus.textContent = "";
+        }, 2000);
+    } catch (error) {
+        if (elements.canvasStatus) elements.canvasStatus.textContent = "Unable to save right now.";
+        showToast("Unable to save canvas size. Please retry.", "error");
+    } finally {
+        setButtonBusy(elements.canvasSaveButton, false, "Saving...");
+    }
+}
+
+if (elements.adminInput) {
+    elements.adminInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+            event.preventDefault();
+            addAdmin();
+        }
+    });
 }
 
 fetchAdmins();

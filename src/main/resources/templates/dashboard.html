@@ -54,8 +54,8 @@
                     </label>
                 </div>
                 <div class="control-actions">
-                    <button type="button" onclick="saveCanvasSettings()">Save canvas size</button>
-                    <span id="canvas-status" class="muted"></span>
+                    <button id="save-canvas-btn" type="button" onclick="saveCanvasSettings()">Save canvas size</button>
+                    <span id="canvas-status" class="muted" role="status" aria-live="polite"></span>
                 </div>
             </section>
 
@@ -69,8 +69,11 @@
                         </div>
                     </div>
                     <div class="inline-form">
-                        <input id="new-admin" placeholder="Twitch username" />
-                        <button type="button" onclick="addAdmin()">Add admin</button>
+                        <div class="field-stack">
+                            <input id="new-admin" placeholder="Twitch username" autocomplete="off" />
+                            <span class="form-helper">Enter the username without the @ symbol.</span>
+                        </div>
+                        <button id="add-admin-btn" type="button" onclick="addAdmin()">Add admin</button>
                     </div>
                     <div class="card-section">
                         <div class="section-header">
