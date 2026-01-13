@@ -19,8 +19,13 @@
                     </div>
                 </div>
                 <div class="user-pill">
-                    <span class="eyebrow subtle">Signed in as</span>
-                    <span class="user-display" th:text="${username}">user</span>
+                    <div class="user-pill-copy">
+                        <span class="eyebrow subtle">Signed in as</span>
+                        <span class="user-display" th:text="${username}">user</span>
+                    </div>
+                    <form class="user-logout" th:action="@{/logout}" method="post">
+                        <button class="ghost" type="submit">Logout</button>
+                    </form>
                 </div>
             </header>
 
@@ -29,13 +34,34 @@
                 <h3>Shortcuts</h3>
                 <p class="muted">Jump into your overlay</p>
                 <div class="panel-actions">
-                    <a class="button block" th:href="@{'/view/' + ${channel} + '/broadcast'}">Open broadcast overlay</a>
-                    <a class="button ghost block" th:href="@{'/view/' + ${channel} + '/admin'}">Open admin console</a>
-                    <a class="button ghost block" th:if="${isSystemAdmin}" href="/settings">Application settings</a>
-                    <a class="button ghost block" href="/channels">Browse channels</a>
-                    <form class="block" th:action="@{/logout}" method="post">
-                        <button class="secondary block" type="submit">Logout</button>
-                    </form>
+                    <a class="dashboard-action" th:href="@{'/view/' + ${channel} + '/broadcast'}">
+                        <span class="dashboard-action-icon">Live</span>
+                        <span class="dashboard-action-copy">
+                            <strong>Open broadcast overlay</strong>
+                            <small>Launch your live overlay view.</small>
+                        </span>
+                    </a>
+                    <a class="dashboard-action" th:href="@{'/view/' + ${channel} + '/admin'}">
+                        <span class="dashboard-action-icon">Admin</span>
+                        <span class="dashboard-action-copy">
+                            <strong>Open admin console</strong>
+                            <small>Manage assets, scripts, and layout.</small>
+                        </span>
+                    </a>
+                    <a class="dashboard-action" th:if="${isSystemAdmin}" href="/settings">
+                        <span class="dashboard-action-icon">App</span>
+                        <span class="dashboard-action-copy">
+                            <strong>Application settings</strong>
+                            <small>Configure server-wide preferences.</small>
+                        </span>
+                    </a>
+                    <a class="dashboard-action" href="/channels">
+                        <span class="dashboard-action-icon">Browse</span>
+                        <span class="dashboard-action-copy">
+                            <strong>Browse channels</strong>
+                            <small>Find other overlays you manage.</small>
+                        </span>
+                    </a>
                 </div>
             </section>
 

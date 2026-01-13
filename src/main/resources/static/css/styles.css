@@ -682,9 +682,9 @@ button:disabled:hover {
 
 .panel-actions {
     display: flex;
-    flex-direction: row;
-    gap: 20px;
-    padding: 20px;
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px 0 4px;
 }
 
 .preview-grid {
@@ -874,13 +874,85 @@ button:disabled:hover {
 
 .user-pill {
     display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 4px;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 16px;
     padding: 10px 12px;
     border-radius: 12px;
     background: rgba(124, 58, 237, 0.1);
     border: 1px solid rgba(124, 58, 237, 0.2);
+}
+
+.user-pill-copy {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+}
+
+.user-logout {
+    margin: 0;
+}
+
+.user-logout .ghost {
+    border-color: rgba(148, 163, 184, 0.4);
+    color: #e2e8f0;
+}
+
+.user-logout .ghost:hover:not(:disabled) {
+    border-color: rgba(196, 181, 253, 0.6);
+    color: #f8fafc;
+}
+
+.dashboard-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: rgba(124, 58, 237, 0.08);
+    border: 1px solid rgba(124, 58, 237, 0.2);
+    color: #e2e8f0;
+    text-decoration: none;
+    transition:
+        background 120ms ease,
+        border-color 120ms ease,
+        transform 120ms ease;
+}
+
+.dashboard-action:hover {
+    background: rgba(124, 58, 237, 0.16);
+    border-color: rgba(124, 58, 237, 0.35);
+    transform: translateY(-1px);
+}
+
+.dashboard-action-icon {
+    min-width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    display: grid;
+    place-items: center;
+    background: rgba(124, 58, 237, 0.18);
+    color: #c4b5fd;
+    font-weight: 700;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.dashboard-action-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.dashboard-action-copy strong {
+    font-size: 15px;
+}
+
+.dashboard-action-copy small {
+    color: #cbd5e1;
+    font-size: 12px;
 }
 
 .user-display {
