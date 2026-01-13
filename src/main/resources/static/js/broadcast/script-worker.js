@@ -1,7 +1,5 @@
 const scripts = new Map();
 const allowedFetchUrls = new Set();
-let canvas = null;
-let ctx = null;
 let channelName = "";
 let tickIntervalId = null;
 let lastTick = 0;
@@ -134,11 +132,11 @@ function updateScriptContexts() {
         if (!script.context) {
             return;
         }
-        script.context.canvas = canvas;
-        script.context.ctx = ctx;
+        script.context.canvas = script.canvas;
+        script.context.ctx = script.ctx;
         script.context.channelName = channelName;
-        script.context.width = canvas?.width ?? 0;
-        script.context.height = canvas?.height ?? 0;
+        script.context.width = script.canvas?.width ?? 0;
+        script.context.height = script.canvas?.height ?? 0;
     });
 }
 
@@ -149,7 +147,7 @@ function ensureTickLoop() {
     startTime = performance.now();
     lastTick = startTime;
     tickIntervalId = setInterval(() => {
-        if (!ctx || scripts.size === 0) {
+        if (scripts.size === 0) {
             return;
         }
         const now = performance.now();
@@ -158,7 +156,7 @@ function ensureTickLoop() {
         lastTick = now;
 
         scripts.forEach((script) => {
-            if (!script.tick) {
+            if (!script.tick || !script.ctx) {
                 return;
             }
             script.context.now = now;
@@ -199,22 +197,19 @@ function createScriptHandlers(source, context, state, sourceLabel = "") {
 self.addEventListener("message", (event) => {
     const { type, payload } = event.data || {};
     if (type === "init") {
-        canvas = payload.canvas;
         channelName = payload.channelName || "";
-        if (canvas) {
-            canvas.width = payload.width || canvas.width;
-            canvas.height = payload.height || canvas.height;
-            ctx = canvas.getContext("2d");
-        }
         updateScriptContexts();
         return;
     }
 
     if (type === "resize") {
-        if (canvas) {
-            canvas.width = payload.width || canvas.width;
-            canvas.height = payload.height || canvas.height;
-        }
+        scripts.forEach((script) => {
+            if (!script.canvas) {
+                return;
+            }
+            script.canvas.width = payload.width || script.canvas.width;
+            script.canvas.height = payload.height || script.canvas.height;
+        });
         updateScriptContexts();
         return;
     }
@@ -226,16 +221,20 @@ self.addEventListener("message", (event) => {
     }
 
     if (type === "addScript") {
-        if (!payload?.id || !payload?.source) {
+        if (!payload?.id || !payload?.source || !payload?.canvas) {
             return;
         }
+        const canvas = payload.canvas;
+        canvas.width = payload.width || canvas.width;
+        canvas.height = payload.height || canvas.height;
+        const ctx = canvas.getContext("2d");
         const state = {};
         const context = {
             canvas,
             ctx,
             channelName,
-            width: canvas?.width ?? 0,
-            height: canvas?.height ?? 0,
+            width: canvas.width ?? 0,
+            height: canvas.height ?? 0,
             now: 0,
             deltaMs: 0,
             elapsedMs: 0,
@@ -251,6 +250,8 @@ self.addEventListener("message", (event) => {
         }
         const script = {
             id: payload.id,
+            canvas,
+            ctx,
             context,
             state,
             init: handlers.init,

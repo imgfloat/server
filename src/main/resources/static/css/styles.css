@@ -1120,8 +1120,20 @@ button:disabled:hover {
     z-index: 1;
 }
 
-#broadcast-script-canvas {
+.broadcast-script-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
     z-index: 2;
+}
+
+.broadcast-script-layer canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
 }
 
 .broadcast-body {

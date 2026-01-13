@@ -8,10 +8,11 @@ import { createMediaManager } from "./mediaManager.js";
 import { createModelManager } from "../media/modelManager.js";
 
 export class BroadcastRenderer {
-    constructor({ canvas, scriptCanvas, broadcaster, showToast }) {
+    constructor({ canvas, scriptLayer, broadcaster, showToast }) {
         this.canvas = canvas;
         this.ctx = canvas.getContext("2d");
-        this.scriptCanvas = scriptCanvas;
+        this.scriptLayer = scriptLayer;
+        this.scriptCanvases = new Map();
         this.broadcaster = broadcaster;
         this.showToast = showToast;
         this.state = createBroadcastState();
@@ -146,13 +147,12 @@ export class BroadcastRenderer {
             this.canvas.height = this.state.canvasSettings.height;
             this.canvas.style.width = `${this.state.canvasSettings.width}px`;
             this.canvas.style.height = `${this.state.canvasSettings.height}px`;
-            if (this.scriptCanvas) {
-                this.scriptCanvas.width = this.state.canvasSettings.width;
-                this.scriptCanvas.height = this.state.canvasSettings.height;
-                this.scriptCanvas.style.width = `${this.state.canvasSettings.width}px`;
-                this.scriptCanvas.style.height = `${this.state.canvasSettings.height}px`;
+            if (this.scriptLayer) {
+                this.scriptLayer.style.width = `${this.state.canvasSettings.width}px`;
+                this.scriptLayer.style.height = `${this.state.canvasSettings.height}px`;
             }
         }
+        this.resizeScriptCanvases();
         this.updateScriptWorkerCanvas();
         this.draw();
     }
@@ -395,40 +395,31 @@ export class BroadcastRenderer {
     }
 
     ensureScriptWorker() {
-        if (this.scriptWorker || !this.scriptCanvas) {
+        if (this.scriptWorker) {
             return;
         }
-        if (typeof this.scriptCanvas.transferControlToOffscreen !== "function") {
-            console.warn("OffscreenCanvas is not supported in this environment.");
-            return;
-        }
-        const offscreen = this.scriptCanvas.transferControlToOffscreen();
         this.scriptWorker = new Worker("/js/broadcast/script-worker.js");
         this.scriptWorker.addEventListener("message", (event) => this.handleScriptWorkerMessage(event));
         this.scriptWorker.postMessage(
             {
                 type: "init",
                 payload: {
-                    canvas: offscreen,
-                    width: this.scriptCanvas.width,
-                    height: this.scriptCanvas.height,
                     channelName: this.broadcaster,
                 },
             },
-            [offscreen],
         );
         this.scriptWorkerReady = true;
     }
 
     updateScriptWorkerCanvas() {
-        if (!this.scriptWorker || !this.scriptWorkerReady || !this.scriptCanvas) {
+        if (!this.scriptWorker || !this.scriptWorkerReady) {
             return;
         }
         this.scriptWorker.postMessage({
             type: "resize",
             payload: {
-                width: this.scriptCanvas.width,
-                height: this.scriptCanvas.height,
+                width: this.state.canvasSettings.width,
+                height: this.state.canvasSettings.height,
             },
         });
     }
@@ -483,6 +474,15 @@ export class BroadcastRenderer {
         if (!this.scriptWorkerReady) {
             return;
         }
+        const scriptCanvas = this.ensureScriptCanvas(asset.id);
+        if (!scriptCanvas) {
+            return;
+        }
+        if (typeof scriptCanvas.transferControlToOffscreen !== "function") {
+            console.warn("OffscreenCanvas is not supported in this environment.");
+            return;
+        }
+        const offscreen = scriptCanvas.transferControlToOffscreen();
         let assetSource;
         try {
             const response = await fetch(asset.url);
@@ -499,9 +499,12 @@ export class BroadcastRenderer {
             payload: {
                 id: asset.id,
                 source: assetSource,
+                canvas: offscreen,
+                width: scriptCanvas.width,
+                height: scriptCanvas.height,
                 attachments: await this.resolveScriptAttachments(asset.scriptAttachments),
             },
-        });
+        }, [offscreen]);
     }
 
     async updateScriptWorkerAttachments(asset) {
@@ -525,6 +528,53 @@ export class BroadcastRenderer {
             type: "removeScript",
             payload: { id: assetId },
         });
+        this.removeScriptCanvas(assetId);
+    }
+
+    ensureScriptCanvas(assetId) {
+        if (!assetId || !this.scriptLayer) {
+            return null;
+        }
+        const existing = this.scriptCanvases.get(assetId);
+        if (existing) {
+            return existing;
+        }
+        const canvas = document.createElement("canvas");
+        canvas.className = "broadcast-script-canvas";
+        canvas.dataset.scriptId = assetId;
+        this.applyScriptCanvasSize(canvas);
+        this.scriptLayer.appendChild(canvas);
+        this.scriptCanvases.set(assetId, canvas);
+        return canvas;
+    }
+
+    removeScriptCanvas(assetId) {
+        const canvas = this.scriptCanvases.get(assetId);
+        if (!canvas) {
+            return;
+        }
+        canvas.remove();
+        this.scriptCanvases.delete(assetId);
+    }
+
+    resizeScriptCanvases() {
+        this.scriptCanvases.forEach((canvas) => {
+            this.applyScriptCanvasSize(canvas);
+        });
+    }
+
+    applyScriptCanvasSize(canvas) {
+        if (!canvas) {
+            return;
+        }
+        if (Number.isFinite(this.state.canvasSettings.width)) {
+            canvas.width = this.state.canvasSettings.width;
+            canvas.style.width = `${this.state.canvasSettings.width}px`;
+        }
+        if (Number.isFinite(this.state.canvasSettings.height)) {
+            canvas.height = this.state.canvasSettings.height;
+            canvas.style.height = `${this.state.canvasSettings.height}px`;
+        }
     }
 
     async resolveScriptAttachments(attachments) {
