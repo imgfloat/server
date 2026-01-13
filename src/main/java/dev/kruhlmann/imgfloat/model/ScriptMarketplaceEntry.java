@@ -5,5 +5,7 @@ public record ScriptMarketplaceEntry(
     String name,
     String description,
     String logoUrl,
-    String broadcaster
+    String broadcaster,
+    long heartsCount,
+    boolean hearted
 ) {}

@@ -13,6 +13,7 @@ import dev.kruhlmann.imgfloat.model.CanvasEvent;
 import dev.kruhlmann.imgfloat.model.CanvasSettingsRequest;
 import dev.kruhlmann.imgfloat.model.Channel;
 import dev.kruhlmann.imgfloat.model.CodeAssetRequest;
+import dev.kruhlmann.imgfloat.model.MarketplaceScriptHeart;
 import dev.kruhlmann.imgfloat.model.PlaybackRequest;
 import dev.kruhlmann.imgfloat.model.ScriptAsset;
 import dev.kruhlmann.imgfloat.model.ScriptAssetAttachment;
@@ -26,6 +27,7 @@ import dev.kruhlmann.imgfloat.model.VisualAsset;
 import dev.kruhlmann.imgfloat.repository.AssetRepository;
 import dev.kruhlmann.imgfloat.repository.AudioAssetRepository;
 import dev.kruhlmann.imgfloat.repository.ChannelRepository;
+import dev.kruhlmann.imgfloat.repository.MarketplaceScriptHeartRepository;
 import dev.kruhlmann.imgfloat.repository.ScriptAssetRepository;
 import dev.kruhlmann.imgfloat.repository.ScriptAssetAttachmentRepository;
 import dev.kruhlmann.imgfloat.repository.ScriptAssetFileRepository;
@@ -66,6 +68,7 @@ public class ChannelDirectoryService {
     private final ScriptAssetRepository scriptAssetRepository;
     private final ScriptAssetAttachmentRepository scriptAssetAttachmentRepository;
     private final ScriptAssetFileRepository scriptAssetFileRepository;
+    private final MarketplaceScriptHeartRepository marketplaceScriptHeartRepository;
     private final SimpMessagingTemplate messagingTemplate;
     private final AssetStorageService assetStorageService;
     private final MediaDetectionService mediaDetectionService;
@@ -83,6 +86,7 @@ public class ChannelDirectoryService {
         ScriptAssetRepository scriptAssetRepository,
         ScriptAssetAttachmentRepository scriptAssetAttachmentRepository,
         ScriptAssetFileRepository scriptAssetFileRepository,
+        MarketplaceScriptHeartRepository marketplaceScriptHeartRepository,
         SimpMessagingTemplate messagingTemplate,
         AssetStorageService assetStorageService,
         MediaDetectionService mediaDetectionService,
@@ -98,6 +102,7 @@ public class ChannelDirectoryService {
         this.scriptAssetRepository = scriptAssetRepository;
         this.scriptAssetAttachmentRepository = scriptAssetAttachmentRepository;
         this.scriptAssetFileRepository = scriptAssetFileRepository;
+        this.marketplaceScriptHeartRepository = marketplaceScriptHeartRepository;
         this.messagingTemplate = messagingTemplate;
         this.assetStorageService = assetStorageService;
         this.mediaDetectionService = mediaDetectionService;
@@ -430,7 +435,7 @@ public class ChannelDirectoryService {
         return Optional.of(view);
     }
 
-    public List<ScriptMarketplaceEntry> listMarketplaceScripts(String query) {
+    public List<ScriptMarketplaceEntry> listMarketplaceScripts(String query, String sessionUsername) {
         String q = normalizeDescription(query);
         String normalizedQuery = q == null ? null : q.toLowerCase(Locale.ROOT);
         List<ScriptMarketplaceEntry> entries = new ArrayList<>(marketplaceScriptSeedLoader.listEntriesForQuery(normalizedQuery));
@@ -439,12 +444,7 @@ public class ChannelDirectoryService {
             scripts = scriptAssetRepository.findByIsPublicTrue();
         } catch (DataAccessException ex) {
             logger.warn("Unable to load marketplace scripts", ex);
-            return entries
-                .stream()
-                .sorted(
-                    Comparator.comparing(ScriptMarketplaceEntry::name, Comparator.nullsLast(String::compareToIgnoreCase))
-                )
-                .toList();
+            return applyMarketplaceHearts(entries, sessionUsername);
         }
         if (normalizedQuery != null && !normalizedQuery.isBlank()) {
             scripts =
@@ -477,15 +477,145 @@ public class ChannelDirectoryService {
                         script.getName(),
                         script.getDescription(),
                         logoUrl,
-                        broadcaster
+                        broadcaster,
+                        0,
+                        false
                     );
                 })
                 .toList()
         );
 
+        return applyMarketplaceHearts(entries, sessionUsername);
+    }
+
+    public Optional<ScriptMarketplaceEntry> toggleMarketplaceHeart(String scriptId, String sessionUsername) {
+        if (scriptId == null || scriptId.isBlank() || sessionUsername == null || sessionUsername.isBlank()) {
+            return Optional.empty();
+        }
+        try {
+            if (marketplaceScriptHeartRepository.existsByScriptIdAndUsername(scriptId, sessionUsername)) {
+                marketplaceScriptHeartRepository.deleteByScriptIdAndUsername(scriptId, sessionUsername);
+            } else {
+                marketplaceScriptHeartRepository.save(new MarketplaceScriptHeart(scriptId, sessionUsername));
+            }
+        } catch (DataAccessException ex) {
+            logger.warn("Unable to update marketplace heart for {}", scriptId, ex);
+            return Optional.empty();
+        }
+        return loadMarketplaceEntryWithHearts(scriptId, sessionUsername);
+    }
+
+    private Optional<ScriptMarketplaceEntry> loadMarketplaceEntryWithHearts(String scriptId, String sessionUsername) {
+        Optional<MarketplaceScriptSeedLoader.SeedScript> seedScript = marketplaceScriptSeedLoader.findById(scriptId);
+        if (seedScript.isPresent()) {
+            return Optional.of(applyMarketplaceHearts(seedScript.get().entry(), sessionUsername));
+        }
+        ScriptAsset script;
+        try {
+            script = scriptAssetRepository.findById(scriptId).filter(ScriptAsset::isPublic).orElse(null);
+        } catch (DataAccessException ex) {
+            logger.warn("Unable to load marketplace script {}", scriptId, ex);
+            return Optional.empty();
+        }
+        if (script == null) {
+            return Optional.empty();
+        }
+        Asset asset = assetRepository.findById(scriptId).orElse(null);
+        String broadcaster = asset != null ? asset.getBroadcaster() : "";
+        String logoUrl = script.getLogoFileId() == null ? null : "/api/marketplace/scripts/" + script.getId() + "/logo";
+        ScriptMarketplaceEntry entry = new ScriptMarketplaceEntry(
+            script.getId(),
+            script.getName(),
+            script.getDescription(),
+            logoUrl,
+            broadcaster,
+            0,
+            false
+        );
+        return Optional.of(applyMarketplaceHearts(entry, sessionUsername));
+    }
+
+    private ScriptMarketplaceEntry applyMarketplaceHearts(ScriptMarketplaceEntry entry, String sessionUsername) {
+        if (entry == null || entry.id() == null) {
+            return entry;
+        }
+        long heartCount;
+        boolean hearted;
+        try {
+            heartCount = marketplaceScriptHeartRepository.countByScriptId(entry.id());
+            hearted =
+                sessionUsername != null &&
+                marketplaceScriptHeartRepository.existsByScriptIdAndUsername(entry.id(), sessionUsername);
+        } catch (DataAccessException ex) {
+            logger.warn("Unable to load marketplace heart summary for {}", entry.id(), ex);
+            heartCount = 0;
+            hearted = false;
+        }
+        return new ScriptMarketplaceEntry(
+            entry.id(),
+            entry.name(),
+            entry.description(),
+            entry.logoUrl(),
+            entry.broadcaster(),
+            heartCount,
+            hearted
+        );
+    }
+
+    private List<ScriptMarketplaceEntry> applyMarketplaceHearts(
+        List<ScriptMarketplaceEntry> entries,
+        String sessionUsername
+    ) {
+        if (entries == null || entries.isEmpty()) {
+            return List.of();
+        }
+        List<String> scriptIds = entries.stream().map(ScriptMarketplaceEntry::id).filter(Objects::nonNull).toList();
+        Map<String, Long> counts = new HashMap<>();
+        Set<String> heartedIds = new HashSet<>();
+        try {
+            if (!scriptIds.isEmpty()) {
+                counts.putAll(
+                    marketplaceScriptHeartRepository
+                        .countByScriptIds(scriptIds)
+                        .stream()
+                        .collect(
+                            Collectors.toMap(
+                                MarketplaceScriptHeartRepository.ScriptHeartCount::getScriptId,
+                                MarketplaceScriptHeartRepository.ScriptHeartCount::getHeartCount
+                            )
+                        )
+                );
+                if (sessionUsername != null && !sessionUsername.isBlank()) {
+                    heartedIds.addAll(
+                        marketplaceScriptHeartRepository
+                            .findByUsernameAndScriptIdIn(sessionUsername, scriptIds)
+                            .stream()
+                            .map(MarketplaceScriptHeart::getScriptId)
+                            .collect(Collectors.toSet())
+                    );
+                }
+            }
+        } catch (DataAccessException ex) {
+            logger.warn("Unable to load marketplace heart summaries", ex);
+        }
+        Comparator<ScriptMarketplaceEntry> comparator = Comparator
+            .comparingLong((ScriptMarketplaceEntry entry) -> counts.getOrDefault(entry.id(), 0L))
+            .reversed()
+            .thenComparing(ScriptMarketplaceEntry::name, Comparator.nullsLast(String::compareToIgnoreCase));
         return entries
             .stream()
-            .sorted(Comparator.comparing(ScriptMarketplaceEntry::name, Comparator.nullsLast(String::compareToIgnoreCase)))
+            .map((entry) ->
+                new ScriptMarketplaceEntry(
+                    entry.id(),
+                    entry.name(),
+                    entry.description(),
+                    entry.logoUrl(),
+                    entry.broadcaster(),
+                    counts.getOrDefault(entry.id(), 0L),
+                    heartedIds.contains(entry.id())
+                )
+            )
+            .sorted(comparator)
             .toList();
     }
 

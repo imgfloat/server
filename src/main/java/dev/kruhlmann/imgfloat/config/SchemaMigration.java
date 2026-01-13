@@ -25,6 +25,7 @@ public class SchemaMigration implements ApplicationRunner {
         ensureSessionAttributeUpsertTrigger();
         ensureChannelCanvasColumns();
         ensureAssetTables();
+        ensureMarketplaceScriptHeartsTable();
         ensureAuthorizedClientTable();
         normalizeAuthorizedClientTimestamps();
     }
@@ -166,6 +167,22 @@ public class SchemaMigration implements ApplicationRunner {
             backfillAssetTypes(assetColumns);
         } catch (DataAccessException ex) {
             logger.warn("Unable to ensure asset type tables", ex);
+        }
+    }
+
+    private void ensureMarketplaceScriptHeartsTable() {
+        try {
+            jdbcTemplate.execute(
+                """
+                CREATE TABLE IF NOT EXISTS marketplace_script_hearts (
+                    script_id TEXT NOT NULL,
+                    username TEXT NOT NULL,
+                    PRIMARY KEY (script_id, username)
+                )
+                """
+            );
+        } catch (DataAccessException ex) {
+            logger.warn("Unable to ensure marketplace script hearts table", ex);
         }
     }
 

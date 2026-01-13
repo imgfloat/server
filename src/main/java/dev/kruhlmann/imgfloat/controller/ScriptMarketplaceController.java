@@ -46,8 +46,12 @@ public class ScriptMarketplaceController {
     }
 
     @GetMapping("/scripts")
-    public List<ScriptMarketplaceEntry> listMarketplaceScripts(@RequestParam(value = "query", required = false) String query) {
-        return channelDirectoryService.listMarketplaceScripts(query);
+    public List<ScriptMarketplaceEntry> listMarketplaceScripts(
+        @RequestParam(value = "query", required = false) String query,
+        OAuth2AuthenticationToken oauthToken
+    ) {
+        String sessionUsername = oauthToken == null ? null : OauthSessionUser.from(oauthToken).login();
+        return channelDirectoryService.listMarketplaceScripts(query, sessionUsername);
     }
 
     @GetMapping("/scripts/{scriptId}/logo")
@@ -84,5 +88,17 @@ public class ScriptMarketplaceController {
             .importMarketplaceScript(request.getTargetBroadcaster(), scriptId)
             .map(ResponseEntity::ok)
             .orElseThrow(() -> new ResponseStatusException(BAD_REQUEST, "Unable to import script"));
+    }
+
+    @PostMapping("/scripts/{scriptId}/heart")
+    public ResponseEntity<ScriptMarketplaceEntry> toggleMarketplaceHeart(
+        @PathVariable("scriptId") String scriptId,
+        OAuth2AuthenticationToken oauthToken
+    ) {
+        String sessionUsername = OauthSessionUser.from(oauthToken).login();
+        return channelDirectoryService
+            .toggleMarketplaceHeart(scriptId, sessionUsername)
+            .map(ResponseEntity::ok)
+            .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Marketplace script not found"));
     }
 }

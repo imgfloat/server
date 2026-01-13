@@ -20,6 +20,7 @@ import dev.kruhlmann.imgfloat.model.VisibilityRequest;
 import dev.kruhlmann.imgfloat.repository.AssetRepository;
 import dev.kruhlmann.imgfloat.repository.AudioAssetRepository;
 import dev.kruhlmann.imgfloat.repository.ChannelRepository;
+import dev.kruhlmann.imgfloat.repository.MarketplaceScriptHeartRepository;
 import dev.kruhlmann.imgfloat.repository.ScriptAssetRepository;
 import dev.kruhlmann.imgfloat.repository.ScriptAssetAttachmentRepository;
 import dev.kruhlmann.imgfloat.repository.ScriptAssetFileRepository;
@@ -61,6 +62,7 @@ class ChannelDirectoryServiceTest {
     private ScriptAssetRepository scriptAssetRepository;
     private ScriptAssetAttachmentRepository scriptAssetAttachmentRepository;
     private ScriptAssetFileRepository scriptAssetFileRepository;
+    private MarketplaceScriptHeartRepository marketplaceScriptHeartRepository;
     private SettingsService settingsService;
     private MarketplaceScriptSeedLoader marketplaceScriptSeedLoader;
 
@@ -74,6 +76,9 @@ class ChannelDirectoryServiceTest {
         scriptAssetRepository = mock(ScriptAssetRepository.class);
         scriptAssetAttachmentRepository = mock(ScriptAssetAttachmentRepository.class);
         scriptAssetFileRepository = mock(ScriptAssetFileRepository.class);
+        marketplaceScriptHeartRepository = mock(MarketplaceScriptHeartRepository.class);
+        when(marketplaceScriptHeartRepository.countByScriptIds(any())).thenReturn(List.of());
+        when(marketplaceScriptHeartRepository.findByUsernameAndScriptIdIn(anyString(), any())).thenReturn(List.of());
         settingsService = mock(SettingsService.class);
         when(settingsService.get()).thenReturn(Settings.defaults());
         setupInMemoryPersistence();
@@ -109,6 +114,7 @@ class ChannelDirectoryServiceTest {
             scriptAssetRepository,
             scriptAssetAttachmentRepository,
             scriptAssetFileRepository,
+            marketplaceScriptHeartRepository,
             messagingTemplate,
             assetStorageService,
             mediaDetectionService,
@@ -201,7 +207,7 @@ class ChannelDirectoryServiceTest {
     void includesDefaultMarketplaceScript() {
         when(scriptAssetRepository.findByIsPublicTrue()).thenReturn(List.of());
 
-        List<dev.kruhlmann.imgfloat.model.ScriptMarketplaceEntry> entries = service.listMarketplaceScripts(null);
+        List<dev.kruhlmann.imgfloat.model.ScriptMarketplaceEntry> entries = service.listMarketplaceScripts(null, null);
 
         assertThat(entries)
             .anyMatch((entry) -> "rotating-logo".equals(entry.id()));

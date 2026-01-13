@@ -86,7 +86,9 @@ public class MarketplaceScriptSeedLoader {
                 name,
                 description,
                 logoPath.isPresent() ? "/api/marketplace/scripts/" + id + "/logo" : null,
-                broadcaster
+                broadcaster,
+                0,
+                false
             );
         }
 
