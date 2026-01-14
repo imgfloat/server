@@ -14,6 +14,8 @@
         <java.version>17</java.version>
         <spring.boot.version>3.2.5</spring.boot.version>
         <hibernate.version>6.4.4.Final</hibernate.version>
+        <bytebuddy.version>1.18.3</bytebuddy.version>
+        <jacoco.version>0.8.14</jacoco.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     </properties>
@@ -26,6 +28,16 @@
                 <version>${spring.boot.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>net.bytebuddy</groupId>
+                <artifactId>byte-buddy</artifactId>
+                <version>${bytebuddy.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>net.bytebuddy</groupId>
+                <artifactId>byte-buddy-agent</artifactId>
+                <version>${bytebuddy.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
@@ -138,7 +150,7 @@
             <plugin>
               <groupId>org.jacoco</groupId>
               <artifactId>jacoco-maven-plugin</artifactId>
-              <version>0.8.11</version>
+              <version>${jacoco.version}</version>
               <executions>
                 <execution>
                   <goals>
@@ -153,6 +165,16 @@
                   </goals>
                 </execution>
               </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.2.5</version>
+                <configuration>
+                    <systemPropertyVariables>
+                        <net.bytebuddy.experimental>true</net.bytebuddy.experimental>
+                    </systemPropertyVariables>
+                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
@@ -200,4 +222,5 @@
             </plugin>
         </plugins>
     </build>
+
 </project>

@@ -5,7 +5,6 @@ import dev.kruhlmann.imgfloat.model.Settings;
 import dev.kruhlmann.imgfloat.repository.ChannelRepository;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Date;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,7 +53,7 @@ public class EmoteSyncScheduler implements SchedulingConfigurer {
             Instant lastCompletion = triggerContext.lastCompletionTime() == null
                 ? Instant.now()
                 : triggerContext.lastCompletionTime().toInstant();
-            return Date.from(lastCompletion.plus(Duration.ofMinutes(resolveIntervalMinutes())));
+            return lastCompletion.plus(Duration.ofMinutes(resolveIntervalMinutes()));
         };
     }
 
