@@ -1,0 +1,4 @@
+{
+  "name": "Emote combo",
+  "description": "Displays a bottom-left combo counter whenever the same emote appears across consecutive chat messages."
+}
