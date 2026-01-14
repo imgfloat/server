@@ -585,12 +585,12 @@ export class BroadcastRenderer {
                 enhanced.push(fragment);
                 return;
             }
-            const parts = fragment.text.split(/(\\s+)/);
+            const parts = fragment.text.split(/(\s+)/);
             parts.forEach((part) => {
                 if (!part) {
                     return;
                 }
-                if (/^\\s+$/.test(part)) {
+                if (/^\s+$/.test(part)) {
                     enhanced.push({ type: "text", text: part });
                     return;
                 }
