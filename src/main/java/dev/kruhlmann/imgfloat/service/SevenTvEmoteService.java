@@ -70,6 +70,14 @@ public class SevenTvEmoteService {
         return emotes.stream().map(CachedEmote::descriptor).toList();
     }
 
+    public void refreshChannelEmotes(String channelLogin) {
+        if (channelLogin == null || channelLogin.isBlank()) {
+            return;
+        }
+        String normalized = channelLogin.toLowerCase(Locale.ROOT);
+        channelEmoteCache.put(normalized, fetchChannelEmotes(normalized));
+    }
+
     public Optional<EmoteAsset> loadEmoteAsset(String emoteId) {
         if (emoteId == null || emoteId.isBlank()) {
             return Optional.empty();

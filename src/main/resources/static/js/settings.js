@@ -8,12 +8,14 @@ const minPitchElement = document.getElementById("min-audio-pitch");
 const maxPitchElement = document.getElementById("max-audio-pitch");
 const minVolumeElement = document.getElementById("min-volume");
 const maxVolumeElement = document.getElementById("max-volume");
+const emoteSyncIntervalElement = document.getElementById("emote-sync-interval");
 const statusElement = document.getElementById("settings-status");
 const statCanvasFpsElement = document.getElementById("stat-canvas-fps");
 const statCanvasSizeElement = document.getElementById("stat-canvas-size");
 const statPlaybackRangeElement = document.getElementById("stat-playback-range");
 const statAudioRangeElement = document.getElementById("stat-audio-range");
 const statVolumeRangeElement = document.getElementById("stat-volume-range");
+const statEmoteSyncElement = document.getElementById("stat-emote-sync");
 const sysadminListElement = document.getElementById("sysadmin-list");
 const sysadminInputElement = document.getElementById("new-sysadmin");
 const addSysadminButtonElement = document.getElementById("add-sysadmin-button");
@@ -55,6 +57,7 @@ function setFormSettings(s) {
     maxPitchElement.value = s.maxAssetAudioPitchFraction;
     minVolumeElement.value = s.minAssetVolumeFraction;
     maxVolumeElement.value = s.maxAssetVolumeFraction;
+    emoteSyncIntervalElement.value = s.emoteSyncIntervalMinutes;
 }
 
 function updateStatCards(settings) {
@@ -64,6 +67,7 @@ function updateStatCards(settings) {
     statPlaybackRangeElement.textContent = `${settings.minAssetPlaybackSpeedFraction ?? "--"} – ${settings.maxAssetPlaybackSpeedFraction ?? "--"}x`;
     statAudioRangeElement.textContent = `${settings.minAssetAudioPitchFraction ?? "--"} – ${settings.maxAssetAudioPitchFraction ?? "--"}x`;
     statVolumeRangeElement.textContent = `${settings.minAssetVolumeFraction ?? "--"} – ${settings.maxAssetVolumeFraction ?? "--"}x`;
+    statEmoteSyncElement.textContent = `${settings.emoteSyncIntervalMinutes ?? "--"} min`;
 }
 
 function readInt(input) {
@@ -83,6 +87,7 @@ function loadUserSettingsFromDom() {
     userSettings.maxAssetAudioPitchFraction = readFloat(maxPitchElement);
     userSettings.minAssetVolumeFraction = readFloat(minVolumeElement);
     userSettings.maxAssetVolumeFraction = readFloat(maxVolumeElement);
+    userSettings.emoteSyncIntervalMinutes = readInt(emoteSyncIntervalElement);
 }
 
 function updateSubmitButtonDisabledState() {

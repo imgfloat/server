@@ -71,6 +71,10 @@ public class TwitchEmoteService {
         return globalEmotes.stream().map(CachedEmote::descriptor).toList();
     }
 
+    public void refreshGlobalEmotes() {
+        warmGlobalEmotes();
+    }
+
     public List<EmoteDescriptor> getChannelEmotes(String channelLogin) {
         if (channelLogin == null || channelLogin.isBlank()) {
             return List.of();
@@ -78,6 +82,14 @@ public class TwitchEmoteService {
         String normalized = channelLogin.toLowerCase(Locale.ROOT);
         List<CachedEmote> emotes = channelEmoteCache.computeIfAbsent(normalized, this::fetchChannelEmotes);
         return emotes.stream().map(CachedEmote::descriptor).toList();
+    }
+
+    public void refreshChannelEmotes(String channelLogin) {
+        if (channelLogin == null || channelLogin.isBlank()) {
+            return;
+        }
+        String normalized = channelLogin.toLowerCase(Locale.ROOT);
+        channelEmoteCache.put(normalized, fetchChannelEmotes(normalized));
     }
 
     public Optional<EmoteAsset> loadEmoteAsset(String emoteId) {

@@ -40,6 +40,9 @@ public class Settings {
     @Column(nullable = false)
     private int canvasFramesPerSecond;
 
+    @Column(nullable = false)
+    private int emoteSyncIntervalMinutes;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -58,6 +61,7 @@ public class Settings {
         s.setMaxAssetVolumeFraction(5.0);
         s.setMaxCanvasSideLengthPixels(7680);
         s.setCanvasFramesPerSecond(60);
+        s.setEmoteSyncIntervalMinutes(60);
         return s;
     }
 
@@ -131,6 +135,14 @@ public class Settings {
 
     public void setCanvasFramesPerSecond(int canvasFramesPerSecond) {
         this.canvasFramesPerSecond = canvasFramesPerSecond;
+    }
+
+    public int getEmoteSyncIntervalMinutes() {
+        return emoteSyncIntervalMinutes;
+    }
+
+    public void setEmoteSyncIntervalMinutes(int emoteSyncIntervalMinutes) {
+        this.emoteSyncIntervalMinutes = emoteSyncIntervalMinutes;
     }
 
     @PrePersist

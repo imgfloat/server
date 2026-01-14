@@ -61,6 +61,11 @@
                             <p class="stat-value" id="stat-volume-range">--</p>
                             <p class="stat-subtitle">Keeps alerts comfortable</p>
                         </div>
+                        <div class="stat">
+                            <p class="stat-label">Emote sync</p>
+                            <p class="stat-value" id="stat-emote-sync">--</p>
+                            <p class="stat-subtitle">Minutes between refreshes</p>
+                        </div>
                     </div>
                 </section>
 
@@ -222,6 +227,31 @@
                                 <p class="field-hint">
                                     Volume and pitch values are percentages of the original clip between 0 and 1.
                                 </p>
+                            </div>
+
+                            <div class="form-section">
+                                <div class="form-heading">
+                                    <p class="eyebrow subtle">Emotes</p>
+                                    <h3>Emote sync interval</h3>
+                                    <p class="muted tiny">
+                                        Choose how often Imgfloat refreshes Twitch and 7TV emote catalogs.
+                                    </p>
+                                </div>
+                                <div class="control-grid">
+                                    <label for="emote-sync-interval"
+                                        >Emote sync interval (minutes)
+                                        <input
+                                            id="emote-sync-interval"
+                                            name="emote-sync-interval"
+                                            class="text-input"
+                                            type="text"
+                                            inputmode="numeric"
+                                            pattern="^[1-9]\\d*$"
+                                            placeholder="60"
+                                        />
+                                    </label>
+                                </div>
+                                <p class="field-hint">Set to 60 for hourly refreshes.</p>
                             </div>
 
                             <div class="form-footer">
