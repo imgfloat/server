@@ -3,12 +3,18 @@ package dev.kruhlmann.imgfloat.model;
 public class ChannelScriptSettingsRequest {
 
     private boolean allowChannelEmotesForAssets = true;
+    private boolean allowSevenTvEmotesForAssets = true;
     private boolean allowScriptChatAccess = true;
 
     public ChannelScriptSettingsRequest() {}
 
-    public ChannelScriptSettingsRequest(boolean allowChannelEmotesForAssets, boolean allowScriptChatAccess) {
+    public ChannelScriptSettingsRequest(
+        boolean allowChannelEmotesForAssets,
+        boolean allowSevenTvEmotesForAssets,
+        boolean allowScriptChatAccess
+    ) {
         this.allowChannelEmotesForAssets = allowChannelEmotesForAssets;
+        this.allowSevenTvEmotesForAssets = allowSevenTvEmotesForAssets;
         this.allowScriptChatAccess = allowScriptChatAccess;
     }
 
@@ -18,6 +24,14 @@ public class ChannelScriptSettingsRequest {
 
     public void setAllowChannelEmotesForAssets(boolean allowChannelEmotesForAssets) {
         this.allowChannelEmotesForAssets = allowChannelEmotesForAssets;
+    }
+
+    public boolean isAllowSevenTvEmotesForAssets() {
+        return allowSevenTvEmotesForAssets;
+    }
+
+    public void setAllowSevenTvEmotesForAssets(boolean allowSevenTvEmotesForAssets) {
+        this.allowSevenTvEmotesForAssets = allowSevenTvEmotesForAssets;
     }
 
     public boolean isAllowScriptChatAccess() {

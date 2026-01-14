@@ -30,8 +30,11 @@ export class BroadcastRenderer {
         this.emoteCatalogById = new Map();
         this.globalEmotes = [];
         this.channelEmotes = [];
+        this.sevenTvEmotes = [];
+        this.sevenTvEmotesByName = new Map();
         this.lastChatPruneAt = 0;
         this.allowChannelEmotesForAssets = true;
+        this.allowSevenTvEmotesForAssets = true;
         this.allowScriptChatAccess = true;
 
         this.obsBrowser = !!globalThis.obsstudio;
@@ -429,6 +432,7 @@ export class BroadcastRenderer {
 
     setScriptSettings(settings) {
         this.allowChannelEmotesForAssets = settings?.allowChannelEmotesForAssets !== false;
+        this.allowSevenTvEmotesForAssets = settings?.allowSevenTvEmotesForAssets !== false;
         this.allowScriptChatAccess = settings?.allowScriptChatAccess !== false;
         if (!this.allowScriptChatAccess) {
             this.chatMessages = [];
@@ -478,14 +482,21 @@ export class BroadcastRenderer {
     setEmoteCatalog(catalog) {
         this.globalEmotes = Array.isArray(catalog?.global) ? catalog.global : [];
         this.channelEmotes = Array.isArray(catalog?.channel) ? catalog.channel : [];
+        this.sevenTvEmotes = Array.isArray(catalog?.sevenTv) ? catalog.sevenTv : [];
         this.refreshEmoteCatalog();
     }
 
     refreshEmoteCatalog() {
         const allowedChannelEmotes = this.allowChannelEmotesForAssets ? this.channelEmotes : [];
-        this.emoteCatalog = [...this.globalEmotes, ...allowedChannelEmotes];
+        const allowedSevenTvEmotes = this.allowSevenTvEmotesForAssets ? this.sevenTvEmotes : [];
+        this.emoteCatalog = [...this.globalEmotes, ...allowedChannelEmotes, ...allowedSevenTvEmotes];
         this.emoteCatalogById = new Map(
             this.emoteCatalog.map((entry) => [String(entry?.id || ""), entry]).filter(([key]) => key),
+        );
+        this.sevenTvEmotesByName = new Map(
+            allowedSevenTvEmotes
+                .map((entry) => [String(entry?.name || ""), entry])
+                .filter(([key]) => key),
         );
         if (this.chatMessages.length) {
             this.chatMessages = this.chatMessages.map((message) => {
@@ -534,7 +545,7 @@ export class BroadcastRenderer {
         }
         const emotes = this.parseEmoteOffsets(tags?.emotes);
         if (!emotes.length) {
-            return [{ type: "text", text: message }];
+            return this.applySevenTvEmotes([{ type: "text", text: message }]);
         }
         const sorted = emotes.sort((a, b) => a.start - b.start);
         const fragments = [];
@@ -561,7 +572,43 @@ export class BroadcastRenderer {
         if (cursor < message.length) {
             fragments.push({ type: "text", text: message.slice(cursor) });
         }
-        return fragments;
+        return this.applySevenTvEmotes(fragments);
+    }
+
+    applySevenTvEmotes(fragments) {
+        if (!this.sevenTvEmotesByName.size) {
+            return fragments;
+        }
+        const enhanced = [];
+        fragments.forEach((fragment) => {
+            if (fragment?.type !== "text" || !fragment.text) {
+                enhanced.push(fragment);
+                return;
+            }
+            const parts = fragment.text.split(/(\\s+)/);
+            parts.forEach((part) => {
+                if (!part) {
+                    return;
+                }
+                if (/^\\s+$/.test(part)) {
+                    enhanced.push({ type: "text", text: part });
+                    return;
+                }
+                const emote = this.sevenTvEmotesByName.get(part);
+                if (emote) {
+                    enhanced.push({
+                        type: "emote",
+                        id: emote.id,
+                        text: part,
+                        name: emote.name || part,
+                        url: emote.url || null,
+                    });
+                } else {
+                    enhanced.push({ type: "text", text: part });
+                }
+            });
+        });
+        return enhanced;
     }
 
     receiveChatMessage(message) {

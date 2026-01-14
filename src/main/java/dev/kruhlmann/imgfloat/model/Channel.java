@@ -36,6 +36,9 @@ public class Channel {
     @Column(name = "allow_channel_emotes_for_assets", nullable = false)
     private boolean allowChannelEmotesForAssets = true;
 
+    @Column(name = "allow_7tv_emotes_for_assets", nullable = false)
+    private boolean allowSevenTvEmotesForAssets = true;
+
     @Column(name = "allow_script_chat_access", nullable = false)
     private boolean allowScriptChatAccess = true;
 
@@ -91,6 +94,14 @@ public class Channel {
 
     public void setAllowChannelEmotesForAssets(boolean allowChannelEmotesForAssets) {
         this.allowChannelEmotesForAssets = allowChannelEmotesForAssets;
+    }
+
+    public boolean isAllowSevenTvEmotesForAssets() {
+        return allowSevenTvEmotesForAssets;
+    }
+
+    public void setAllowSevenTvEmotesForAssets(boolean allowSevenTvEmotesForAssets) {
+        this.allowSevenTvEmotesForAssets = allowSevenTvEmotesForAssets;
     }
 
     public boolean isAllowScriptChatAccess() {

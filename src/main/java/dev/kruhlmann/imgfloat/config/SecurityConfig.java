@@ -83,6 +83,8 @@ public class SecurityConfig {
                     .permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/twitch/emotes/**")
                     .permitAll()
+                    .requestMatchers(HttpMethod.GET, "/api/7tv/emotes/**")
+                    .permitAll()
                     .requestMatchers("/ws/**")
                     .permitAll()
                     .anyRequest()

@@ -198,6 +198,7 @@ public class ChannelDirectoryService {
         Channel channel = getOrCreateChannel(broadcaster);
         return new ChannelScriptSettingsRequest(
             channel.isAllowChannelEmotesForAssets(),
+            channel.isAllowSevenTvEmotesForAssets(),
             channel.isAllowScriptChatAccess()
         );
     }
@@ -208,10 +209,12 @@ public class ChannelDirectoryService {
     ) {
         Channel channel = getOrCreateChannel(broadcaster);
         channel.setAllowChannelEmotesForAssets(request.isAllowChannelEmotesForAssets());
+        channel.setAllowSevenTvEmotesForAssets(request.isAllowSevenTvEmotesForAssets());
         channel.setAllowScriptChatAccess(request.isAllowScriptChatAccess());
         channelRepository.save(channel);
         return new ChannelScriptSettingsRequest(
             channel.isAllowChannelEmotesForAssets(),
+            channel.isAllowSevenTvEmotesForAssets(),
             channel.isAllowScriptChatAccess()
         );
     }

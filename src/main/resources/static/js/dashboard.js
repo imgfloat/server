@@ -8,6 +8,7 @@ const elements = {
     canvasStatus: document.getElementById("canvas-status"),
     canvasSaveButton: document.getElementById("save-canvas-btn"),
     allowChannelEmotes: document.getElementById("allow-channel-emotes"),
+    allowSevenTvEmotes: document.getElementById("allow-7tv-emotes"),
     allowScriptChat: document.getElementById("allow-script-chat"),
     scriptSettingsStatus: document.getElementById("script-settings-status"),
     scriptSettingsSaveButton: document.getElementById("save-script-settings-btn"),
@@ -250,6 +251,9 @@ function renderScriptSettings(settings) {
     if (elements.allowChannelEmotes) {
         elements.allowChannelEmotes.checked = settings.allowChannelEmotesForAssets !== false;
     }
+    if (elements.allowSevenTvEmotes) {
+        elements.allowSevenTvEmotes.checked = settings.allowSevenTvEmotesForAssets !== false;
+    }
     if (elements.allowScriptChat) {
         elements.allowScriptChat.checked = settings.allowScriptChatAccess !== false;
     }
@@ -260,13 +264,18 @@ async function fetchScriptSettings() {
         const data = await fetchJson("/settings", {}, "Failed to load script settings");
         renderScriptSettings(data);
     } catch (error) {
-        renderScriptSettings({ allowChannelEmotesForAssets: true, allowScriptChatAccess: true });
+        renderScriptSettings({
+            allowChannelEmotesForAssets: true,
+            allowSevenTvEmotesForAssets: true,
+            allowScriptChatAccess: true,
+        });
         showToast("Using default script settings. Unable to load saved preferences.", "warning");
     }
 }
 
 async function saveScriptSettings() {
     const allowChannelEmotesForAssets = elements.allowChannelEmotes?.checked ?? true;
+    const allowSevenTvEmotesForAssets = elements.allowSevenTvEmotes?.checked ?? true;
     const allowScriptChatAccess = elements.allowScriptChat?.checked ?? true;
     if (elements.scriptSettingsStatus) elements.scriptSettingsStatus.textContent = "Saving...";
     setButtonBusy(elements.scriptSettingsSaveButton, true, "Saving...");
@@ -276,7 +285,11 @@ async function saveScriptSettings() {
             {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ allowChannelEmotesForAssets, allowScriptChatAccess }),
+                body: JSON.stringify({
+                    allowChannelEmotesForAssets,
+                    allowSevenTvEmotesForAssets,
+                    allowScriptChatAccess,
+                }),
             },
             "Failed to save script settings",
         );
