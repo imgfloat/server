@@ -25,3 +25,4 @@ doc/marketplace-scripts/chat-overlay/logo.png filter=lfs diff=lfs merge=lfs -tex
 doc/marketplace-scripts/kirov-reporting/logo.png filter=lfs diff=lfs merge=lfs -text
 doc/marketplace-scripts/teapot-viewer/logo.png filter=lfs diff=lfs merge=lfs -text
 doc/marketplace-scripts/kirov-reporting/attachments/kirov_reporting.mp3 filter=lfs diff=lfs merge=lfs -text
+doc/marketplace-scripts/emote-combo/logo.png filter=lfs diff=lfs merge=lfs -text
