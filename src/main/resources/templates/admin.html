@@ -29,7 +29,8 @@
         <script src="/js/vendor/OBJLoader.js"></script>
         <script src="/js/csrf.js"></script>
     </head>
-    <body class="admin-body">
+    <body class="admin-body" th:classappend="${isStaging} ? ' has-staging-banner' : ''">
+        <div th:insert="~{fragments/staging :: banner}"></div>
         <div class="admin-frame">
             <header class="admin-topbar">
                 <div class="topbar-left">

@@ -1,0 +1,8 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+    <body>
+        <div th:fragment="banner" th:if="${isStaging}" class="staging-banner" role="status">
+            <span>Staging environment</span>
+        </div>
+    </body>
+</html>

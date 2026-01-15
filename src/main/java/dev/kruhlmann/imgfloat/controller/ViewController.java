@@ -16,6 +16,7 @@ import dev.kruhlmann.imgfloat.service.VersionService;
 import dev.kruhlmann.imgfloat.util.LogSanitizer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -34,6 +35,7 @@ public class ViewController {
     private final GithubReleaseService githubReleaseService;
     private final SystemAdministratorService systemAdministratorService;
     private final long uploadLimitBytes;
+    private final boolean isStaging;
 
     public ViewController(
         ChannelDirectoryService channelDirectoryService,
@@ -44,7 +46,8 @@ public class ViewController {
         AuthorizationService authorizationService,
         GithubReleaseService githubReleaseService,
         SystemAdministratorService systemAdministratorService,
-        long uploadLimitBytes
+        long uploadLimitBytes,
+        @Value("${IMGFLOAT_IS_STAGING:0}") String isStagingFlag
     ) {
         this.channelDirectoryService = channelDirectoryService;
         this.versionService = versionService;
@@ -55,6 +58,7 @@ public class ViewController {
         this.githubReleaseService = githubReleaseService;
         this.systemAdministratorService = systemAdministratorService;
         this.uploadLimitBytes = uploadLimitBytes;
+        this.isStaging = "1".equals(isStagingFlag);
     }
 
     @org.springframework.web.bind.annotation.GetMapping("/")
@@ -67,9 +71,11 @@ public class ViewController {
             model.addAttribute("channel", sessionUsername);
             model.addAttribute("adminChannels", channelDirectoryService.adminChannelsFor(sessionUsername));
             model.addAttribute("isSystemAdmin", authorizationService.userIsSystemAdministrator(sessionUsername));
+            addStagingAttribute(model);
             addVersionAttributes(model);
             return "dashboard";
         }
+        addStagingAttribute(model);
         addVersionAttributes(model);
         return "index";
     }
@@ -77,6 +83,7 @@ public class ViewController {
     @org.springframework.web.bind.annotation.GetMapping("/channels")
     public String channelDirectory(Model model) {
         LOG.info("Rendering channel directory");
+        addStagingAttribute(model);
         addVersionAttributes(model);
         return "channels";
     }
@@ -84,6 +91,7 @@ public class ViewController {
     @org.springframework.web.bind.annotation.GetMapping("/terms")
     public String termsOfUse(Model model) {
         LOG.info("Rendering terms of use");
+        addStagingAttribute(model);
         addVersionAttributes(model);
         return "terms";
     }
@@ -91,6 +99,7 @@ public class ViewController {
     @org.springframework.web.bind.annotation.GetMapping("/privacy")
     public String privacyPolicy(Model model) {
         LOG.info("Rendering privacy policy");
+        addStagingAttribute(model);
         addVersionAttributes(model);
         return "privacy";
     }
@@ -98,6 +107,7 @@ public class ViewController {
     @org.springframework.web.bind.annotation.GetMapping("/cookies")
     public String cookiePolicy(Model model) {
         LOG.info("Rendering cookie policy");
+        addStagingAttribute(model);
         addVersionAttributes(model);
         return "cookies";
     }
@@ -116,6 +126,7 @@ public class ViewController {
             throw new ResponseStatusException(INTERNAL_SERVER_ERROR, "Failed to serialize settings");
         }
         model.addAttribute("initialSysadmin", systemAdministratorService.getInitialSysadmin());
+        addStagingAttribute(model);
         return "settings";
     }
 
@@ -144,6 +155,7 @@ public class ViewController {
             LOG.error("Failed to serialize settings for admin view", e);
             throw new ResponseStatusException(INTERNAL_SERVER_ERROR, "Failed to serialize settings");
         }
+        addStagingAttribute(model);
 
         return "admin";
     }
@@ -166,5 +178,9 @@ public class ViewController {
         model.addAttribute("showCommitChip", gitInfoService.shouldShowCommitChip());
         model.addAttribute("buildCommitShort", gitInfoService.getShortCommitSha());
         model.addAttribute("buildCommitUrl", gitInfoService.getCommitUrl());
+    }
+
+    private void addStagingAttribute(Model model) {
+        model.addAttribute("isStaging", isStaging);
     }
 }

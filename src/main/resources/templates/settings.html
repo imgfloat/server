@@ -18,7 +18,8 @@
         <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
         <script src="/js/csrf.js"></script>
     </head>
-    <body class="settings-body">
+    <body class="settings-body" th:classappend="${isStaging} ? ' has-staging-banner' : ''">
+        <div th:insert="~{fragments/staging :: banner}"></div>
         <div class="settings-shell">
             <header class="settings-header">
                 <div class="brand">

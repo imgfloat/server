@@ -6,7 +6,8 @@
         <link rel="icon" href="/favicon.ico" />
         <link rel="stylesheet" href="/css/styles.css" />
     </head>
-    <body class="error-body">
+    <body class="error-body" th:classappend="${isStaging} ? ' has-staging-banner' : ''">
+        <div th:insert="~{fragments/staging :: banner}"></div>
         <div class="error-shell">
             <header class="error-header">
                 <div class="brand">
