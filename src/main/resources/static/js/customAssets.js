@@ -782,33 +782,39 @@ export function createCustomAssetModal({
             description.textContent = entry.description || "No description provided.";
             const meta = document.createElement("small");
             meta.textContent = entry.broadcaster ? `By ${entry.broadcaster}` : "";
-            const hearts = document.createElement("small");
-            hearts.className = "marketplace-hearts";
-            const heartIcon = document.createElement("i");
-            heartIcon.className = "fa-solid fa-heart";
-            const heartCount = document.createElement("span");
-            heartCount.textContent = String(entry.heartsCount ?? 0);
-            hearts.appendChild(heartIcon);
-            hearts.appendChild(heartCount);
             content.appendChild(title);
             content.appendChild(description);
             content.appendChild(meta);
-            content.appendChild(hearts);
 
             const actions = document.createElement("div");
             actions.className = "marketplace-actions";
+            const heartCountWrapper = document.createElement("div");
+            heartCountWrapper.className = "marketplace-heart-count";
+            const heartCountIcon = document.createElement("i");
+            heartCountIcon.className = "fa-solid fa-heart";
+            const heartCount = document.createElement("span");
+            heartCount.textContent = String(entry.heartsCount ?? 0);
+            heartCountWrapper.appendChild(heartCountIcon);
+            heartCountWrapper.appendChild(heartCount);
             const heartButton = document.createElement("button");
             heartButton.type = "button";
             heartButton.className = "icon-button marketplace-heart-button";
             heartButton.setAttribute("aria-label", "Heart script");
             updateMarketplaceHeartButton(heartButton, entry);
-            heartButton.addEventListener("click", () => toggleMarketplaceHeart(entry, heartCount));
+            heartButton.addEventListener("click", () =>
+                toggleMarketplaceHeart(entry, {
+                    button: heartButton,
+                    count: heartCount,
+                    countWrapper: heartCountWrapper,
+                })
+            );
             const importButton = document.createElement("button");
             importButton.type = "button";
             importButton.className = "icon-button";
             importButton.setAttribute("aria-label", "Import script");
             importButton.innerHTML = '<i class="icon fa-solid fa-cloud-download"></i>';
             importButton.addEventListener("click", () => importMarketplaceScript(entry));
+            actions.appendChild(heartCountWrapper);
             actions.appendChild(heartButton);
             actions.appendChild(importButton);
 
@@ -855,10 +861,11 @@ export function createCustomAssetModal({
         button.innerHTML = `<i class="icon ${iconClass}"></i>`;
     }
 
-    function toggleMarketplaceHeart(entry, countElement) {
+    function toggleMarketplaceHeart(entry, elements = {}) {
         if (!entry?.id) {
             return;
         }
+        animateMarketplaceHeart(elements);
         fetch(`/api/marketplace/scripts/${entry.id}/heart`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -872,15 +879,32 @@ export function createCustomAssetModal({
             .then((updated) => {
                 entry.heartsCount = updated.heartsCount ?? entry.heartsCount ?? 0;
                 entry.hearted = updated.hearted ?? entry.hearted;
-                if (countElement) {
-                    countElement.textContent = String(entry.heartsCount ?? 0);
+                if (elements.count) {
+                    elements.count.textContent = String(entry.heartsCount ?? 0);
                 }
-                renderMarketplace();
+                if (elements.button) {
+                    updateMarketplaceHeartButton(elements.button, entry);
+                }
+                animateMarketplaceHeart(elements);
+                setTimeout(() => renderMarketplace(), 300);
             })
             .catch((error) => {
                 console.error(error);
                 showToast?.("Unable to update heart. Please try again.", "error");
             });
+    }
+
+    function animateMarketplaceHeart({ button, countWrapper } = {}) {
+        if (button) {
+            button.classList.remove("is-animating");
+            void button.offsetWidth;
+            button.classList.add("is-animating");
+        }
+        if (countWrapper) {
+            countWrapper.classList.remove("is-animating");
+            void countWrapper.offsetWidth;
+            countWrapper.classList.add("is-animating");
+        }
     }
 
     function debounce(fn, wait = 150) {

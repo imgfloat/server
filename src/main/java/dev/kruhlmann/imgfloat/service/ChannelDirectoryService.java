@@ -619,6 +619,7 @@ public class ChannelDirectoryService {
         return applyMarketplaceHearts(entries, sessionUsername);
     }
 
+    @Transactional
     public Optional<ScriptMarketplaceEntry> toggleMarketplaceHeart(String scriptId, String sessionUsername) {
         if (scriptId == null || scriptId.isBlank() || sessionUsername == null || sessionUsername.isBlank()) {
             return Optional.empty();
