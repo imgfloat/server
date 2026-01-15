@@ -32,4 +32,6 @@ public interface MarketplaceScriptHeartRepository
     long countByScriptId(String scriptId);
 
     void deleteByScriptIdAndUsername(String scriptId, String username);
+
+    void deleteByUsername(String username);
 }

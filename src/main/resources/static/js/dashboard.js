@@ -12,6 +12,7 @@ const elements = {
     allowScriptChat: document.getElementById("allow-script-chat"),
     scriptSettingsStatus: document.getElementById("script-settings-status"),
     scriptSettingsSaveButton: document.getElementById("save-script-settings-btn"),
+    deleteAccountButton: document.getElementById("delete-account-btn"),
 };
 
 const apiBase = `/api/channels/${encodeURIComponent(broadcaster)}`;
@@ -307,6 +308,31 @@ async function saveScriptSettings() {
     }
 }
 
+async function deleteAccount() {
+    const confirmation = window.prompt(
+        "Type DELETE to permanently remove your account, assets, and session.",
+    );
+    if (confirmation !== "DELETE") {
+        if (confirmation !== null) {
+            showToast("Account deletion cancelled.", "info");
+        }
+        return;
+    }
+
+    setButtonBusy(elements.deleteAccountButton, true, "Deleting...");
+    try {
+        const response = await fetch("/api/account", { method: "DELETE" });
+        if (!response.ok) {
+            throw new Error("Delete account failed");
+        }
+        showToast("Account deleted. Redirecting...", "success");
+        window.location.href = "/";
+    } catch (error) {
+        showToast("Unable to delete account right now. Please retry.", "error");
+        setButtonBusy(elements.deleteAccountButton, false, "Deleting...");
+    }
+}
+
 if (elements.adminInput) {
     elements.adminInput.addEventListener("keydown", (event) => {
         if (event.key === "Enter") {
@@ -320,3 +346,7 @@ fetchAdmins();
 fetchSuggestedAdmins();
 fetchCanvasSettings();
 fetchScriptSettings();
+
+if (elements.deleteAccountButton) {
+    elements.deleteAccountButton.addEventListener("click", deleteAccount);
+}
