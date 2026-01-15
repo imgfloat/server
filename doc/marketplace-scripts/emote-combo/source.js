@@ -277,6 +277,8 @@ function drawCombo(context, state, combo, now) {
     ctx.fillText(`${combo.count} x Combo`, labelX, labelY);
 }
 
+function init() { }
+
 function tick(context, state) {
     const { chatMessages, emoteCatalog } = context;
     if (!context?.ctx) {

@@ -131,6 +131,8 @@ function formatLines(messages, ctx, width) {
     return lines.slice(-MAX_LINES);
 }
 
+function init() { }
+
 function tick(context, state) {
     const { ctx, width, height, chatMessages } = context;
     if (!ctx) {

@@ -29,6 +29,8 @@ function resolveAttachmentId(assets, state) {
     return match.id;
 }
 
+function init() { }
+
 function tick(context, state) {
     const { chatMessages, assets, now, playAudio } = context;
     if (!Array.isArray(chatMessages) || chatMessages.length === 0) {
