@@ -1338,7 +1338,7 @@ export function createAdminConsole({
         }
         const playPromise = element.play();
         if (playPromise?.catch) {
-            playPromise.catch(() => {});
+            playPromise.catch(() => { });
         }
     }
 
@@ -1347,7 +1347,7 @@ export function createAdminConsole({
             return null;
         }
         if (isCodeAsset(asset)) {
-            return `Script order ${getScriptLayerPosition(asset.id)} (above canvas assets)`;
+            return `Order ${getScriptLayerPosition(asset.id)}`;
         }
         return `Order ${getLayerPosition(asset.id)}`;
     }
@@ -1527,7 +1527,7 @@ export function createAdminConsole({
             audioAssets.forEach((asset) => appendAssetListItem(list, asset));
         }
         if (codeAssets.length) {
-            list.appendChild(createSectionHeader("Script assets (always on top)"));
+            list.appendChild(createSectionHeader("Script assets"));
             codeAssets.forEach((asset) => appendAssetListItem(list, asset));
         }
 
@@ -1649,8 +1649,8 @@ export function createAdminConsole({
             const fallbackPromise = isVideoAsset(asset)
                 ? captureVideoFrame(asset)
                 : isGifAsset(asset)
-                  ? captureGifFrame(asset)
-                  : Promise.resolve(null);
+                    ? captureGifFrame(asset)
+                    : Promise.resolve(null);
             return fallbackPromise.then((result) => {
                 if (!result) {
                     return null;
@@ -1682,7 +1682,7 @@ export function createAdminConsole({
                 if (!dataUrl) return;
                 applyPreviewFrame(element, dataUrl);
             })
-            .catch(() => {});
+            .catch(() => { });
     }
 
     function applyPreviewFrame(element, dataUrl) {
@@ -1716,7 +1716,7 @@ export function createAdminConsole({
                 img.src = dataUrl;
                 previewImageCache.set(asset.id, { src: dataUrl, image: img });
             })
-            .catch(() => {});
+            .catch(() => { });
 
         return null;
     }
@@ -2511,18 +2511,18 @@ export function createAdminConsole({
             interactionState =
                 handle === "rotate"
                     ? {
-                          mode: "rotate",
-                          assetId: current.id,
-                          startAngle: angleFromCenter(current, point),
-                          startRotation: current.rotation || 0,
-                      }
+                        mode: "rotate",
+                        assetId: current.id,
+                        startAngle: angleFromCenter(current, point),
+                        startRotation: current.rotation || 0,
+                    }
                     : {
-                          mode: "resize",
-                          assetId: current.id,
-                          handle,
-                          startLocal: pointerToLocal(current, point),
-                          original: { ...current },
-                      };
+                        mode: "resize",
+                        assetId: current.id,
+                        handle,
+                        startLocal: pointerToLocal(current, point),
+                        original: { ...current },
+                    };
             canvas.style.cursor = cursorForHandle(handle);
             drawAndList();
             return;

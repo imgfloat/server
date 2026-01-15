@@ -1835,7 +1835,7 @@ button:disabled:hover {
     overflow: hidden;
 }
 
-.asset-row strong {
+.asset-row strong, .asset-row small {
     white-space: nowrap;
     overflow: hidden;
 }

@@ -807,7 +807,7 @@ export function createCustomAssetModal({
             importButton.type = "button";
             importButton.className = "icon-button";
             importButton.setAttribute("aria-label", "Import script");
-            importButton.innerHTML = '<i class="icon fa-solid fa-download"></i>';
+            importButton.innerHTML = '<i class="icon fa-solid fa-cloud-download"></i>';
             importButton.addEventListener("click", () => importMarketplaceScript(entry));
             actions.appendChild(heartButton);
             actions.appendChild(importButton);
