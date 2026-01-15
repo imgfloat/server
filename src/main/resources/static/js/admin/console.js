@@ -5,6 +5,7 @@ import {
     ensureLayerPosition as ensureLayerPositionForState,
     getLayerOrder as getLayerOrderForState,
     getRenderOrder as getRenderOrderForState,
+    getScriptLayerOrder as getScriptLayerOrderForState,
 } from "../broadcast/layers.js";
 
 export function createAdminConsole({
@@ -80,6 +81,7 @@ export function createAdminConsole({
 
     let drawPending = false;
     let layerOrder = [];
+    let scriptLayerOrder = [];
     const layerState = {
         assets,
         get layerOrder() {
@@ -87,6 +89,12 @@ export function createAdminConsole({
         },
         set layerOrder(value) {
             layerOrder = value;
+        },
+        get scriptLayerOrder() {
+            return scriptLayerOrder;
+        },
+        set scriptLayerOrder(value) {
+            scriptLayerOrder = value;
         },
     };
     let pendingUploads = [];
@@ -178,8 +186,18 @@ export function createAdminConsole({
         return getLayerOrderForState(layerState);
     }
 
+    function getScriptLayerOrder() {
+        return getScriptLayerOrderForState(layerState);
+    }
+
     function getAssetsByLayer() {
         return getLayerOrder()
+            .map((id) => assets.get(id))
+            .filter(Boolean);
+    }
+
+    function getScriptAssetsByLayer() {
+        return getScriptLayerOrder()
             .map((id) => assets.get(id))
             .filter(Boolean);
     }
@@ -191,9 +209,7 @@ export function createAdminConsole({
     }
 
     function getCodeAssets() {
-        return Array.from(assets.values())
-            .filter((asset) => isCodeAsset(asset))
-            .sort((a, b) => (b.createdAtMs || 0) - (a.createdAtMs || 0));
+        return getScriptAssetsByLayer();
     }
 
     function getRenderOrder() {
@@ -206,6 +222,17 @@ export function createAdminConsole({
             return 0;
         }
         const order = getLayerOrder();
+        const index = order.indexOf(assetId);
+        if (index === -1) return 1;
+        return order.length - index;
+    }
+
+    function getScriptLayerValue(assetId) {
+        const asset = assets.get(assetId);
+        if (!asset || !isCodeAsset(asset)) {
+            return 0;
+        }
+        const order = getScriptLayerOrder();
         const index = order.indexOf(assetId);
         if (index === -1) return 1;
         return order.length - index;
@@ -547,6 +574,7 @@ export function createAdminConsole({
 
     function renderAssets(list) {
         layerOrder = [];
+        scriptLayerOrder = [];
         list.forEach((item) => storeAsset(item, { placement: "append" }));
         drawAndList();
     }
@@ -594,6 +622,7 @@ export function createAdminConsole({
         if (event.type === "DELETED") {
             assets.delete(assetId);
             layerOrder = layerOrder.filter((id) => id !== assetId);
+            scriptLayerOrder = scriptLayerOrder.filter((id) => id !== assetId);
             clearMedia(assetId);
             renderStates.delete(assetId);
             loopPlaybackState.delete(assetId);
@@ -628,6 +657,7 @@ export function createAdminConsole({
         }
         const merged = { ...existing, ...patch };
         const isAudio = isAudioAsset(merged);
+        const isScript = isCodeAsset(merged);
         if (patch.hidden) {
             clearMedia(assetId);
             loopPlaybackState.delete(assetId);
@@ -641,10 +671,17 @@ export function createAdminConsole({
             targetLayer = null;
         }
         if (!isAudio && Number.isFinite(targetLayer)) {
-            const currentOrder = getLayerOrder().filter((id) => id !== assetId);
-            const insertIndex = Math.max(0, currentOrder.length - Math.round(targetLayer));
-            currentOrder.splice(insertIndex, 0, assetId);
-            layerOrder = currentOrder;
+            if (isScript) {
+                const currentOrder = getScriptLayerOrder().filter((id) => id !== assetId);
+                const insertIndex = Math.max(0, currentOrder.length - Math.round(targetLayer));
+                currentOrder.splice(insertIndex, 0, assetId);
+                scriptLayerOrder = currentOrder;
+            } else {
+                const currentOrder = getLayerOrder().filter((id) => id !== assetId);
+                const insertIndex = Math.max(0, currentOrder.length - Math.round(targetLayer));
+                currentOrder.splice(insertIndex, 0, assetId);
+                layerOrder = currentOrder;
+            }
         }
         storeAsset(merged);
         if (!isAudio) {
@@ -1298,6 +1335,138 @@ export function createAdminConsole({
         }
     }
 
+    function getLayerDetail(asset) {
+        if (!asset || isAudioAsset(asset)) {
+            return null;
+        }
+        if (isCodeAsset(asset)) {
+            return `Script layer ${getScriptLayerValue(asset.id)}`;
+        }
+        return `Layer ${getLayerValue(asset.id)}`;
+    }
+
+    function createSectionHeader(title) {
+        const li = document.createElement("li");
+        li.className = "asset-section";
+        li.textContent = title;
+        return li;
+    }
+
+    function appendAssetListItem(list, asset) {
+        const li = document.createElement("li");
+        li.className = "asset-item";
+        if (asset.id === selectedAssetId) {
+            li.classList.add("selected");
+        }
+        li.classList.toggle("is-hidden", !!asset.hidden);
+
+        const row = document.createElement("div");
+        row.className = "asset-row";
+
+        const preview = createPreviewElement(asset);
+
+        const meta = document.createElement("div");
+        meta.className = "meta";
+        const name = document.createElement("strong");
+        name.textContent = asset.name || `Asset ${asset.id.slice(0, 6)}`;
+        const details = document.createElement("small");
+        const layerDetail = getLayerDetail(asset);
+        details.textContent = layerDetail ? `${getAssetTypeLabel(asset)} · ${layerDetail}` : getAssetTypeLabel(asset);
+        meta.appendChild(name);
+        meta.appendChild(details);
+
+        const actions = document.createElement("div");
+        actions.className = "actions";
+
+        if (isCodeAsset(asset)) {
+            const editBtn = document.createElement("button");
+            editBtn.type = "button";
+            editBtn.className = "ghost icon-button";
+            editBtn.innerHTML = '<i class="fa-solid fa-code"></i>';
+            editBtn.title = "Edit script";
+            editBtn.addEventListener("click", (e) => {
+                e.stopPropagation();
+                customAssetModal?.openEditor?.(asset);
+            });
+            actions.appendChild(editBtn);
+        }
+
+        if (!isAudioAsset(asset)) {
+            const moveUp = document.createElement("button");
+            moveUp.type = "button";
+            moveUp.className = "ghost icon-button";
+            moveUp.innerHTML = '<i class="fa-solid fa-arrow-up"></i>';
+            moveUp.title = isCodeAsset(asset) ? "Move script up" : "Move layer up";
+            moveUp.addEventListener("click", (e) => {
+                e.stopPropagation();
+                moveLayerItem(asset, "up");
+            });
+            const moveDown = document.createElement("button");
+            moveDown.type = "button";
+            moveDown.className = "ghost icon-button";
+            moveDown.innerHTML = '<i class="fa-solid fa-arrow-down"></i>';
+            moveDown.title = isCodeAsset(asset) ? "Move script down" : "Move layer down";
+            moveDown.addEventListener("click", (e) => {
+                e.stopPropagation();
+                moveLayerItem(asset, "down");
+            });
+            actions.appendChild(moveUp);
+            actions.appendChild(moveDown);
+        }
+
+        if (isAudioAsset(asset)) {
+            const playBtn = document.createElement("button");
+            playBtn.type = "button";
+            playBtn.className = "ghost icon-button";
+            const isLooping = !!asset.audioLoop;
+            const isPlayingLoop = getLoopPlaybackState(asset);
+            updatePlayButtonIcon(playBtn, isLooping, isPlayingLoop);
+            playBtn.title = isLooping
+                ? isPlayingLoop
+                    ? "Pause looping audio"
+                    : "Play looping audio"
+                : "Play audio";
+            playBtn.addEventListener("click", (e) => {
+                e.stopPropagation();
+                const nextPlay = isLooping ? !(loopPlaybackState.get(asset.id) ?? getLoopPlaybackState(asset)) : true;
+                if (isLooping) {
+                    loopPlaybackState.set(asset.id, nextPlay);
+                    updatePlayButtonIcon(playBtn, true, nextPlay);
+                    playBtn.title = nextPlay ? "Pause looping audio" : "Play looping audio";
+                }
+                triggerAudioPlayback(asset, nextPlay);
+            });
+            actions.appendChild(playBtn);
+        }
+
+        if (!isAudioAsset(asset) && !isCodeAsset(asset)) {
+            const toggleBtn = document.createElement("button");
+            toggleBtn.type = "button";
+            toggleBtn.className = "ghost icon-button";
+            toggleBtn.innerHTML = `<i class="fa-solid ${asset.hidden ? "fa-eye" : "fa-eye-slash"}"></i>`;
+            toggleBtn.title = asset.hidden ? "Show asset" : "Hide asset";
+            toggleBtn.addEventListener("click", (e) => {
+                e.stopPropagation();
+                selectedAssetId = asset.id;
+                updateVisibility(asset, !asset.hidden);
+            });
+            actions.appendChild(toggleBtn);
+        }
+
+        row.appendChild(preview);
+        row.appendChild(meta);
+        row.appendChild(actions);
+
+        li.addEventListener("click", () => {
+            selectedAssetId = asset.id;
+            updateRenderState(asset);
+            drawAndList();
+        });
+
+        li.appendChild(row);
+        list.appendChild(li);
+    }
+
     function renderAssetList() {
         const list = document.getElementById("asset-list");
         if (controlsPlaceholder && controlsPanel && controlsPanel.parentElement !== controlsPlaceholder) {
@@ -1334,99 +1503,20 @@ export function createAdminConsole({
 
         const codeAssets = getCodeAssets();
         const audioAssets = getAudioAssets();
-        const sortedAssets = [...codeAssets, ...audioAssets, ...getAssetsByLayer()];
-        sortedAssets.forEach((asset) => {
-            const li = document.createElement("li");
-            li.className = "asset-item";
-            if (asset.id === selectedAssetId) {
-                li.classList.add("selected");
-            }
-            li.classList.toggle("is-hidden", !!asset.hidden);
+        const visualAssets = getAssetsByLayer();
 
-            const row = document.createElement("div");
-            row.className = "asset-row";
-
-            const preview = createPreviewElement(asset);
-
-            const meta = document.createElement("div");
-            meta.className = "meta";
-            const name = document.createElement("strong");
-            name.textContent = asset.name || `Asset ${asset.id.slice(0, 6)}`;
-            const details = document.createElement("small");
-            details.textContent = getAssetTypeLabel(asset);
-            meta.appendChild(name);
-            meta.appendChild(details);
-
-            const actions = document.createElement("div");
-            actions.className = "actions";
-
-            if (isCodeAsset(asset)) {
-                const editBtn = document.createElement("button");
-                editBtn.type = "button";
-                editBtn.className = "ghost icon-button";
-                editBtn.innerHTML = '<i class="fa-solid fa-code"></i>';
-                editBtn.title = "Edit script";
-                editBtn.addEventListener("click", (e) => {
-                    e.stopPropagation();
-                    customAssetModal?.openEditor?.(asset);
-                });
-                actions.appendChild(editBtn);
-            }
-
-            if (isAudioAsset(asset)) {
-                const playBtn = document.createElement("button");
-                playBtn.type = "button";
-                playBtn.className = "ghost icon-button";
-                const isLooping = !!asset.audioLoop;
-                const isPlayingLoop = getLoopPlaybackState(asset);
-                updatePlayButtonIcon(playBtn, isLooping, isPlayingLoop);
-                playBtn.title = isLooping
-                    ? isPlayingLoop
-                        ? "Pause looping audio"
-                        : "Play looping audio"
-                    : "Play audio";
-                playBtn.addEventListener("click", (e) => {
-                    e.stopPropagation();
-                    const nextPlay = isLooping
-                        ? !(loopPlaybackState.get(asset.id) ?? getLoopPlaybackState(asset))
-                        : true;
-                    if (isLooping) {
-                        loopPlaybackState.set(asset.id, nextPlay);
-                        updatePlayButtonIcon(playBtn, true, nextPlay);
-                        playBtn.title = nextPlay ? "Pause looping audio" : "Play looping audio";
-                    }
-                    triggerAudioPlayback(asset, nextPlay);
-                });
-                actions.appendChild(playBtn);
-            }
-
-            if (!isAudioAsset(asset) && !isCodeAsset(asset)) {
-                const toggleBtn = document.createElement("button");
-                toggleBtn.type = "button";
-                toggleBtn.className = "ghost icon-button";
-                toggleBtn.innerHTML = `<i class="fa-solid ${asset.hidden ? "fa-eye" : "fa-eye-slash"}"></i>`;
-                toggleBtn.title = asset.hidden ? "Show asset" : "Hide asset";
-                toggleBtn.addEventListener("click", (e) => {
-                    e.stopPropagation();
-                    selectedAssetId = asset.id;
-                    updateVisibility(asset, !asset.hidden);
-                });
-                actions.appendChild(toggleBtn);
-            }
-
-            row.appendChild(preview);
-            row.appendChild(meta);
-            row.appendChild(actions);
-
-            li.addEventListener("click", () => {
-                selectedAssetId = asset.id;
-                updateRenderState(asset);
-                drawAndList();
-            });
-
-            li.appendChild(row);
-            list.appendChild(li);
-        });
+        if (visualAssets.length) {
+            list.appendChild(createSectionHeader("Canvas assets"));
+            visualAssets.forEach((asset) => appendAssetListItem(list, asset));
+        }
+        if (audioAssets.length) {
+            list.appendChild(createSectionHeader("Audio assets"));
+            audioAssets.forEach((asset) => appendAssetListItem(list, asset));
+        }
+        if (codeAssets.length) {
+            list.appendChild(createSectionHeader("Script assets (always on top)"));
+            codeAssets.forEach((asset) => appendAssetListItem(list, asset));
+        }
 
         updateSelectedAssetControls();
     }
@@ -1830,6 +1920,11 @@ export function createAdminConsole({
             selectedAssetBadges.innerHTML = "";
             if (asset) {
                 selectedAssetBadges.appendChild(createBadge(getDisplayMediaType(asset)));
+                if (isCodeAsset(asset)) {
+                    selectedAssetBadges.appendChild(createBadge(`Script layer ${getScriptLayerValue(asset.id)}`, "subtle"));
+                } else if (!isAudioAsset(asset)) {
+                    selectedAssetBadges.appendChild(createBadge(`Layer ${getLayerValue(asset.id)}`, "subtle"));
+                }
                 const aspectLabel = !isAudioAsset(asset) && !isCodeAsset(asset) ? formatAspectRatioLabel(asset) : "";
                 if (aspectLabel) {
                     selectedAssetBadges.appendChild(createBadge(aspectLabel, "subtle"));
@@ -2028,40 +2123,61 @@ export function createAdminConsole({
         drawAndList();
     }
 
+    function getLayeredAssets(asset) {
+        if (!asset) {
+            return [];
+        }
+        return isCodeAsset(asset) ? getScriptAssetsByLayer() : getAssetsByLayer();
+    }
+
+    function applyOrderForAsset(asset, ordered) {
+        if (!asset) return;
+        if (isCodeAsset(asset)) {
+            applyScriptLayerOrder(ordered);
+        } else {
+            applyLayerOrder(ordered);
+        }
+    }
+
+    function moveLayerItem(asset, direction) {
+        if (!asset) return;
+        const ordered = getLayeredAssets(asset);
+        const index = ordered.findIndex((item) => item.id === asset.id);
+        if (index === -1) return;
+        const nextIndex = direction === "up" ? index - 1 : index + 1;
+        if (nextIndex < 0 || nextIndex >= ordered.length) {
+            return;
+        }
+        [ordered[index], ordered[nextIndex]] = [ordered[nextIndex], ordered[index]];
+        applyOrderForAsset(asset, ordered);
+    }
+
     function bringForward() {
         const asset = getSelectedAsset();
-        if (!asset) return;
-        const ordered = getAssetsByLayer();
-        const index = ordered.findIndex((item) => item.id === asset.id);
-        if (index <= 0) return;
-        [ordered[index], ordered[index - 1]] = [ordered[index - 1], ordered[index]];
-        applyLayerOrder(ordered);
+        if (!asset || isAudioAsset(asset)) return;
+        moveLayerItem(asset, "up");
     }
 
     function bringBackward() {
         const asset = getSelectedAsset();
-        if (!asset) return;
-        const ordered = getAssetsByLayer();
-        const index = ordered.findIndex((item) => item.id === asset.id);
-        if (index === -1 || index === ordered.length - 1) return;
-        [ordered[index], ordered[index + 1]] = [ordered[index + 1], ordered[index]];
-        applyLayerOrder(ordered);
+        if (!asset || isAudioAsset(asset)) return;
+        moveLayerItem(asset, "down");
     }
 
     function bringToFront() {
         const asset = getSelectedAsset();
-        if (!asset) return;
-        const ordered = getAssetsByLayer().filter((item) => item.id !== asset.id);
+        if (!asset || isAudioAsset(asset)) return;
+        const ordered = getLayeredAssets(asset).filter((item) => item.id !== asset.id);
         ordered.unshift(asset);
-        applyLayerOrder(ordered);
+        applyOrderForAsset(asset, ordered);
     }
 
     function sendToBack() {
         const asset = getSelectedAsset();
-        if (!asset) return;
-        const ordered = getAssetsByLayer().filter((item) => item.id !== asset.id);
+        if (!asset || isAudioAsset(asset)) return;
+        const ordered = getLayeredAssets(asset).filter((item) => item.id !== asset.id);
         ordered.push(asset);
-        applyLayerOrder(ordered);
+        applyOrderForAsset(asset, ordered);
     }
 
     globalThis.handleFileSelection = handleFileSelection;
@@ -2077,6 +2193,14 @@ export function createAdminConsole({
         layerOrder = newOrder;
         const changed = ordered.map((item) => assets.get(item.id)).filter(Boolean);
         changed.forEach((item) => updateRenderState(item));
+        changed.forEach((item) => schedulePersistTransform(item, true));
+        drawAndList();
+    }
+
+    function applyScriptLayerOrder(ordered) {
+        const newOrder = ordered.map((item) => item.id).filter((id) => assets.has(id));
+        scriptLayerOrder = newOrder;
+        const changed = ordered.map((item) => assets.get(item.id)).filter(Boolean);
         changed.forEach((item) => schedulePersistTransform(item, true));
         drawAndList();
     }
@@ -2202,6 +2326,7 @@ export function createAdminConsole({
                 assets.delete(asset.id);
                 renderStates.delete(asset.id);
                 layerOrder = layerOrder.filter((id) => id !== asset.id);
+                scriptLayerOrder = scriptLayerOrder.filter((id) => id !== asset.id);
                 cancelPendingTransform(asset.id);
                 if (selectedAssetId === asset.id) {
                     selectedAssetId = null;
@@ -2319,7 +2444,10 @@ export function createAdminConsole({
             audioPitch: asset.audioPitch,
             audioVolume: asset.audioVolume,
         };
-        if (!isAudioAsset(asset) && !isCodeAsset(asset)) {
+        if (isCodeAsset(asset)) {
+            const layer = getScriptLayerValue(asset.id);
+            payload.zIndex = layer;
+        } else if (!isAudioAsset(asset)) {
             const layer = getLayerValue(asset.id);
             payload.x = asset.x;
             payload.y = asset.y;

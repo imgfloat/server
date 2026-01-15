@@ -10,5 +10,6 @@ export function createBroadcastState() {
         animationFailures: new Map(),
         videoPlaybackStates: new WeakMap(),
         layerOrder: [],
+        scriptLayerOrder: [],
     };
 }

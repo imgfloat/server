@@ -175,7 +175,7 @@ public class ChannelDirectoryService {
                 return asset == null ? null : AssetView.fromVisual(normalized, asset, visual);
             })
             .filter(Objects::nonNull)
-            .sorted(Comparator.comparingInt(AssetView::zIndex))
+            .sorted(Comparator.comparingInt(AssetView::zIndex).reversed())
             .toList();
     }
 
@@ -273,6 +273,7 @@ public class ChannelDirectoryService {
             script.setMediaType(optimized.mediaType());
             script.setOriginalMediaType(mediaType);
             script.setSourceFileId(asset.getId());
+            script.setZIndex(nextScriptZIndex(channel.getBroadcaster()));
             script.setAttachments(List.of());
             scriptAssetRepository.save(script);
             ScriptAssetFile sourceFile = new ScriptAssetFile(asset.getBroadcaster(), AssetType.SCRIPT);
@@ -333,6 +334,7 @@ public class ChannelDirectoryService {
         script.setSourceFileId(sourceFile.getId());
         script.setDescription(normalizeDescription(request.getDescription()));
         script.setPublic(Boolean.TRUE.equals(request.getIsPublic()));
+        script.setZIndex(nextScriptZIndex(channel.getBroadcaster()));
         script.setAttachments(List.of());
         scriptAssetRepository.save(script);
         AssetView view = AssetView.fromScript(channel.getBroadcaster(), asset, script);
@@ -711,6 +713,7 @@ public class ChannelDirectoryService {
         script.setOriginalMediaType(sourceContent.mediaType());
         script.setSourceFileId(sourceFile.getId());
         script.setLogoFileId(sourceScript.getLogoFileId());
+        script.setZIndex(nextScriptZIndex(targetBroadcaster));
         script.setAttachments(List.of());
         scriptAssetRepository.save(script);
 
@@ -770,6 +773,7 @@ public class ChannelDirectoryService {
         script.setMediaType(sourceContent.mediaType());
         script.setOriginalMediaType(sourceContent.mediaType());
         script.setSourceFileId(sourceFile.getId());
+        script.setZIndex(nextScriptZIndex(targetBroadcaster));
         script.setAttachments(List.of());
         scriptAssetRepository.save(script);
 
@@ -891,6 +895,34 @@ public class ChannelDirectoryService {
                     ScriptAsset script = scriptAssetRepository
                         .findById(asset.getId())
                         .orElseThrow(() -> new ResponseStatusException(BAD_REQUEST, "Asset is not a script"));
+                    int beforeZIndex = script.getZIndex();
+                    if (req.getZIndex() != null) {
+                        if (req.getZIndex() < 1) {
+                            throw new ResponseStatusException(BAD_REQUEST, "zIndex must be >= 1");
+                        }
+                        script.setZIndex(req.getZIndex());
+                        scriptAssetRepository.save(script);
+                        if (beforeZIndex != script.getZIndex()) {
+                            AssetPatch patch = new AssetPatch(
+                                asset.getId(),
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                script.getZIndex(),
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null
+                            );
+                            messagingTemplate.convertAndSend(topicFor(broadcaster), AssetEvent.updated(broadcaster, patch));
+                        }
+                    }
                     script.setAttachments(loadScriptAttachments(normalized, asset.getId(), null));
                     return AssetView.fromScript(normalized, asset, script);
                 }
@@ -1377,9 +1409,9 @@ public class ChannelDirectoryService {
             .map((asset) -> resolveAssetView(broadcaster, asset, visuals, audios, scripts, scriptAttachments))
             .filter(Objects::nonNull)
             .sorted(
-                Comparator.comparing((AssetView view) ->
-                    view.zIndex() == null ? Integer.MAX_VALUE : view.zIndex()
-                ).thenComparing(AssetView::createdAt, Comparator.nullsFirst(Comparator.naturalOrder()))
+                Comparator.comparingInt((AssetView view) -> view.zIndex() == null ? Integer.MIN_VALUE : view.zIndex())
+                    .reversed()
+                    .thenComparing(AssetView::createdAt, Comparator.nullsFirst(Comparator.naturalOrder()))
             )
             .toList();
     }
@@ -1392,6 +1424,18 @@ public class ChannelDirectoryService {
                 )
                 .stream()
                 .mapToInt(VisualAsset::getZIndex)
+                .max()
+                .orElse(0) +
+            1
+        );
+    }
+
+    private int nextScriptZIndex(String broadcaster) {
+        return (
+            scriptAssetRepository
+                .findByIdIn(assetsWithType(normalize(broadcaster), AssetType.SCRIPT))
+                .stream()
+                .mapToInt(ScriptAsset::getZIndex)
                 .max()
                 .orElse(0) +
             1

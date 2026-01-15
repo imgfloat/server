@@ -126,7 +126,7 @@ public record AssetView(
             script.getOriginalMediaType(),
             asset.getAssetType(),
             script.getAttachments(),
-            null,
+            script.getZIndex(),
             null,
             null,
             null,

@@ -5,7 +5,7 @@
 
     <groupId>dev.kruhlmann</groupId>
     <artifactId>imgfloat</artifactId>
-    <version>0.0.1</version>
+    <version>1.0.0</version>
     <name>Imgfloat</name>
     <description>Livestream overlay with Twitch-authenticated channel admins and broadcasters.</description>
     <packaging>jar</packaging>

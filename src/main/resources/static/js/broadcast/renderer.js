@@ -1,7 +1,7 @@
 import { AssetKind, MIN_FRAME_TIME, VISIBILITY_THRESHOLD } from "./constants.js";
 import { createBroadcastState } from "./state.js";
 import { getAssetKind, isCodeAsset, isModelAsset, isVisualAsset, isVideoElement } from "./assetKinds.js";
-import { ensureLayerPosition, getLayerOrder, getRenderOrder } from "./layers.js";
+import { ensureLayerPosition, getLayerOrder, getRenderOrder, getScriptLayerOrder } from "./layers.js";
 import { getVisibilityState, smoothState } from "./visibility.js";
 import { createAudioManager } from "./audioManager.js";
 import { createMediaManager } from "./mediaManager.js";
@@ -89,6 +89,7 @@ export class BroadcastRenderer {
 
     renderAssets(list) {
         this.state.layerOrder = [];
+        this.state.scriptLayerOrder = [];
         list.forEach((asset) => {
             this.storeAsset(asset, "append");
             if (isCodeAsset(asset)) {
@@ -119,6 +120,7 @@ export class BroadcastRenderer {
     removeAsset(assetId) {
         this.state.assets.delete(assetId);
         this.state.layerOrder = this.state.layerOrder.filter((id) => id !== assetId);
+        this.state.scriptLayerOrder = this.state.scriptLayerOrder.filter((id) => id !== assetId);
         this.mediaManager.clearMedia(assetId);
         this.modelManager.clearModel(assetId);
         this.stopUserJavaScriptWorker(assetId);
@@ -284,6 +286,7 @@ export class BroadcastRenderer {
         const merged = this.normalizePayload({ ...existing, ...sanitizedPatch });
         console.log(merged);
         const isVisual = isVisualAsset(merged);
+        const isScript = isCodeAsset(merged);
         if (sanitizedPatch.hidden) {
             this.hideAssetWithTransition(merged);
             return;
@@ -293,11 +296,19 @@ export class BroadcastRenderer {
             : Number.isFinite(patch.zIndex)
               ? patch.zIndex
               : null;
-        if (isVisual && Number.isFinite(targetLayer)) {
-            const currentOrder = getLayerOrder(this.state).filter((id) => id !== assetId);
-            const insertIndex = Math.max(0, currentOrder.length - Math.round(targetLayer));
-            currentOrder.splice(insertIndex, 0, assetId);
-            this.state.layerOrder = currentOrder;
+        if (Number.isFinite(targetLayer)) {
+            if (isScript) {
+                const currentOrder = getScriptLayerOrder(this.state).filter((id) => id !== assetId);
+                const insertIndex = Math.max(0, currentOrder.length - Math.round(targetLayer));
+                currentOrder.splice(insertIndex, 0, assetId);
+                this.state.scriptLayerOrder = currentOrder;
+                this.applyScriptCanvasOrder();
+            } else if (isVisual) {
+                const currentOrder = getLayerOrder(this.state).filter((id) => id !== assetId);
+                const insertIndex = Math.max(0, currentOrder.length - Math.round(targetLayer));
+                currentOrder.splice(insertIndex, 0, assetId);
+                this.state.layerOrder = currentOrder;
+            }
         }
         this.storeAsset(merged);
         this.mediaManager.ensureMedia(merged);
@@ -767,6 +778,7 @@ export class BroadcastRenderer {
         }
         const existing = this.scriptCanvases.get(assetId);
         if (existing) {
+            this.applyScriptCanvasOrder();
             return existing;
         }
         const canvas = document.createElement("canvas");
@@ -775,6 +787,7 @@ export class BroadcastRenderer {
         this.applyScriptCanvasSize(canvas);
         this.scriptLayer.appendChild(canvas);
         this.scriptCanvases.set(assetId, canvas);
+        this.applyScriptCanvasOrder();
         return canvas;
     }
 
@@ -785,12 +798,14 @@ export class BroadcastRenderer {
         }
         canvas.remove();
         this.scriptCanvases.delete(assetId);
+        this.applyScriptCanvasOrder();
     }
 
     resizeScriptCanvases() {
         this.scriptCanvases.forEach((canvas) => {
             this.applyScriptCanvasSize(canvas);
         });
+        this.applyScriptCanvasOrder();
     }
 
     applyScriptCanvasSize(canvas) {
@@ -805,6 +820,21 @@ export class BroadcastRenderer {
             canvas.height = this.state.canvasSettings.height;
             canvas.style.height = `${this.state.canvasSettings.height}px`;
         }
+    }
+
+    applyScriptCanvasOrder() {
+        if (!this.scriptLayer) {
+            return;
+        }
+        const ordered = getScriptLayerOrder(this.state);
+        ordered.forEach((id, index) => {
+            const canvas = this.scriptCanvases.get(id);
+            if (!canvas) {
+                return;
+            }
+            canvas.style.zIndex = `${ordered.length - index}`;
+            this.scriptLayer.appendChild(canvas);
+        });
     }
 
     async resolveScriptAttachments(attachments) {

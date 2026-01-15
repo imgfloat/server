@@ -1,39 +1,81 @@
-import { isVisualAsset } from "./assetKinds.js";
+import { isCodeAsset, isVisualAsset } from "./assetKinds.js";
+
+function isScriptAsset(asset) {
+    return isCodeAsset(asset);
+}
+
+function isLayerableVisual(asset) {
+    return isVisualAsset(asset) && !isScriptAsset(asset);
+}
+
+function getLayerBucket(state, asset) {
+    if (isScriptAsset(asset)) {
+        if (!Array.isArray(state.scriptLayerOrder)) {
+            state.scriptLayerOrder = [];
+        }
+        return state.scriptLayerOrder;
+    }
+    if (isLayerableVisual(asset)) {
+        return state.layerOrder;
+    }
+    return null;
+}
+
+function normalizeOrder(state, predicate, existing) {
+    const filtered = existing.filter((id) => {
+        const asset = state.assets.get(id);
+        return asset && predicate(asset);
+    });
+    state.assets.forEach((asset, id) => {
+        if (!predicate(asset)) {
+            return;
+        }
+        if (!filtered.includes(id)) {
+            filtered.push(id);
+        }
+    });
+    return filtered;
+}
 
 export function ensureLayerPosition(state, assetId, placement = "keep") {
     const asset = state.assets.get(assetId);
-    if (asset && !isVisualAsset(asset)) {
+    if (!asset) {
         return;
     }
-    const existingIndex = state.layerOrder.indexOf(assetId);
+    const bucket = getLayerBucket(state, asset);
+    if (!bucket) {
+        return;
+    }
+    const existingIndex = bucket.indexOf(assetId);
     if (existingIndex !== -1 && placement === "keep") {
         return;
     }
     if (existingIndex !== -1) {
-        state.layerOrder.splice(existingIndex, 1);
+        bucket.splice(existingIndex, 1);
     }
     if (placement === "append") {
-        state.layerOrder.push(assetId);
+        bucket.push(assetId);
     } else {
-        state.layerOrder.unshift(assetId);
+        bucket.unshift(assetId);
     }
-    state.layerOrder = state.layerOrder.filter((id) => state.assets.has(id));
+    if (bucket === state.layerOrder) {
+        state.layerOrder = normalizeOrder(state, isLayerableVisual, bucket);
+    } else {
+        state.scriptLayerOrder = normalizeOrder(state, isScriptAsset, bucket);
+    }
 }
 
 export function getLayerOrder(state) {
-    state.layerOrder = state.layerOrder.filter((id) => {
-        const asset = state.assets.get(id);
-        return asset && isVisualAsset(asset);
-    });
-    state.assets.forEach((asset, id) => {
-        if (!isVisualAsset(asset)) {
-            return;
-        }
-        if (!state.layerOrder.includes(id)) {
-            state.layerOrder.unshift(id);
-        }
-    });
+    state.layerOrder = normalizeOrder(state, isLayerableVisual, state.layerOrder);
     return state.layerOrder;
+}
+
+export function getScriptLayerOrder(state) {
+    if (!Array.isArray(state.scriptLayerOrder)) {
+        state.scriptLayerOrder = [];
+    }
+    state.scriptLayerOrder = normalizeOrder(state, isScriptAsset, state.scriptLayerOrder);
+    return state.scriptLayerOrder;
 }
 
 export function getRenderOrder(state) {

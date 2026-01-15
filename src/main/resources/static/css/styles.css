@@ -1740,8 +1740,17 @@ button:disabled:hover {
 .asset-list {
     display: flex;
     flex-direction: column;
+    list-style: none;
     padding: 0;
     margin: 0;
+}
+
+.asset-section {
+    font-size: 12px;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+    color: rgba(148, 163, 184, 0.9);
+    padding: 4px 10px 0;
 }
 
 .asset-item {
