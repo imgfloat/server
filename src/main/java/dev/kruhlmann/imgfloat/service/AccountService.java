@@ -28,6 +28,7 @@ public class AccountService {
     private final SystemAdministratorRepository systemAdministratorRepository;
     private final AssetStorageService assetStorageService;
     private final JdbcTemplate jdbcTemplate;
+    private final AuditLogService auditLogService;
 
     public AccountService(
         ChannelDirectoryService channelDirectoryService,
@@ -37,7 +38,8 @@ public class AccountService {
         MarketplaceScriptHeartRepository marketplaceScriptHeartRepository,
         SystemAdministratorRepository systemAdministratorRepository,
         AssetStorageService assetStorageService,
-        JdbcTemplate jdbcTemplate
+        JdbcTemplate jdbcTemplate,
+        AuditLogService auditLogService
     ) {
         this.channelDirectoryService = channelDirectoryService;
         this.assetRepository = assetRepository;
@@ -47,6 +49,7 @@ public class AccountService {
         this.systemAdministratorRepository = systemAdministratorRepository;
         this.assetStorageService = assetStorageService;
         this.jdbcTemplate = jdbcTemplate;
+        this.auditLogService = auditLogService;
     }
 
     @Transactional
@@ -61,7 +64,7 @@ public class AccountService {
             .stream()
             .map(Asset::getId)
             .toList();
-        assetIds.forEach(channelDirectoryService::deleteAsset);
+        assetIds.forEach((assetId) -> channelDirectoryService.deleteAsset(assetId, normalized));
 
         List<ScriptAssetFile> scriptFiles = scriptAssetFileRepository.findByBroadcaster(normalized);
         scriptFiles.forEach(this::deleteScriptAssetFile);
@@ -69,6 +72,7 @@ public class AccountService {
         marketplaceScriptHeartRepository.deleteByUsername(normalized);
         systemAdministratorRepository.deleteByTwitchUsername(normalized);
         channelRepository.deleteById(normalized);
+        auditLogService.deleteEntriesForBroadcaster(normalized);
 
         deleteSessionsForUser(normalized);
         LOG.info("Account data deleted for {}", normalized);

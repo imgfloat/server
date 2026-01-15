@@ -46,6 +46,12 @@
                     </a>
                     <a
                         class="button ghost"
+                        th:if="${#strings.equalsIgnoreCase(username, broadcaster)}"
+                        th:href="${'/view/' + broadcaster + '/audit'}"
+                        >Audit log</a
+                    >
+                    <a
+                        class="button ghost"
                         th:href="${'/view/' + broadcaster + '/broadcast'}"
                         target="_blank"
                         rel="noopener"

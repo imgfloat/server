@@ -2386,3 +2386,98 @@ button:disabled:hover {
         justify-content: flex-start;
     }
 }
+
+.audit-body {
+    background:
+        radial-gradient(circle at 0% 30%, rgba(14, 116, 144, 0.12), transparent 32%),
+        radial-gradient(circle at 85% 0%, rgba(59, 130, 246, 0.16), transparent 30%), #0f172a;
+}
+
+.audit-frame {
+    margin: 0 auto;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    padding: 24px clamp(20px, 5vw, 48px) 48px;
+}
+
+.audit-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 16px 20px;
+    background: rgba(15, 23, 42, 0.9);
+    border: 1px solid #1f2937;
+    border-radius: 16px;
+    box-shadow: 0 14px 35px rgba(0, 0, 0, 0.35);
+}
+
+.audit-title {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.audit-title h1 {
+    margin: 0;
+}
+
+.audit-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.audit-content {
+    display: flex;
+}
+
+.audit-panel {
+    width: 100%;
+    background: rgba(11, 18, 32, 0.92);
+    border: 1px solid #1f2937;
+    border-radius: 18px;
+    padding: 24px;
+    box-shadow: 0 20px 45px rgba(0, 0, 0, 0.4);
+}
+
+.audit-panel-header h2 {
+    margin: 0 0 6px;
+}
+
+.audit-table-wrapper {
+    margin-top: 16px;
+    overflow-x: auto;
+}
+
+.audit-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.audit-table thead {
+    text-align: left;
+    background: rgba(15, 23, 42, 0.9);
+}
+
+.audit-table th,
+.audit-table td {
+    padding: 12px 14px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+    vertical-align: top;
+}
+
+.audit-table tbody tr:hover {
+    background: rgba(30, 41, 59, 0.45);
+}
+
+.audit-empty {
+    margin-top: 16px;
+    padding: 16px;
+    border-radius: 12px;
+    background: rgba(30, 41, 59, 0.4);
+    color: #cbd5e1;
+}

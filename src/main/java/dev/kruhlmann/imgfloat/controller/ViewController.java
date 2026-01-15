@@ -160,6 +160,24 @@ public class ViewController {
         return "admin";
     }
 
+    @org.springframework.web.bind.annotation.GetMapping("/view/{broadcaster}/audit")
+    public String auditLogView(
+        @org.springframework.web.bind.annotation.PathVariable("broadcaster") String broadcaster,
+        OAuth2AuthenticationToken oauthToken,
+        Model model
+    ) {
+        String sessionUsername = OauthSessionUser.from(oauthToken).login();
+        authorizationService.userMatchesSessionUsernameOrThrowHttpError(broadcaster, sessionUsername);
+        String logBroadcaster = LogSanitizer.sanitize(broadcaster);
+        String logSessionUsername = LogSanitizer.sanitize(sessionUsername);
+        LOG.info("Rendering audit log for {} by {}", logBroadcaster, logSessionUsername);
+        model.addAttribute("broadcaster", broadcaster.toLowerCase());
+        model.addAttribute("username", sessionUsername);
+        addStagingAttribute(model);
+        addVersionAttributes(model);
+        return "audit-log";
+    }
+
     @org.springframework.web.bind.annotation.GetMapping("/view/{broadcaster}/broadcast")
     public String broadcastView(
         @org.springframework.web.bind.annotation.PathVariable("broadcaster") String broadcaster,

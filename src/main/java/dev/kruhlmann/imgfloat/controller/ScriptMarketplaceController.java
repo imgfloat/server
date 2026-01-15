@@ -85,7 +85,7 @@ public class ScriptMarketplaceController {
         String logTarget = LogSanitizer.sanitize(request.getTargetBroadcaster());
         LOG.info("Importing marketplace script {} into {}", logScriptId, logTarget);
         return channelDirectoryService
-            .importMarketplaceScript(request.getTargetBroadcaster(), scriptId)
+            .importMarketplaceScript(request.getTargetBroadcaster(), scriptId, sessionUsername)
             .map(ResponseEntity::ok)
             .orElseThrow(() -> new ResponseStatusException(BAD_REQUEST, "Unable to import script"));
     }

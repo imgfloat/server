@@ -26,6 +26,7 @@ import dev.kruhlmann.imgfloat.repository.ScriptAssetAttachmentRepository;
 import dev.kruhlmann.imgfloat.repository.ScriptAssetFileRepository;
 import dev.kruhlmann.imgfloat.repository.VisualAssetRepository;
 import dev.kruhlmann.imgfloat.service.AssetStorageService;
+import dev.kruhlmann.imgfloat.service.AuditLogService;
 import dev.kruhlmann.imgfloat.service.ChannelDirectoryService;
 import dev.kruhlmann.imgfloat.service.MarketplaceScriptSeedLoader;
 import dev.kruhlmann.imgfloat.service.SettingsService;
@@ -65,6 +66,7 @@ class ChannelDirectoryServiceTest {
     private MarketplaceScriptHeartRepository marketplaceScriptHeartRepository;
     private SettingsService settingsService;
     private MarketplaceScriptSeedLoader marketplaceScriptSeedLoader;
+    private AuditLogService auditLogService;
 
     @BeforeEach
     void setup() throws Exception {
@@ -77,6 +79,7 @@ class ChannelDirectoryServiceTest {
         scriptAssetAttachmentRepository = mock(ScriptAssetAttachmentRepository.class);
         scriptAssetFileRepository = mock(ScriptAssetFileRepository.class);
         marketplaceScriptHeartRepository = mock(MarketplaceScriptHeartRepository.class);
+        auditLogService = mock(AuditLogService.class);
         when(marketplaceScriptHeartRepository.countByScriptIds(any())).thenReturn(List.of());
         when(marketplaceScriptHeartRepository.findByUsernameAndScriptIdIn(anyString(), any())).thenReturn(List.of());
         settingsService = mock(SettingsService.class);
@@ -121,7 +124,8 @@ class ChannelDirectoryServiceTest {
             mediaOptimizationService,
             settingsService,
             uploadLimitBytes,
-            marketplaceScriptSeedLoader
+            marketplaceScriptSeedLoader,
+            auditLogService
         );
     }
 
@@ -129,7 +133,7 @@ class ChannelDirectoryServiceTest {
     void createsAssetsAndBroadcastsEvents() throws Exception {
         MockMultipartFile file = new MockMultipartFile("file", "image.png", "image/png", samplePng());
 
-        Optional<AssetView> created = service.createAsset("caster", file);
+        Optional<AssetView> created = service.createAsset("caster", file, "caster");
         assertThat(created).isPresent();
         ArgumentCaptor<Object> captor = ArgumentCaptor.forClass(Object.class);
         verify(messagingTemplate).convertAndSend(
@@ -142,15 +146,15 @@ class ChannelDirectoryServiceTest {
     void updatesTransformAndVisibility() throws Exception {
         MockMultipartFile file = new MockMultipartFile("file", "image.png", "image/png", samplePng());
         String channel = "caster";
-        String id = service.createAsset(channel, file).orElseThrow().id();
+        String id = service.createAsset(channel, file, "caster").orElseThrow().id();
 
         TransformRequest transform = validTransform();
 
-        assertThat(service.updateTransform(channel, id, transform)).isPresent();
+        assertThat(service.updateTransform(channel, id, transform, "caster")).isPresent();
 
         VisibilityRequest visibilityRequest = new VisibilityRequest();
         visibilityRequest.setHidden(false);
-        assertThat(service.updateVisibility(channel, id, visibilityRequest)).isPresent();
+        assertThat(service.updateVisibility(channel, id, visibilityRequest, "caster")).isPresent();
     }
 
     @Test
@@ -161,7 +165,7 @@ class ChannelDirectoryServiceTest {
         TransformRequest transform = validTransform();
         transform.setWidth(0.0);
 
-        assertThatThrownBy(() -> service.updateTransform(channel, id, transform))
+        assertThatThrownBy(() -> service.updateTransform(channel, id, transform, "caster"))
             .isInstanceOf(ResponseStatusException.class)
             .hasMessageContaining("Canvas width out of range");
     }
@@ -174,14 +178,14 @@ class ChannelDirectoryServiceTest {
         TransformRequest speedTransform = validTransform();
         speedTransform.setSpeed(5.0);
 
-        assertThatThrownBy(() -> service.updateTransform(channel, id, speedTransform))
+        assertThatThrownBy(() -> service.updateTransform(channel, id, speedTransform, "caster"))
             .isInstanceOf(ResponseStatusException.class)
             .hasMessageContaining("Speed out of range");
 
         TransformRequest volumeTransform = validTransform();
         volumeTransform.setAudioVolume(6.5);
 
-        assertThatThrownBy(() -> service.updateTransform(channel, id, volumeTransform))
+        assertThatThrownBy(() -> service.updateTransform(channel, id, volumeTransform, "caster"))
             .isInstanceOf(ResponseStatusException.class)
             .hasMessageContaining("Audio volume out of range");
     }
@@ -196,7 +200,7 @@ class ChannelDirectoryServiceTest {
         transform.setAudioVolume(0.01);
         transform.setZIndex(1);
 
-        AssetView view = service.updateTransform(channel, id, transform).orElseThrow();
+        AssetView view = service.updateTransform(channel, id, transform, "caster").orElseThrow();
 
         assertThat(view.speed()).isEqualTo(0.1);
         assertThat(view.audioVolume()).isEqualTo(0.01);
@@ -222,7 +226,7 @@ class ChannelDirectoryServiceTest {
 
     private String createSampleAsset(String channel) throws Exception {
         MockMultipartFile file = new MockMultipartFile("file", "image.png", "image/png", samplePng());
-        return service.createAsset(channel, file).orElseThrow().id();
+        return service.createAsset(channel, file, "caster").orElseThrow().id();
     }
 
     private TransformRequest validTransform() {

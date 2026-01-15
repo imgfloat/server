@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+    <head>
+        <meta charset="UTF-8" />
+        <title>Imgfloat Audit Log</title>
+        <link rel="icon" href="/favicon.ico" />
+        <link rel="stylesheet" href="/css/styles.css" />
+    </head>
+    <body class="audit-body" th:classappend="${isStaging} ? ' has-staging-banner' : ''">
+        <div th:insert="~{fragments/staging :: banner}"></div>
+        <div class="audit-frame">
+            <header class="audit-topbar">
+                <div class="audit-title">
+                    <p class="eyebrow subtle">CHANNEL AUDIT LOG</p>
+                    <h1 th:text="${broadcaster}"></h1>
+                </div>
+                <div class="audit-actions">
+                    <a class="button ghost" th:href="${'/view/' + broadcaster + '/admin'}">Back to admin</a>
+                    <a class="button" th:href="@{/}">Dashboard</a>
+                </div>
+            </header>
+            <main class="audit-content">
+                <section class="audit-panel">
+                    <div class="audit-panel-header">
+                        <div>
+                            <h2>Recent activity</h2>
+                            <p class="subtle">Latest 200 entries for your channel.</p>
+                        </div>
+                    </div>
+                    <div class="audit-table-wrapper">
+                        <table class="audit-table">
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Actor</th>
+                                    <th>Action</th>
+                                    <th>Details</th>
+                                </tr>
+                            </thead>
+                            <tbody id="audit-log-body"></tbody>
+                        </table>
+                        <div id="audit-empty" class="audit-empty hidden">No audit entries yet.</div>
+                    </div>
+                </section>
+            </main>
+        </div>
+        <script th:inline="javascript">
+            const broadcaster = /*[[${broadcaster}]]*/ "";
+        </script>
+        <script type="module" src="/js/audit-log.js"></script>
+    </body>
+</html>

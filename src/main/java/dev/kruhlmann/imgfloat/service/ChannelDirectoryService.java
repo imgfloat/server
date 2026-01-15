@@ -77,6 +77,7 @@ public class ChannelDirectoryService {
     private final SettingsService settingsService;
     private final long uploadLimitBytes;
     private final MarketplaceScriptSeedLoader marketplaceScriptSeedLoader;
+    private final AuditLogService auditLogService;
 
     @Autowired
     public ChannelDirectoryService(
@@ -94,7 +95,8 @@ public class ChannelDirectoryService {
         MediaOptimizationService mediaOptimizationService,
         SettingsService settingsService,
         long uploadLimitBytes,
-        MarketplaceScriptSeedLoader marketplaceScriptSeedLoader
+        MarketplaceScriptSeedLoader marketplaceScriptSeedLoader,
+        AuditLogService auditLogService
     ) {
         this.channelRepository = channelRepository;
         this.assetRepository = assetRepository;
@@ -111,6 +113,7 @@ public class ChannelDirectoryService {
         this.settingsService = settingsService;
         this.uploadLimitBytes = uploadLimitBytes;
         this.marketplaceScriptSeedLoader = marketplaceScriptSeedLoader;
+        this.auditLogService = auditLogService;
     }
 
     public Channel getOrCreateChannel(String broadcaster) {
@@ -127,22 +130,36 @@ public class ChannelDirectoryService {
             .toList();
     }
 
-    public boolean addAdmin(String broadcaster, String username) {
+    public boolean addAdmin(String broadcaster, String username, String actor) {
         Channel channel = getOrCreateChannel(broadcaster);
-        boolean added = channel.addAdmin(username);
+        String normalizedUsername = normalize(username);
+        boolean added = channel.addAdmin(normalizedUsername);
         if (added) {
             channelRepository.saveAndFlush(channel);
             messagingTemplate.convertAndSend(topicFor(broadcaster), "Admin added: " + username);
+            auditLogService.recordEntry(
+                channel.getBroadcaster(),
+                actor,
+                "ADMIN_ADDED",
+                "Added admin " + normalizedUsername
+            );
         }
         return added;
     }
 
-    public boolean removeAdmin(String broadcaster, String username) {
+    public boolean removeAdmin(String broadcaster, String username, String actor) {
         Channel channel = getOrCreateChannel(broadcaster);
-        boolean removed = channel.removeAdmin(username);
+        String normalizedUsername = normalize(username);
+        boolean removed = channel.removeAdmin(normalizedUsername);
         if (removed) {
             channelRepository.saveAndFlush(channel);
             messagingTemplate.convertAndSend(topicFor(broadcaster), "Admin removed: " + username);
+            auditLogService.recordEntry(
+                channel.getBroadcaster(),
+                actor,
+                "ADMIN_REMOVED",
+                "Removed admin " + normalizedUsername
+            );
         }
         return removed;
     }
@@ -184,13 +201,30 @@ public class ChannelDirectoryService {
         return new CanvasSettingsRequest(channel.getCanvasWidth(), channel.getCanvasHeight());
     }
 
-    public CanvasSettingsRequest updateCanvasSettings(String broadcaster, CanvasSettingsRequest req) {
+    public CanvasSettingsRequest updateCanvasSettings(String broadcaster, CanvasSettingsRequest req, String actor) {
         Channel channel = getOrCreateChannel(broadcaster);
+        double beforeWidth = channel.getCanvasWidth();
+        double beforeHeight = channel.getCanvasHeight();
         channel.setCanvasWidth(req.getWidth());
         channel.setCanvasHeight(req.getHeight());
         channelRepository.save(channel);
         CanvasSettingsRequest response = new CanvasSettingsRequest(channel.getCanvasWidth(), channel.getCanvasHeight());
         messagingTemplate.convertAndSend(topicFor(broadcaster), CanvasEvent.updated(broadcaster, response));
+        if (beforeWidth != channel.getCanvasWidth() || beforeHeight != channel.getCanvasHeight()) {
+            auditLogService.recordEntry(
+                channel.getBroadcaster(),
+                actor,
+                "CANVAS_UPDATED",
+                String.format(
+                    Locale.ROOT,
+                    "Canvas updated to %.0fx%.0f (was %.0fx%.0f)",
+                    channel.getCanvasWidth(),
+                    channel.getCanvasHeight(),
+                    beforeWidth,
+                    beforeHeight
+                )
+            );
+        }
         return response;
     }
 
@@ -205,13 +239,46 @@ public class ChannelDirectoryService {
 
     public ChannelScriptSettingsRequest updateChannelScriptSettings(
         String broadcaster,
-        ChannelScriptSettingsRequest request
+        ChannelScriptSettingsRequest request,
+        String actor
     ) {
         Channel channel = getOrCreateChannel(broadcaster);
+        boolean beforeChannelEmotes = channel.isAllowChannelEmotesForAssets();
+        boolean beforeSevenTv = channel.isAllowSevenTvEmotesForAssets();
+        boolean beforeChatAccess = channel.isAllowScriptChatAccess();
         channel.setAllowChannelEmotesForAssets(request.isAllowChannelEmotesForAssets());
         channel.setAllowSevenTvEmotesForAssets(request.isAllowSevenTvEmotesForAssets());
         channel.setAllowScriptChatAccess(request.isAllowScriptChatAccess());
         channelRepository.save(channel);
+        if (
+            beforeChannelEmotes != channel.isAllowChannelEmotesForAssets() ||
+            beforeSevenTv != channel.isAllowSevenTvEmotesForAssets() ||
+            beforeChatAccess != channel.isAllowScriptChatAccess()
+        ) {
+            List<String> changes = new ArrayList<>();
+            if (beforeChannelEmotes != channel.isAllowChannelEmotesForAssets()) {
+                changes.add(
+                    "channelEmotes: " + beforeChannelEmotes + " -> " + channel.isAllowChannelEmotesForAssets()
+                );
+            }
+            if (beforeSevenTv != channel.isAllowSevenTvEmotesForAssets()) {
+                changes.add(
+                    "sevenTvEmotes: " + beforeSevenTv + " -> " + channel.isAllowSevenTvEmotesForAssets()
+                );
+            }
+            if (beforeChatAccess != channel.isAllowScriptChatAccess()) {
+                changes.add(
+                    "scriptChatAccess: " + beforeChatAccess + " -> " + channel.isAllowScriptChatAccess()
+                );
+            }
+            String detailSuffix = changes.isEmpty() ? "" : " (" + String.join(", ", changes) + ")";
+            auditLogService.recordEntry(
+                channel.getBroadcaster(),
+                actor,
+                "SCRIPT_SETTINGS_UPDATED",
+                "Script settings updated" + detailSuffix
+            );
+        }
         return new ChannelScriptSettingsRequest(
             channel.isAllowChannelEmotesForAssets(),
             channel.isAllowSevenTvEmotesForAssets(),
@@ -219,7 +286,7 @@ public class ChannelDirectoryService {
         );
     }
 
-    public Optional<AssetView> createAsset(String broadcaster, MultipartFile file) throws IOException {
+    public Optional<AssetView> createAsset(String broadcaster, MultipartFile file, String actor) throws IOException {
         long fileSize = file.getSize();
         if (fileSize > uploadLimitBytes) {
             throw new ResponseStatusException(
@@ -299,11 +366,17 @@ public class ChannelDirectoryService {
         }
 
         messagingTemplate.convertAndSend(topicFor(broadcaster), AssetEvent.created(broadcaster, view));
+        auditLogService.recordEntry(
+            channel.getBroadcaster(),
+            actor,
+            "ASSET_CREATED",
+            "Created asset " + view.name() + " (" + view.assetType() + ")"
+        );
 
         return Optional.of(view);
     }
 
-    public Optional<AssetView> createCodeAsset(String broadcaster, CodeAssetRequest request) {
+    public Optional<AssetView> createCodeAsset(String broadcaster, CodeAssetRequest request, String actor) {
         validateCodeAssetSource(request.getSource());
         Channel channel = getOrCreateChannel(broadcaster);
         byte[] bytes = request.getSource().getBytes(StandardCharsets.UTF_8);
@@ -339,10 +412,16 @@ public class ChannelDirectoryService {
         scriptAssetRepository.save(script);
         AssetView view = AssetView.fromScript(channel.getBroadcaster(), asset, script);
         messagingTemplate.convertAndSend(topicFor(broadcaster), AssetEvent.created(broadcaster, view));
+        auditLogService.recordEntry(
+            channel.getBroadcaster(),
+            actor,
+            "SCRIPT_CREATED",
+            "Created script " + view.name() + " (" + view.id() + ")"
+        );
         return Optional.of(view);
     }
 
-    public Optional<AssetView> updateCodeAsset(String broadcaster, String assetId, CodeAssetRequest request) {
+    public Optional<AssetView> updateCodeAsset(String broadcaster, String assetId, CodeAssetRequest request, String actor) {
         validateCodeAssetSource(request.getSource());
         String normalized = normalize(broadcaster);
         byte[] bytes = request.getSource().getBytes(StandardCharsets.UTF_8);
@@ -397,11 +476,17 @@ public class ChannelDirectoryService {
                 scriptAssetRepository.save(script);
                 AssetView view = AssetView.fromScript(normalized, asset, script);
                 messagingTemplate.convertAndSend(topicFor(broadcaster), AssetEvent.updated(broadcaster, view));
+                auditLogService.recordEntry(
+                    asset.getBroadcaster(),
+                    actor,
+                    "SCRIPT_UPDATED",
+                    "Updated script " + script.getName() + " (" + asset.getId() + ")"
+                );
                 return view;
             });
     }
 
-    public Optional<AssetView> updateScriptLogo(String broadcaster, String assetId, MultipartFile file)
+    public Optional<AssetView> updateScriptLogo(String broadcaster, String assetId, MultipartFile file, String actor)
         throws IOException {
         Asset asset = requireScriptAssetForBroadcaster(broadcaster, assetId);
         byte[] bytes = file.getBytes();
@@ -442,10 +527,16 @@ public class ChannelDirectoryService {
 
         AssetView view = AssetView.fromScript(asset.getBroadcaster(), asset, script);
         messagingTemplate.convertAndSend(topicFor(broadcaster), AssetEvent.updated(broadcaster, view));
+        auditLogService.recordEntry(
+            asset.getBroadcaster(),
+            actor,
+            "SCRIPT_LOGO_UPDATED",
+            "Updated script logo for " + script.getName() + " (" + asset.getId() + ")"
+        );
         return Optional.of(view);
     }
 
-    public Optional<AssetView> clearScriptLogo(String broadcaster, String assetId) {
+    public Optional<AssetView> clearScriptLogo(String broadcaster, String assetId, String actor) {
         Asset asset = requireScriptAssetForBroadcaster(broadcaster, assetId);
         ScriptAsset script = scriptAssetRepository
             .findById(asset.getId())
@@ -460,6 +551,12 @@ public class ChannelDirectoryService {
         removeScriptAssetFileIfOrphaned(previousLogoFileId);
         AssetView view = AssetView.fromScript(asset.getBroadcaster(), asset, script);
         messagingTemplate.convertAndSend(topicFor(broadcaster), AssetEvent.updated(broadcaster, view));
+        auditLogService.recordEntry(
+            asset.getBroadcaster(),
+            actor,
+            "SCRIPT_LOGO_CLEARED",
+            "Cleared script logo for " + script.getName() + " (" + asset.getId() + ")"
+        );
         return Optional.of(view);
     }
 
@@ -667,77 +764,88 @@ public class ChannelDirectoryService {
         }
     }
 
-    public Optional<AssetView> importMarketplaceScript(String targetBroadcaster, String scriptId) {
+    public Optional<AssetView> importMarketplaceScript(String targetBroadcaster, String scriptId, String actor) {
         Optional<MarketplaceScriptSeedLoader.SeedScript> seedScript = marketplaceScriptSeedLoader.findById(scriptId);
+        Optional<AssetView> imported;
         if (seedScript.isPresent()) {
-            return importSeedMarketplaceScript(targetBroadcaster, seedScript.get());
-        }
-        ScriptAsset sourceScript;
-        try {
-            sourceScript = scriptAssetRepository.findById(scriptId).filter(ScriptAsset::isPublic).orElse(null);
-        } catch (DataAccessException ex) {
-            logger.warn("Unable to import marketplace script {}", scriptId, ex);
-            return Optional.empty();
-        }
-        Asset sourceAsset = sourceScript == null ? null : assetRepository.findById(scriptId).orElse(null);
-        if (sourceScript == null || sourceAsset == null) {
-            return Optional.empty();
-        }
-        AssetContent sourceContent = loadScriptSourceContent(sourceAsset, sourceScript).orElse(null);
-        if (sourceContent == null) {
-            return Optional.empty();
-        }
+            imported = importSeedMarketplaceScript(targetBroadcaster, seedScript.get());
+        } else {
+            ScriptAsset sourceScript;
+            try {
+                sourceScript = scriptAssetRepository.findById(scriptId).filter(ScriptAsset::isPublic).orElse(null);
+            } catch (DataAccessException ex) {
+                logger.warn("Unable to import marketplace script {}", scriptId, ex);
+                return Optional.empty();
+            }
+            Asset sourceAsset = sourceScript == null ? null : assetRepository.findById(scriptId).orElse(null);
+            if (sourceScript == null || sourceAsset == null) {
+                return Optional.empty();
+            }
+            AssetContent sourceContent = loadScriptSourceContent(sourceAsset, sourceScript).orElse(null);
+            if (sourceContent == null) {
+                return Optional.empty();
+            }
 
-        Asset asset = new Asset(targetBroadcaster, AssetType.SCRIPT);
-        ScriptAssetFile sourceFile = new ScriptAssetFile(asset.getBroadcaster(), AssetType.SCRIPT);
-        sourceFile.setId(asset.getId());
-        sourceFile.setMediaType(sourceContent.mediaType());
-        sourceFile.setOriginalMediaType(sourceContent.mediaType());
-        try {
-            assetStorageService.storeAsset(
-                sourceFile.getBroadcaster(),
-                sourceFile.getId(),
-                sourceContent.bytes(),
-                sourceContent.mediaType()
-            );
-        } catch (IOException e) {
-            throw new ResponseStatusException(BAD_REQUEST, "Unable to store custom script", e);
-        }
-        assetRepository.save(asset);
-        scriptAssetFileRepository.save(sourceFile);
+            Asset asset = new Asset(targetBroadcaster, AssetType.SCRIPT);
+            ScriptAssetFile sourceFile = new ScriptAssetFile(asset.getBroadcaster(), AssetType.SCRIPT);
+            sourceFile.setId(asset.getId());
+            sourceFile.setMediaType(sourceContent.mediaType());
+            sourceFile.setOriginalMediaType(sourceContent.mediaType());
+            try {
+                assetStorageService.storeAsset(
+                    sourceFile.getBroadcaster(),
+                    sourceFile.getId(),
+                    sourceContent.bytes(),
+                    sourceContent.mediaType()
+                );
+            } catch (IOException e) {
+                throw new ResponseStatusException(BAD_REQUEST, "Unable to store custom script", e);
+            }
+            assetRepository.save(asset);
+            scriptAssetFileRepository.save(sourceFile);
 
-        ScriptAsset script = new ScriptAsset(asset.getId(), sourceScript.getName());
-        script.setDescription(sourceScript.getDescription());
-        script.setPublic(false);
-        script.setMediaType(sourceContent.mediaType());
-        script.setOriginalMediaType(sourceContent.mediaType());
-        script.setSourceFileId(sourceFile.getId());
-        script.setLogoFileId(sourceScript.getLogoFileId());
-        script.setZIndex(nextScriptZIndex(targetBroadcaster));
-        script.setAttachments(List.of());
-        scriptAssetRepository.save(script);
+            ScriptAsset script = new ScriptAsset(asset.getId(), sourceScript.getName());
+            script.setDescription(sourceScript.getDescription());
+            script.setPublic(false);
+            script.setMediaType(sourceContent.mediaType());
+            script.setOriginalMediaType(sourceContent.mediaType());
+            script.setSourceFileId(sourceFile.getId());
+            script.setLogoFileId(sourceScript.getLogoFileId());
+            script.setZIndex(nextScriptZIndex(targetBroadcaster));
+            script.setAttachments(List.of());
+            scriptAssetRepository.save(script);
 
-        List<ScriptAssetAttachment> sourceAttachments = scriptAssetAttachmentRepository
-            .findByScriptAssetId(sourceScript.getId());
-        List<ScriptAssetAttachment> newAttachments = sourceAttachments
-            .stream()
-            .map((attachment) -> {
-                ScriptAssetAttachment copy = new ScriptAssetAttachment(asset.getId(), attachment.getName());
-                String fileId = attachment.getFileId() != null ? attachment.getFileId() : attachment.getId();
-                copy.setFileId(fileId);
-                copy.setMediaType(attachment.getMediaType());
-                copy.setOriginalMediaType(attachment.getOriginalMediaType());
-                copy.setAssetType(attachment.getAssetType());
-                return copy;
-            })
-            .toList();
-        if (!newAttachments.isEmpty()) {
-            scriptAssetAttachmentRepository.saveAll(newAttachments);
+            List<ScriptAssetAttachment> sourceAttachments = scriptAssetAttachmentRepository
+                .findByScriptAssetId(sourceScript.getId());
+            List<ScriptAssetAttachment> newAttachments = sourceAttachments
+                .stream()
+                .map((attachment) -> {
+                    ScriptAssetAttachment copy = new ScriptAssetAttachment(asset.getId(), attachment.getName());
+                    String fileId = attachment.getFileId() != null ? attachment.getFileId() : attachment.getId();
+                    copy.setFileId(fileId);
+                    copy.setMediaType(attachment.getMediaType());
+                    copy.setOriginalMediaType(attachment.getOriginalMediaType());
+                    copy.setAssetType(attachment.getAssetType());
+                    return copy;
+                })
+                .toList();
+            if (!newAttachments.isEmpty()) {
+                scriptAssetAttachmentRepository.saveAll(newAttachments);
+            }
+            script.setAttachments(loadScriptAttachments(asset.getBroadcaster(), asset.getId(), null));
+            AssetView view = AssetView.fromScript(asset.getBroadcaster(), asset, script);
+            messagingTemplate.convertAndSend(topicFor(targetBroadcaster), AssetEvent.created(targetBroadcaster, view));
+            imported = Optional.of(view);
         }
-        script.setAttachments(loadScriptAttachments(asset.getBroadcaster(), asset.getId(), null));
-        AssetView view = AssetView.fromScript(asset.getBroadcaster(), asset, script);
-        messagingTemplate.convertAndSend(topicFor(targetBroadcaster), AssetEvent.created(targetBroadcaster, view));
-        return Optional.of(view);
+        imported.ifPresent((view) ->
+            auditLogService.recordEntry(
+                view.broadcaster(),
+                actor,
+                "MARKETPLACE_SCRIPT_IMPORTED",
+                "Imported marketplace script " + scriptId + " as " + view.name() + " (" + view.id() + ")"
+            )
+        );
+        return imported;
     }
 
     private Optional<AssetView> importSeedMarketplaceScript(
@@ -858,7 +966,7 @@ public class ChannelDirectoryService {
         return SAFE_FILENAME.matcher(stripped).replaceAll("_");
     }
 
-    public Optional<AssetView> updateTransform(String broadcaster, String assetId, TransformRequest req) {
+    public Optional<AssetView> updateTransform(String broadcaster, String assetId, TransformRequest req, String actor) {
         String normalized = normalize(broadcaster);
 
         return assetRepository
@@ -887,6 +995,12 @@ public class ChannelDirectoryService {
                     AssetPatch patch = AssetPatch.fromAudioTransform(before, audio, req);
                     if (hasPatchChanges(patch)) {
                         messagingTemplate.convertAndSend(topicFor(broadcaster), AssetEvent.updated(broadcaster, patch));
+                        auditLogService.recordEntry(
+                            asset.getBroadcaster(),
+                            actor,
+                            "AUDIO_UPDATED",
+                            formatAudioTransformDetails(asset.getId(), req)
+                        );
                     }
                     return view;
                 }
@@ -921,6 +1035,12 @@ public class ChannelDirectoryService {
                                 null
                             );
                             messagingTemplate.convertAndSend(topicFor(broadcaster), AssetEvent.updated(broadcaster, patch));
+                            auditLogService.recordEntry(
+                                asset.getBroadcaster(),
+                                actor,
+                                "SCRIPT_LAYER_UPDATED",
+                                formatScriptTransformDetails(asset.getId(), script.getZIndex())
+                            );
                         }
                     }
                     script.setAttachments(loadScriptAttachments(normalized, asset.getId(), null));
@@ -959,6 +1079,12 @@ public class ChannelDirectoryService {
                 AssetPatch patch = AssetPatch.fromVisualTransform(before, visual, req);
                 if (hasPatchChanges(patch)) {
                     messagingTemplate.convertAndSend(topicFor(broadcaster), AssetEvent.updated(broadcaster, patch));
+                    auditLogService.recordEntry(
+                        asset.getBroadcaster(),
+                        actor,
+                        "VISUAL_UPDATED",
+                        formatVisualTransformDetails(asset.getId(), req)
+                    );
                 }
                 return view;
             });
@@ -1026,7 +1152,7 @@ public class ChannelDirectoryService {
         );
     }
 
-    public Optional<AssetView> triggerPlayback(String broadcaster, String assetId, PlaybackRequest req) {
+    public Optional<AssetView> triggerPlayback(String broadcaster, String assetId, PlaybackRequest req, String actor) {
         String normalized = normalize(broadcaster);
         return assetRepository
             .findById(assetId)
@@ -1038,11 +1164,22 @@ public class ChannelDirectoryService {
                 }
                 boolean play = req == null || req.getPlay();
                 messagingTemplate.convertAndSend(topicFor(broadcaster), AssetEvent.play(broadcaster, view, play));
+                auditLogService.recordEntry(
+                    asset.getBroadcaster(),
+                    actor,
+                    "ASSET_PLAYBACK_TRIGGERED",
+                    "Playback " + (play ? "started" : "stopped") + " for asset " + asset.getId()
+                );
                 return view;
             });
     }
 
-    public Optional<AssetView> updateVisibility(String broadcaster, String assetId, VisibilityRequest request) {
+    public Optional<AssetView> updateVisibility(
+        String broadcaster,
+        String assetId,
+        VisibilityRequest request,
+        String actor
+    ) {
         String normalized = normalize(broadcaster);
         return assetRepository
             .findById(assetId)
@@ -1064,6 +1201,12 @@ public class ChannelDirectoryService {
                     messagingTemplate.convertAndSend(
                         topicFor(broadcaster),
                         AssetEvent.visibility(broadcaster, patch, payload)
+                    );
+                    auditLogService.recordEntry(
+                        asset.getBroadcaster(),
+                        actor,
+                        "AUDIO_VISIBILITY_UPDATED",
+                        "Audio asset " + asset.getId() + " hidden=" + hidden
                     );
                     return view;
                 }
@@ -1091,12 +1234,18 @@ public class ChannelDirectoryService {
                     topicFor(broadcaster),
                     AssetEvent.visibility(broadcaster, patch, payload)
                 );
+                auditLogService.recordEntry(
+                    asset.getBroadcaster(),
+                    actor,
+                    "VISUAL_VISIBILITY_UPDATED",
+                    "Visual asset " + asset.getId() + " hidden=" + hidden
+                );
                 return view;
             });
     }
 
     @Transactional
-    public boolean deleteAsset(String assetId) {
+    public boolean deleteAsset(String assetId, String actor) {
         return assetRepository
             .findById(assetId)
             .map((asset) -> {
@@ -1128,6 +1277,12 @@ public class ChannelDirectoryService {
                     topicFor(asset.getBroadcaster()),
                     AssetEvent.deleted(asset.getBroadcaster(), assetId)
                 );
+                auditLogService.recordEntry(
+                    asset.getBroadcaster(),
+                    actor,
+                    "ASSET_DELETED",
+                    "Deleted asset " + asset.getId() + " (" + asset.getAssetType() + ")"
+                );
                 return true;
             })
             .orElse(false);
@@ -1145,7 +1300,8 @@ public class ChannelDirectoryService {
     public Optional<ScriptAssetAttachmentView> createScriptAttachment(
         String broadcaster,
         String scriptAssetId,
-        MultipartFile file
+        MultipartFile file,
+        String actor
     ) throws IOException {
         long fileSize = file.getSize();
         if (fileSize > uploadLimitBytes) {
@@ -1214,11 +1370,22 @@ public class ChannelDirectoryService {
         script.setAttachments(loadScriptAttachments(asset.getBroadcaster(), asset.getId(), null));
         AssetView scriptView = AssetView.fromScript(asset.getBroadcaster(), asset, script);
         messagingTemplate.convertAndSend(topicFor(broadcaster), AssetEvent.updated(broadcaster, scriptView));
+        auditLogService.recordEntry(
+            asset.getBroadcaster(),
+            actor,
+            "SCRIPT_ATTACHMENT_ADDED",
+            "Added attachment " + attachment.getName() + " to script " + asset.getId()
+        );
 
         return Optional.of(view);
     }
 
-    public boolean deleteScriptAttachment(String broadcaster, String scriptAssetId, String attachmentId) {
+    public boolean deleteScriptAttachment(
+        String broadcaster,
+        String scriptAssetId,
+        String attachmentId,
+        String actor
+    ) {
         Asset asset = requireScriptAssetForBroadcaster(broadcaster, scriptAssetId);
         ScriptAssetAttachment attachment = scriptAssetAttachmentRepository
             .findById(attachmentId)
@@ -1227,6 +1394,7 @@ public class ChannelDirectoryService {
         if (attachment == null) {
             return false;
         }
+        String attachmentName = attachment.getName();
         String fileId = attachment.getFileId() != null ? attachment.getFileId() : attachment.getId();
         scriptAssetAttachmentRepository.deleteById(attachment.getId());
         removeScriptAssetFileIfOrphaned(fileId);
@@ -1237,6 +1405,12 @@ public class ChannelDirectoryService {
         script.setAttachments(loadScriptAttachments(asset.getBroadcaster(), asset.getId(), null));
         AssetView scriptView = AssetView.fromScript(asset.getBroadcaster(), asset, script);
         messagingTemplate.convertAndSend(topicFor(broadcaster), AssetEvent.updated(broadcaster, scriptView));
+        auditLogService.recordEntry(
+            asset.getBroadcaster(),
+            actor,
+            "SCRIPT_ATTACHMENT_REMOVED",
+            "Removed attachment " + attachmentName + " from script " + asset.getId()
+        );
         return true;
     }
 
@@ -1635,6 +1809,45 @@ public class ChannelDirectoryService {
                     )
                 );
         }
+    }
+
+    private String formatVisualTransformDetails(String assetId, TransformRequest req) {
+        List<String> parts = new ArrayList<>();
+        if (req.getX() != null) parts.add("x=" + req.getX());
+        if (req.getY() != null) parts.add("y=" + req.getY());
+        if (req.getWidth() != null) parts.add("width=" + req.getWidth());
+        if (req.getHeight() != null) parts.add("height=" + req.getHeight());
+        if (req.getRotation() != null) parts.add("rotation=" + req.getRotation());
+        if (req.getZIndex() != null) parts.add("zIndex=" + req.getZIndex());
+        if (req.getSpeed() != null) parts.add("speed=" + req.getSpeed());
+        if (req.getMuted() != null) parts.add("muted=" + req.getMuted());
+        if (req.getAudioVolume() != null) parts.add("audioVolume=" + req.getAudioVolume());
+        return formatTransformDetails("Updated visual asset " + assetId, parts);
+    }
+
+    private String formatAudioTransformDetails(String assetId, TransformRequest req) {
+        List<String> parts = new ArrayList<>();
+        if (req.getAudioLoop() != null) parts.add("loop=" + req.getAudioLoop());
+        if (req.getAudioDelayMillis() != null) parts.add("delayMs=" + req.getAudioDelayMillis());
+        if (req.getAudioSpeed() != null) parts.add("speed=" + req.getAudioSpeed());
+        if (req.getAudioPitch() != null) parts.add("pitch=" + req.getAudioPitch());
+        if (req.getAudioVolume() != null) parts.add("volume=" + req.getAudioVolume());
+        return formatTransformDetails("Updated audio asset " + assetId, parts);
+    }
+
+    private String formatScriptTransformDetails(String assetId, Integer zIndex) {
+        String detail = "Updated script asset " + assetId;
+        if (zIndex != null) {
+            return detail + " (zIndex=" + zIndex + ")";
+        }
+        return detail;
+    }
+
+    private String formatTransformDetails(String summary, List<String> parts) {
+        if (parts == null || parts.isEmpty()) {
+            return summary;
+        }
+        return summary + " (" + String.join(", ", parts) + ")";
     }
 
     private boolean hasPatchChanges(AssetPatch patch) {

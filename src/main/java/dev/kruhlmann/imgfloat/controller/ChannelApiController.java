@@ -86,7 +86,7 @@ public class ChannelApiController {
         String logRequestUsername = LogSanitizer.sanitize(request.getUsername());
         authorizationService.userMatchesSessionUsernameOrThrowHttpError(broadcaster, sessionUsername);
         LOG.info("User {} adding admin {} to {}", logSessionUsername, logRequestUsername, logBroadcaster);
-        boolean added = channelDirectoryService.addAdmin(broadcaster, request.getUsername());
+        boolean added = channelDirectoryService.addAdmin(broadcaster, request.getUsername(), sessionUsername);
         if (!added) {
             LOG.info("User {} already admin for {} or could not be added", logRequestUsername, logBroadcaster);
         }
@@ -171,7 +171,7 @@ public class ChannelApiController {
         String logUsername = LogSanitizer.sanitize(username);
         authorizationService.userMatchesSessionUsernameOrThrowHttpError(broadcaster, sessionUsername);
         LOG.info("User {} removing admin {} from {}", logSessionUsername, logUsername, logBroadcaster);
-        boolean removed = channelDirectoryService.removeAdmin(broadcaster, username);
+        boolean removed = channelDirectoryService.removeAdmin(broadcaster, username, sessionUsername);
         return ResponseEntity.ok(removed);
     }
 
@@ -207,7 +207,7 @@ public class ChannelApiController {
             request.getWidth(),
             request.getHeight()
         );
-        return channelDirectoryService.updateCanvasSettings(broadcaster, request);
+        return channelDirectoryService.updateCanvasSettings(broadcaster, request, sessionUsername);
     }
 
     @GetMapping("/settings")
@@ -226,7 +226,7 @@ public class ChannelApiController {
         String logSessionUsername = LogSanitizer.sanitize(sessionUsername);
         authorizationService.userMatchesSessionUsernameOrThrowHttpError(broadcaster, sessionUsername);
         LOG.info("Updating script settings for {} by {}", logBroadcaster, logSessionUsername);
-        return channelDirectoryService.updateChannelScriptSettings(broadcaster, request);
+        return channelDirectoryService.updateChannelScriptSettings(broadcaster, request, sessionUsername);
     }
 
     @PostMapping(value = "/assets", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -250,7 +250,7 @@ public class ChannelApiController {
             String logOriginalFilename = LogSanitizer.sanitize(file.getOriginalFilename());
             LOG.info("User {} uploading asset {} to {}", logSessionUsername, logOriginalFilename, logBroadcaster);
             return channelDirectoryService
-                .createAsset(broadcaster, file)
+                .createAsset(broadcaster, file, sessionUsername)
                 .map(ResponseEntity::ok)
                 .orElseThrow(() -> new ResponseStatusException(BAD_REQUEST, "Unable to read image"));
         } catch (IOException e) {
@@ -274,7 +274,7 @@ public class ChannelApiController {
         );
         LOG.info("Creating custom script for {} by {}", logBroadcaster, logSessionUsername);
         return channelDirectoryService
-            .createCodeAsset(broadcaster, request)
+            .createCodeAsset(broadcaster, request, sessionUsername)
             .map(ResponseEntity::ok)
             .orElseThrow(() -> new ResponseStatusException(BAD_REQUEST, "Unable to save custom script"));
     }
@@ -296,7 +296,7 @@ public class ChannelApiController {
         );
         LOG.info("Updating custom script {} for {} by {}", logAssetId, logBroadcaster, logSessionUsername);
         return channelDirectoryService
-            .updateCodeAsset(broadcaster, assetId, request)
+            .updateCodeAsset(broadcaster, assetId, request, sessionUsername)
             .map(ResponseEntity::ok)
             .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Asset not found"));
     }
@@ -318,7 +318,7 @@ public class ChannelApiController {
         );
         LOG.debug("Applying transform to asset {} on {} by {}", logAssetId, logBroadcaster, logSessionUsername);
         return channelDirectoryService
-            .updateTransform(broadcaster, assetId, request)
+            .updateTransform(broadcaster, assetId, request, sessionUsername)
             .map(ResponseEntity::ok)
             .orElseThrow(() -> {
                 LOG.warn(
@@ -348,7 +348,7 @@ public class ChannelApiController {
         );
         LOG.info("Triggering playback for asset {} on {} by {}", logAssetId, logBroadcaster, logSessionUsername);
         return channelDirectoryService
-            .triggerPlayback(broadcaster, assetId, request)
+            .triggerPlayback(broadcaster, assetId, request, sessionUsername)
             .map(ResponseEntity::ok)
             .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Asset not found"));
     }
@@ -376,7 +376,7 @@ public class ChannelApiController {
             request.isHidden()
         );
         return channelDirectoryService
-            .updateVisibility(broadcaster, assetId, request)
+            .updateVisibility(broadcaster, assetId, request, sessionUsername)
             .map(ResponseEntity::ok)
             .orElseThrow(() -> {
                 LOG.warn(
@@ -502,7 +502,7 @@ public class ChannelApiController {
             broadcaster,
             sessionUsername
         );
-        boolean removed = channelDirectoryService.deleteAsset(assetId);
+        boolean removed = channelDirectoryService.deleteAsset(assetId, sessionUsername);
         if (!removed) {
             LOG.warn("Attempt to delete missing asset {} on {} by {}", logAssetId, logBroadcaster, logSessionUsername);
             throw createAsset404();
@@ -542,7 +542,7 @@ public class ChannelApiController {
         }
         try {
             return channelDirectoryService
-                .createScriptAttachment(broadcaster, assetId, file)
+                .createScriptAttachment(broadcaster, assetId, file, sessionUsername)
                 .map(ResponseEntity::ok)
                 .orElseThrow(() -> new ResponseStatusException(BAD_REQUEST, "Unable to save attachment"));
         } catch (IOException e) {
@@ -568,7 +568,7 @@ public class ChannelApiController {
         }
         try {
             return channelDirectoryService
-                .updateScriptLogo(broadcaster, assetId, file)
+                .updateScriptLogo(broadcaster, assetId, file, sessionUsername)
                 .map(ResponseEntity::ok)
                 .orElseThrow(() -> new ResponseStatusException(BAD_REQUEST, "Unable to save logo"));
         } catch (IOException e) {
@@ -588,7 +588,7 @@ public class ChannelApiController {
             broadcaster,
             sessionUsername
         );
-        channelDirectoryService.clearScriptLogo(broadcaster, assetId);
+        channelDirectoryService.clearScriptLogo(broadcaster, assetId, sessionUsername);
         return ResponseEntity.ok().build();
     }
 
@@ -604,7 +604,7 @@ public class ChannelApiController {
             broadcaster,
             sessionUsername
         );
-        boolean removed = channelDirectoryService.deleteScriptAttachment(broadcaster, assetId, attachmentId);
+        boolean removed = channelDirectoryService.deleteScriptAttachment(broadcaster, assetId, attachmentId, sessionUsername);
         if (!removed) {
             throw createAsset404();
         }
