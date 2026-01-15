@@ -291,21 +291,17 @@ export class BroadcastRenderer {
             this.hideAssetWithTransition(merged);
             return;
         }
-        const targetLayer = Number.isFinite(patch.layer)
-            ? patch.layer
-            : Number.isFinite(patch.zIndex)
-              ? patch.zIndex
-              : null;
-        if (Number.isFinite(targetLayer)) {
+        const targetOrder = Number.isFinite(patch.order) ? patch.order : null;
+        if (Number.isFinite(targetOrder)) {
             if (isScript) {
                 const currentOrder = getScriptLayerOrder(this.state).filter((id) => id !== assetId);
-                const insertIndex = Math.max(0, currentOrder.length - Math.round(targetLayer));
+                const insertIndex = Math.max(0, currentOrder.length - Math.round(targetOrder));
                 currentOrder.splice(insertIndex, 0, assetId);
                 this.state.scriptLayerOrder = currentOrder;
                 this.applyScriptCanvasOrder();
             } else if (isVisual) {
                 const currentOrder = getLayerOrder(this.state).filter((id) => id !== assetId);
-                const insertIndex = Math.max(0, currentOrder.length - Math.round(targetLayer));
+                const insertIndex = Math.max(0, currentOrder.length - Math.round(targetOrder));
                 currentOrder.splice(insertIndex, 0, assetId);
                 this.state.layerOrder = currentOrder;
             }
@@ -827,12 +823,14 @@ export class BroadcastRenderer {
             return;
         }
         const ordered = getScriptLayerOrder(this.state);
-        ordered.forEach((id, index) => {
+        ordered
+            .slice()
+            .reverse()
+            .forEach((id) => {
             const canvas = this.scriptCanvases.get(id);
             if (!canvas) {
                 return;
             }
-            canvas.style.zIndex = `${ordered.length - index}`;
             this.scriptLayer.appendChild(canvas);
         });
     }

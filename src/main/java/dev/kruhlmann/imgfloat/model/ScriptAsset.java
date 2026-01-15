@@ -33,9 +33,6 @@ public class ScriptAsset {
     @Column(name = "source_file_id")
     private String sourceFileId;
 
-    @Column(name = "z_index")
-    private Integer zIndex;
-
     @Transient
     private List<ScriptAssetAttachmentView> attachments = List.of();
 
@@ -51,9 +48,6 @@ public class ScriptAsset {
     public void prepare() {
         if (this.name == null || this.name.isBlank()) {
             this.name = this.id;
-        }
-        if (this.zIndex == null || this.zIndex < 1) {
-            this.zIndex = 1;
         }
     }
 
@@ -119,14 +113,6 @@ public class ScriptAsset {
 
     public void setSourceFileId(String sourceFileId) {
         this.sourceFileId = sourceFileId;
-    }
-
-    public Integer getZIndex() {
-        return zIndex == null ? 1 : Math.max(1, zIndex);
-    }
-
-    public void setZIndex(Integer zIndex) {
-        this.zIndex = zIndex == null ? null : Math.max(1, zIndex);
     }
 
     public List<ScriptAssetAttachmentView> getAttachments() {

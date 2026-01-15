@@ -198,13 +198,13 @@ class ChannelDirectoryServiceTest {
         TransformRequest transform = validTransform();
         transform.setSpeed(0.1);
         transform.setAudioVolume(0.01);
-        transform.setZIndex(1);
+        transform.setOrder(1);
 
         AssetView view = service.updateTransform(channel, id, transform, "caster").orElseThrow();
 
         assertThat(view.speed()).isEqualTo(0.1);
         assertThat(view.audioVolume()).isEqualTo(0.01);
-        assertThat(view.zIndex()).isEqualTo(1);
+        assertThat(assetRepository.findById(id).orElseThrow().getDisplayOrder()).isEqualTo(1);
     }
 
     @Test

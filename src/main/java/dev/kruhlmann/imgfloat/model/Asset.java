@@ -32,6 +32,9 @@ public class Asset {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
+    @Column(name = "display_order")
+    private Integer displayOrder;
+
     public Asset() {}
 
     public Asset(String broadcaster, AssetType assetType) {
@@ -56,6 +59,9 @@ public class Asset {
         this.broadcaster = normalize(broadcaster);
         if (this.assetType == null) {
             this.assetType = AssetType.OTHER;
+        }
+        if (this.displayOrder != null && this.displayOrder < 1) {
+            this.displayOrder = 1;
         }
     }
 
@@ -93,6 +99,14 @@ public class Asset {
 
     public void setUpdatedAt(Instant updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public Integer getDisplayOrder() {
+        return displayOrder;
+    }
+
+    public void setDisplayOrder(Integer displayOrder) {
+        this.displayOrder = displayOrder;
     }
 
     private static String normalize(String value) {

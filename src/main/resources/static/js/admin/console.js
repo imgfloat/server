@@ -47,7 +47,7 @@ export function createAdminConsole({
     const speedLabel = document.getElementById("asset-speed-label");
     const volumeInput = document.getElementById("asset-volume");
     const volumeLabel = document.getElementById("asset-volume-label");
-    const selectedZLabel = document.getElementById("asset-z-level");
+    const selectedOrderLabel = document.getElementById("asset-order-position");
     const playbackSection = document.getElementById("playback-section");
     const volumeSection = document.getElementById("volume-section");
     const audioSection = document.getElementById("audio-section");
@@ -236,6 +236,20 @@ export function createAdminConsole({
         const index = order.indexOf(assetId);
         if (index === -1) return 1;
         return order.length - index;
+    }
+
+    function getLayerPosition(assetId) {
+        const order = getLayerOrder();
+        const index = order.indexOf(assetId);
+        if (index === -1) return 1;
+        return index + 1;
+    }
+
+    function getScriptLayerPosition(assetId) {
+        const order = getScriptLayerOrder();
+        const index = order.indexOf(assetId);
+        if (index === -1) return 1;
+        return index + 1;
     }
 
     function addPendingUpload(name) {
@@ -662,23 +676,16 @@ export function createAdminConsole({
             clearMedia(assetId);
             loopPlaybackState.delete(assetId);
         }
-        let targetLayer;
-        if (Number.isFinite(patch.layer)) {
-            targetLayer = patch.layer;
-        } else if (Number.isFinite(patch.zIndex)) {
-            targetLayer = patch.zIndex;
-        } else {
-            targetLayer = null;
-        }
-        if (!isAudio && Number.isFinite(targetLayer)) {
+        const targetOrder = Number.isFinite(patch.order) ? patch.order : null;
+        if (!isAudio && Number.isFinite(targetOrder)) {
             if (isScript) {
                 const currentOrder = getScriptLayerOrder().filter((id) => id !== assetId);
-                const insertIndex = Math.max(0, currentOrder.length - Math.round(targetLayer));
+                const insertIndex = Math.max(0, currentOrder.length - Math.round(targetOrder));
                 currentOrder.splice(insertIndex, 0, assetId);
                 scriptLayerOrder = currentOrder;
             } else {
                 const currentOrder = getLayerOrder().filter((id) => id !== assetId);
-                const insertIndex = Math.max(0, currentOrder.length - Math.round(targetLayer));
+                const insertIndex = Math.max(0, currentOrder.length - Math.round(targetOrder));
                 currentOrder.splice(insertIndex, 0, assetId);
                 layerOrder = currentOrder;
             }
@@ -1340,9 +1347,9 @@ export function createAdminConsole({
             return null;
         }
         if (isCodeAsset(asset)) {
-            return `Script layer ${getScriptLayerValue(asset.id)}`;
+            return `Script order ${getScriptLayerPosition(asset.id)} (above canvas assets)`;
         }
-        return `Layer ${getLayerValue(asset.id)}`;
+        return `Order ${getLayerPosition(asset.id)}`;
     }
 
     function createSectionHeader(title) {
@@ -1392,11 +1399,16 @@ export function createAdminConsole({
         }
 
         if (!isAudioAsset(asset)) {
+            const ordered = getLayeredAssets(asset);
+            const orderIndex = ordered.findIndex((item) => item.id === asset.id);
+            const canMoveUp = orderIndex > 0;
+            const canMoveDown = orderIndex !== -1 && orderIndex < ordered.length - 1;
             const moveUp = document.createElement("button");
             moveUp.type = "button";
             moveUp.className = "ghost icon-button";
             moveUp.innerHTML = '<i class="fa-solid fa-arrow-up"></i>';
-            moveUp.title = isCodeAsset(asset) ? "Move script up" : "Move layer up";
+            moveUp.title = isCodeAsset(asset) ? "Move script up" : "Move asset up";
+            moveUp.disabled = !canMoveUp;
             moveUp.addEventListener("click", (e) => {
                 e.stopPropagation();
                 moveLayerItem(asset, "up");
@@ -1405,7 +1417,8 @@ export function createAdminConsole({
             moveDown.type = "button";
             moveDown.className = "ghost icon-button";
             moveDown.innerHTML = '<i class="fa-solid fa-arrow-down"></i>';
-            moveDown.title = isCodeAsset(asset) ? "Move script down" : "Move layer down";
+            moveDown.title = isCodeAsset(asset) ? "Move script down" : "Move asset down";
+            moveDown.disabled = !canMoveDown;
             moveDown.addEventListener("click", (e) => {
                 e.stopPropagation();
                 moveLayerItem(asset, "down");
@@ -1802,8 +1815,10 @@ export function createAdminConsole({
 
         controlsPanel.classList.remove("hidden");
         lastSizeInputChanged = null;
-        if (selectedZLabel) {
-            selectedZLabel.textContent = getLayerValue(asset.id);
+        if (selectedOrderLabel) {
+            selectedOrderLabel.textContent = isCodeAsset(asset)
+                ? getScriptLayerPosition(asset.id)
+                : getLayerPosition(asset.id);
         }
 
         if (widthInput) widthInput.value = Math.round(asset.width);
@@ -1921,9 +1936,12 @@ export function createAdminConsole({
             if (asset) {
                 selectedAssetBadges.appendChild(createBadge(getDisplayMediaType(asset)));
                 if (isCodeAsset(asset)) {
-                    selectedAssetBadges.appendChild(createBadge(`Script layer ${getScriptLayerValue(asset.id)}`, "subtle"));
+                    selectedAssetBadges.appendChild(
+                        createBadge(`Script order ${getScriptLayerPosition(asset.id)}`, "subtle"),
+                    );
+                    selectedAssetBadges.appendChild(createBadge("Above canvas assets", "subtle"));
                 } else if (!isAudioAsset(asset)) {
-                    selectedAssetBadges.appendChild(createBadge(`Layer ${getLayerValue(asset.id)}`, "subtle"));
+                    selectedAssetBadges.appendChild(createBadge(`Order ${getLayerPosition(asset.id)}`, "subtle"));
                 }
                 const aspectLabel = !isAudioAsset(asset) && !isCodeAsset(asset) ? formatAspectRatioLabel(asset) : "";
                 if (aspectLabel) {
@@ -2445,18 +2463,17 @@ export function createAdminConsole({
             audioVolume: asset.audioVolume,
         };
         if (isCodeAsset(asset)) {
-            const layer = getScriptLayerValue(asset.id);
-            payload.zIndex = layer;
+            const order = getScriptLayerValue(asset.id);
+            payload.order = order;
         } else if (!isAudioAsset(asset)) {
-            const layer = getLayerValue(asset.id);
+            const order = getLayerValue(asset.id);
             payload.x = asset.x;
             payload.y = asset.y;
             payload.width = asset.width;
             payload.height = asset.height;
             payload.rotation = asset.rotation;
             payload.speed = asset.speed;
-            payload.layer = layer;
-            payload.zIndex = layer;
+            payload.order = order;
             if (isVideoAsset(asset)) {
                 payload.muted = asset.muted;
             }

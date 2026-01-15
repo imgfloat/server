@@ -16,7 +16,7 @@ public record AssetPatch(
     Double rotation,
     Double speed,
     Boolean muted,
-    Integer zIndex,
+    Integer order,
     Boolean hidden,
     Boolean audioLoop,
     Integer audioDelayMillis,
@@ -37,7 +37,7 @@ public record AssetPatch(
             request.getRotation() != null ? changed(before.rotation(), asset.getRotation()) : null,
             request.getSpeed() != null ? changed(before.speed(), asset.getSpeed()) : null,
             request.getMuted() != null ? changed(before.muted(), asset.isMuted()) : null,
-            request.getZIndex() != null ? changed(before.zIndex(), asset.getZIndex()) : null,
+            request.getOrder() != null ? changed(before.order(), request.getOrder()) : null,
             null,
             null,
             null,
@@ -112,7 +112,7 @@ public record AssetPatch(
         double rotation,
         double speed,
         boolean muted,
-        int zIndex,
+        int order,
         double audioVolume
     ) {}
 

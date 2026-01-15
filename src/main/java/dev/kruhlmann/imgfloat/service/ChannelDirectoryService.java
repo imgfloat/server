@@ -189,10 +189,11 @@ public class ChannelDirectoryService {
             .stream()
             .map((visual) -> {
                 Asset asset = assetById.get(visual.getId());
-                return asset == null ? null : AssetView.fromVisual(normalized, asset, visual);
+                return asset == null ? null : Map.entry(asset, visual);
             })
             .filter(Objects::nonNull)
-            .sorted(Comparator.comparingInt(AssetView::zIndex).reversed())
+            .sorted(Comparator.comparingInt((Map.Entry<Asset, VisualAsset> entry) -> displayOrderValue(entry.getKey())).reversed())
+            .map((entry) -> AssetView.fromVisual(normalized, entry.getKey(), entry.getValue()))
             .toList();
     }
 
@@ -318,6 +319,13 @@ public class ChannelDirectoryService {
         boolean isCode = isCodeMediaType(optimized.mediaType()) || isCodeMediaType(mediaType);
         AssetType assetType = AssetType.fromMediaType(optimized.mediaType(), mediaType);
         Asset asset = new Asset(channel.getBroadcaster(), assetType);
+        if (!isAudio && isCode) {
+            asset.setDisplayOrder(nextDisplayOrder(channel.getBroadcaster(), AssetType.SCRIPT));
+        } else if (!isAudio) {
+            asset.setDisplayOrder(
+                nextDisplayOrder(channel.getBroadcaster(), AssetType.IMAGE, AssetType.VIDEO, AssetType.MODEL, AssetType.OTHER)
+            );
+        }
 
         assetStorageService.storeAsset(
             channel.getBroadcaster(),
@@ -340,7 +348,6 @@ public class ChannelDirectoryService {
             script.setMediaType(optimized.mediaType());
             script.setOriginalMediaType(mediaType);
             script.setSourceFileId(asset.getId());
-            script.setZIndex(nextScriptZIndex(channel.getBroadcaster()));
             script.setAttachments(List.of());
             scriptAssetRepository.save(script);
             ScriptAssetFile sourceFile = new ScriptAssetFile(asset.getBroadcaster(), AssetType.SCRIPT);
@@ -358,7 +365,6 @@ public class ChannelDirectoryService {
             visual.setOriginalMediaType(mediaType);
             visual.setMediaType(optimized.mediaType());
             visual.setMuted(optimized.mediaType().startsWith("video/"));
-            visual.setZIndex(nextZIndex(channel.getBroadcaster()));
             assetStorageService.storePreview(channel.getBroadcaster(), asset.getId(), optimized.previewBytes());
             visual.setPreview(optimized.previewBytes() != null ? asset.getId() + ".png" : "");
             visualAssetRepository.save(visual);
@@ -383,6 +389,7 @@ public class ChannelDirectoryService {
         enforceUploadLimit(bytes.length);
 
         Asset asset = new Asset(channel.getBroadcaster(), AssetType.SCRIPT);
+        asset.setDisplayOrder(nextDisplayOrder(channel.getBroadcaster(), AssetType.SCRIPT));
         ScriptAssetFile sourceFile = new ScriptAssetFile(asset.getBroadcaster(), AssetType.SCRIPT);
         sourceFile.setId(asset.getId());
         sourceFile.setMediaType(DEFAULT_CODE_MEDIA_TYPE);
@@ -407,7 +414,6 @@ public class ChannelDirectoryService {
         script.setSourceFileId(sourceFile.getId());
         script.setDescription(normalizeDescription(request.getDescription()));
         script.setPublic(Boolean.TRUE.equals(request.getIsPublic()));
-        script.setZIndex(nextScriptZIndex(channel.getBroadcaster()));
         script.setAttachments(List.of());
         scriptAssetRepository.save(script);
         AssetView view = AssetView.fromScript(channel.getBroadcaster(), asset, script);
@@ -787,6 +793,7 @@ public class ChannelDirectoryService {
             }
 
             Asset asset = new Asset(targetBroadcaster, AssetType.SCRIPT);
+            asset.setDisplayOrder(nextDisplayOrder(targetBroadcaster, AssetType.SCRIPT));
             ScriptAssetFile sourceFile = new ScriptAssetFile(asset.getBroadcaster(), AssetType.SCRIPT);
             sourceFile.setId(asset.getId());
             sourceFile.setMediaType(sourceContent.mediaType());
@@ -811,7 +818,6 @@ public class ChannelDirectoryService {
             script.setOriginalMediaType(sourceContent.mediaType());
             script.setSourceFileId(sourceFile.getId());
             script.setLogoFileId(sourceScript.getLogoFileId());
-            script.setZIndex(nextScriptZIndex(targetBroadcaster));
             script.setAttachments(List.of());
             scriptAssetRepository.save(script);
 
@@ -858,6 +864,7 @@ public class ChannelDirectoryService {
         }
 
         Asset asset = new Asset(targetBroadcaster, AssetType.SCRIPT);
+        asset.setDisplayOrder(nextDisplayOrder(targetBroadcaster, AssetType.SCRIPT));
         ScriptAssetFile sourceFile = new ScriptAssetFile(asset.getBroadcaster(), AssetType.SCRIPT);
         sourceFile.setId(asset.getId());
         sourceFile.setMediaType(sourceContent.mediaType());
@@ -881,7 +888,6 @@ public class ChannelDirectoryService {
         script.setMediaType(sourceContent.mediaType());
         script.setOriginalMediaType(sourceContent.mediaType());
         script.setSourceFileId(sourceFile.getId());
-        script.setZIndex(nextScriptZIndex(targetBroadcaster));
         script.setAttachments(List.of());
         scriptAssetRepository.save(script);
 
@@ -1009,14 +1015,19 @@ public class ChannelDirectoryService {
                     ScriptAsset script = scriptAssetRepository
                         .findById(asset.getId())
                         .orElseThrow(() -> new ResponseStatusException(BAD_REQUEST, "Asset is not a script"));
-                    int beforeZIndex = script.getZIndex();
-                    if (req.getZIndex() != null) {
-                        if (req.getZIndex() < 1) {
-                            throw new ResponseStatusException(BAD_REQUEST, "zIndex must be >= 1");
+                    Integer beforeOrder = asset.getDisplayOrder();
+                    List<Asset> orderUpdates = List.of();
+                    if (req.getOrder() != null) {
+                        if (req.getOrder() < 1) {
+                            throw new ResponseStatusException(BAD_REQUEST, "Order must be >= 1");
                         }
-                        script.setZIndex(req.getZIndex());
-                        scriptAssetRepository.save(script);
-                        if (beforeZIndex != script.getZIndex()) {
+                        orderUpdates = updateDisplayOrder(
+                            normalized,
+                            asset,
+                            req.getOrder(),
+                            EnumSet.of(AssetType.SCRIPT)
+                        );
+                        if (!Objects.equals(beforeOrder, asset.getDisplayOrder())) {
                             AssetPatch patch = new AssetPatch(
                                 asset.getId(),
                                 null,
@@ -1026,7 +1037,7 @@ public class ChannelDirectoryService {
                                 null,
                                 null,
                                 null,
-                                script.getZIndex(),
+                                asset.getDisplayOrder(),
                                 null,
                                 null,
                                 null,
@@ -1038,10 +1049,11 @@ public class ChannelDirectoryService {
                             auditLogService.recordEntry(
                                 asset.getBroadcaster(),
                                 actor,
-                                "SCRIPT_LAYER_UPDATED",
-                                formatScriptTransformDetails(asset.getId(), script.getZIndex())
+                                "SCRIPT_ORDER_UPDATED",
+                                formatScriptTransformDetails(asset.getId(), asset.getDisplayOrder())
                             );
                         }
+                        publishOrderUpdates(broadcaster, asset.getId(), orderUpdates);
                     }
                     script.setAttachments(loadScriptAttachments(normalized, asset.getId(), null));
                     return AssetView.fromScript(normalized, asset, script);
@@ -1058,17 +1070,28 @@ public class ChannelDirectoryService {
                     visual.getRotation(),
                     visual.getSpeed(),
                     visual.isMuted(),
-                    visual.getZIndex(),
+                    displayOrderValue(asset),
                     visual.getAudioVolume()
                 );
                 validateVisualTransform(req);
+                List<Asset> orderUpdates = List.of();
 
                 if (req.getX() != null) visual.setX(req.getX());
                 if (req.getY() != null) visual.setY(req.getY());
                 if (req.getWidth() != null) visual.setWidth(req.getWidth());
                 if (req.getHeight() != null) visual.setHeight(req.getHeight());
                 if (req.getRotation() != null) visual.setRotation(req.getRotation());
-                if (req.getZIndex() != null) visual.setZIndex(req.getZIndex());
+                if (req.getOrder() != null) {
+                    orderUpdates = updateDisplayOrder(
+                        normalized,
+                        asset,
+                        req.getOrder(),
+                        EnumSet.of(AssetType.IMAGE, AssetType.VIDEO, AssetType.MODEL, AssetType.OTHER)
+                    );
+                    if (asset.getDisplayOrder() != null) {
+                        req.setOrder(asset.getDisplayOrder());
+                    }
+                }
                 if (req.getSpeed() != null) visual.setSpeed(req.getSpeed());
                 if (req.getMuted() != null) visual.setMuted(req.getMuted());
                 if (req.getAudioVolume() != null) visual.setAudioVolume(req.getAudioVolume());
@@ -1086,6 +1109,7 @@ public class ChannelDirectoryService {
                         formatVisualTransformDetails(asset.getId(), req)
                     );
                 }
+                publishOrderUpdates(broadcaster, asset.getId(), orderUpdates);
                 return view;
             });
     }
@@ -1113,9 +1137,9 @@ public class ChannelDirectoryService {
         if (
             req.getSpeed() != null && (req.getSpeed() < minSpeed || req.getSpeed() > maxSpeed)
         ) throw new ResponseStatusException(BAD_REQUEST, "Speed out of range [" + minSpeed + " to " + maxSpeed + "]");
-        if (req.getZIndex() != null && req.getZIndex() < 1) throw new ResponseStatusException(
+        if (req.getOrder() != null && req.getOrder() < 1) throw new ResponseStatusException(
             BAD_REQUEST,
-            "zIndex must be >= 1"
+            "Order must be >= 1"
         );
         if (
             req.getAudioVolume() != null && (req.getAudioVolume() < minVolume || req.getAudioVolume() > maxVolume)
@@ -1580,51 +1604,100 @@ public class ChannelDirectoryService {
 
         return assets
             .stream()
+            .sorted(
+                Comparator.comparingInt((Asset asset) -> displayOrderValue(asset))
+                    .reversed()
+                    .thenComparing(Asset::getCreatedAt, Comparator.nullsFirst(Comparator.naturalOrder()))
+            )
             .map((asset) -> resolveAssetView(broadcaster, asset, visuals, audios, scripts, scriptAttachments))
             .filter(Objects::nonNull)
-            .sorted(
-                Comparator.comparingInt((AssetView view) -> view.zIndex() == null ? Integer.MIN_VALUE : view.zIndex())
-                    .reversed()
-                    .thenComparing(AssetView::createdAt, Comparator.nullsFirst(Comparator.naturalOrder()))
-            )
             .toList();
     }
 
-    private int nextZIndex(String broadcaster) {
+    private int nextDisplayOrder(String broadcaster, AssetType... types) {
         return (
-            visualAssetRepository
-                .findByIdIn(
-                    assetsWithType(normalize(broadcaster), AssetType.IMAGE, AssetType.VIDEO, AssetType.MODEL, AssetType.OTHER)
-                )
+            assetRepository
+                .findByBroadcaster(normalize(broadcaster))
                 .stream()
-                .mapToInt(VisualAsset::getZIndex)
+                .filter((asset) -> Arrays.asList(types).contains(asset.getAssetType()))
+                .map(Asset::getDisplayOrder)
+                .filter(Objects::nonNull)
+                .mapToInt(Integer::intValue)
                 .max()
                 .orElse(0) +
             1
         );
     }
 
-    private int nextScriptZIndex(String broadcaster) {
-        return (
-            scriptAssetRepository
-                .findByIdIn(assetsWithType(normalize(broadcaster), AssetType.SCRIPT))
-                .stream()
-                .mapToInt(ScriptAsset::getZIndex)
-                .max()
-                .orElse(0) +
-            1
-        );
+    private int displayOrderValue(Asset asset) {
+        Integer value = asset == null ? null : asset.getDisplayOrder();
+        return value == null ? Integer.MIN_VALUE : value;
     }
 
-    private List<String> assetsWithType(String broadcaster, AssetType... types) {
-        Set<AssetType> typeSet = EnumSet.noneOf(AssetType.class);
-        typeSet.addAll(Arrays.asList(types));
-        return assetRepository
+    private List<Asset> updateDisplayOrder(String broadcaster, Asset target, int desiredOrder, Set<AssetType> types) {
+        if (target == null || types == null || types.isEmpty()) {
+            return List.of();
+        }
+        List<Asset> ordered = assetRepository
             .findByBroadcaster(normalize(broadcaster))
             .stream()
-            .filter((asset) -> typeSet.contains(asset.getAssetType()))
-            .map(Asset::getId)
-            .toList();
+            .filter((asset) -> types.contains(asset.getAssetType()))
+            .sorted(
+                Comparator.comparingInt((Asset asset) -> displayOrderValue(asset))
+                    .reversed()
+                    .thenComparing(Asset::getCreatedAt, Comparator.nullsFirst(Comparator.naturalOrder()))
+            )
+            .collect(Collectors.toCollection(ArrayList::new));
+
+        ordered.removeIf((asset) -> asset.getId().equals(target.getId()));
+        int insertIndex = Math.max(0, Math.min(ordered.size(), ordered.size() - desiredOrder));
+        ordered.add(insertIndex, target);
+
+        int size = ordered.size();
+        List<Asset> changed = new ArrayList<>();
+        for (int index = 0; index < size; index++) {
+            Asset asset = ordered.get(index);
+            int nextOrder = size - index;
+            if (asset.getDisplayOrder() == null || asset.getDisplayOrder() != nextOrder) {
+                asset.setDisplayOrder(nextOrder);
+                changed.add(asset);
+            }
+        }
+
+        if (!changed.isEmpty()) {
+            assetRepository.saveAll(changed);
+        }
+        return changed;
+    }
+
+    private void publishOrderUpdates(String broadcaster, String targetAssetId, List<Asset> updates) {
+        if (updates == null || updates.isEmpty()) {
+            return;
+        }
+        updates
+            .stream()
+            .filter((asset) -> asset.getDisplayOrder() != null)
+            .filter((asset) -> !asset.getId().equals(targetAssetId))
+            .forEach((asset) -> {
+                AssetPatch patch = new AssetPatch(
+                    asset.getId(),
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    asset.getDisplayOrder(),
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null
+                );
+                messagingTemplate.convertAndSend(topicFor(broadcaster), AssetEvent.updated(broadcaster, patch));
+            });
     }
 
     private AssetView resolveAssetView(String broadcaster, Asset asset) {
@@ -1818,7 +1891,7 @@ public class ChannelDirectoryService {
         if (req.getWidth() != null) parts.add("width=" + req.getWidth());
         if (req.getHeight() != null) parts.add("height=" + req.getHeight());
         if (req.getRotation() != null) parts.add("rotation=" + req.getRotation());
-        if (req.getZIndex() != null) parts.add("zIndex=" + req.getZIndex());
+        if (req.getOrder() != null) parts.add("order=" + req.getOrder());
         if (req.getSpeed() != null) parts.add("speed=" + req.getSpeed());
         if (req.getMuted() != null) parts.add("muted=" + req.getMuted());
         if (req.getAudioVolume() != null) parts.add("audioVolume=" + req.getAudioVolume());
@@ -1835,10 +1908,10 @@ public class ChannelDirectoryService {
         return formatTransformDetails("Updated audio asset " + assetId, parts);
     }
 
-    private String formatScriptTransformDetails(String assetId, Integer zIndex) {
+    private String formatScriptTransformDetails(String assetId, Integer order) {
         String detail = "Updated script asset " + assetId;
-        if (zIndex != null) {
-            return detail + " (zIndex=" + zIndex + ")";
+        if (order != null) {
+            return detail + " (order=" + order + ")";
         }
         return detail;
     }
@@ -1859,7 +1932,7 @@ public class ChannelDirectoryService {
             patch.rotation() != null ||
             patch.speed() != null ||
             patch.muted() != null ||
-            patch.zIndex() != null ||
+            patch.order() != null ||
             patch.hidden() != null ||
             patch.audioLoop() != null ||
             patch.audioDelayMillis() != null ||

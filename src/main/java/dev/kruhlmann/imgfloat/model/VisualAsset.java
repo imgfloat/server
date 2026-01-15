@@ -28,7 +28,6 @@ public class VisualAsset {
     private Boolean muted;
     private String mediaType;
     private String originalMediaType;
-    private Integer zIndex;
     private Double audioVolume;
     private boolean hidden;
 
@@ -44,7 +43,6 @@ public class VisualAsset {
         this.rotation = 0;
         this.speed = 1.0;
         this.muted = false;
-        this.zIndex = 1;
         this.audioVolume = 1.0;
         this.hidden = true;
     }
@@ -57,9 +55,6 @@ public class VisualAsset {
         }
         if (this.muted == null) {
             this.muted = Boolean.FALSE;
-        }
-        if (this.zIndex == null || this.zIndex < 1) {
-            this.zIndex = 1;
         }
         if (this.audioVolume == null) {
             this.audioVolume = 1.0;
@@ -163,14 +158,6 @@ public class VisualAsset {
 
     public void setOriginalMediaType(String originalMediaType) {
         this.originalMediaType = originalMediaType;
-    }
-
-    public Integer getZIndex() {
-        return zIndex == null ? 1 : Math.max(1, zIndex);
-    }
-
-    public void setZIndex(Integer zIndex) {
-        this.zIndex = zIndex == null ? null : Math.max(1, zIndex);
     }
 
     public double getAudioVolume() {

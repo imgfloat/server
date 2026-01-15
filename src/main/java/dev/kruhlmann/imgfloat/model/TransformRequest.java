@@ -24,8 +24,8 @@ public class TransformRequest {
 
     private Boolean muted;
 
-    @Positive(message = "zIndex must be at least 1")
-    private Integer zIndex;
+    @Positive(message = "Order must be at least 1")
+    private Integer order;
 
     private Boolean audioLoop;
 
@@ -100,12 +100,12 @@ public class TransformRequest {
         this.muted = muted;
     }
 
-    public Integer getZIndex() {
-        return zIndex;
+    public Integer getOrder() {
+        return order;
     }
 
-    public void setZIndex(Integer zIndex) {
-        this.zIndex = zIndex;
+    public void setOrder(Integer order) {
+        this.order = order;
     }
 
     public Boolean getAudioLoop() {
