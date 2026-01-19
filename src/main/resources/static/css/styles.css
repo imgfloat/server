@@ -524,7 +524,6 @@ button {
     justify-content: center;
     gap: 8px;
     font-weight: 600;
-    box-shadow: 0 10px 30px rgba(124, 58, 237, 0.25);
 }
 
 .button:disabled,
