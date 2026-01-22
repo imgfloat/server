@@ -59,6 +59,8 @@ export function createAdminConsole({
     const audioPitchInput = document.getElementById("asset-audio-pitch");
     const audioDelayLabel = document.getElementById("asset-audio-delay-label");
     const audioPitchLabel = document.getElementById("asset-audio-pitch-label");
+    const playbackSpeedMinPercent = Math.round((SETTINGS.minAssetPlaybackSpeedFraction ?? 0) * 100);
+    const playbackSpeedMaxPercent = Math.round((SETTINGS.maxAssetPlaybackSpeedFraction ?? 4) * 100);
     const controlsPlaceholder = document.getElementById("asset-controls-placeholder");
     const fileNameLabel = document.getElementById("asset-file-name");
     const assetInspector = document.getElementById("asset-inspector");
@@ -427,7 +429,18 @@ export function createAdminConsole({
     if (widthInput) widthInput.addEventListener("change", () => commitSizeChange());
     if (heightInput) heightInput.addEventListener("input", () => handleSizeInputChange("height"));
     if (heightInput) heightInput.addEventListener("change", () => commitSizeChange());
-    if (speedInput) speedInput.addEventListener("input", updatePlaybackFromInputs);
+    if (speedInput) {
+        const minPercent = clamp(playbackSpeedMinPercent, 0, playbackSpeedMaxPercent);
+        const maxPercent = Math.max(minPercent, playbackSpeedMaxPercent);
+        speedInput.min = String(minPercent);
+        speedInput.max = String(maxPercent);
+        const meta = playbackSection?.querySelectorAll(".range-meta span") ?? [];
+        if (meta.length === 2) {
+            meta[0].textContent = `${minPercent}%`;
+            meta[1].textContent = `${maxPercent}%`;
+        }
+        speedInput.addEventListener("input", updatePlaybackFromInputs);
+    }
     if (volumeInput) volumeInput.addEventListener("input", updateVolumeFromInput);
     if (audioLoopInput) audioLoopInput.addEventListener("change", updateAudioSettingsFromInputs);
     if (audioDelayInput)
@@ -1847,7 +1860,9 @@ export function createAdminConsole({
         }
         if (speedInput) {
             const percent = Math.round((asset.speed ?? 1) * 100);
-            speedInput.value = Math.min(1000, Math.max(0, percent));
+            const minPercent = clamp(playbackSpeedMinPercent, 0, playbackSpeedMaxPercent);
+            const maxPercent = Math.max(minPercent, playbackSpeedMaxPercent);
+            speedInput.value = clamp(percent, minPercent, maxPercent);
             setSpeedLabel(speedInput.value);
         }
         if (playbackSection) {
@@ -2058,7 +2073,9 @@ export function createAdminConsole({
     function updatePlaybackFromInputs() {
         const asset = getSelectedAsset();
         if (!asset || !isVideoAsset(asset)) return;
-        const percent = Math.max(0, Math.min(1000, parseFloat(speedInput?.value) || 100));
+        const minPercent = clamp(playbackSpeedMinPercent, 0, playbackSpeedMaxPercent);
+        const maxPercent = Math.max(minPercent, playbackSpeedMaxPercent);
+        const percent = clamp(parseFloat(speedInput?.value) || 100, minPercent, maxPercent);
         setSpeedLabel(percent);
         asset.speed = percent / 100;
         updateRenderState(asset);
@@ -2293,7 +2310,9 @@ export function createAdminConsole({
         })
             .then((r) => {
                 if (!r.ok) {
-                    throw new Error("Failed to update visibility");
+                    return extractErrorMessage(r, "Unable to update visibility.").then((message) => {
+                        throw new Error(message);
+                    });
                 }
                 return r.json();
             })
@@ -2316,7 +2335,7 @@ export function createAdminConsole({
                 updateRenderState(updated);
                 drawAndList();
             })
-            .catch(() => showToast("Unable to change visibility right now.", "error"));
+            .catch((error) => showToast(error?.message || "Unable to change visibility right now.", "error"));
     }
 
     function triggerAudioPlayback(asset, shouldPlay = true) {
@@ -2326,11 +2345,22 @@ export function createAdminConsole({
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ play: shouldPlay }),
         })
-            .then((r) => r.json())
+            .then((r) => {
+                if (!r.ok) {
+                    return extractErrorMessage(r, "Unable to play audio.").then((message) => {
+                        throw new Error(message);
+                    });
+                }
+                return r.json();
+            })
             .then((updated) => {
                 storeAsset(updated);
                 updateRenderState(updated);
                 return updated;
+            })
+            .catch((error) => {
+                showToast(error?.message || "Unable to play audio right now.", "error");
+                throw error;
             });
     }
 
@@ -2338,7 +2368,9 @@ export function createAdminConsole({
         fetch(`/api/channels/${broadcaster}/assets/${asset.id}`, { method: "DELETE" })
             .then((response) => {
                 if (!response.ok) {
-                    throw new Error("Failed to delete asset");
+                    return extractErrorMessage(response, "Unable to delete asset.").then((message) => {
+                        throw new Error(message);
+                    });
                 }
                 clearMedia(asset.id);
                 assets.delete(asset.id);
@@ -2352,7 +2384,7 @@ export function createAdminConsole({
                 drawAndList();
                 showToast("Asset deleted.", "info");
             })
-            .catch(() => showToast("Unable to delete asset. Please try again.", "error"));
+            .catch((error) => showToast(error?.message || "Unable to delete asset. Please try again.", "error"));
     }
 
     function uploadAsset(file = null) {
@@ -2508,7 +2540,9 @@ export function createAdminConsole({
         })
             .then((r) => {
                 if (!r.ok) {
-                    throw new Error("Transform failed");
+                    return extractErrorMessage(r, "Unable to save changes.").then((message) => {
+                        throw new Error(message);
+                    });
                 }
                 return r.json();
             })
@@ -2519,9 +2553,9 @@ export function createAdminConsole({
                     drawAndList();
                 }
             })
-            .catch(() => {
+            .catch((error) => {
                 if (!silent) {
-                    showToast("Unable to save changes. Please retry.", "error");
+                    showToast(error?.message || "Unable to save changes. Please retry.", "error");
                 }
             });
     }
