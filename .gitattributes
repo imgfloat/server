@@ -38,3 +38,4 @@ doc/marketplace-scripts/lichess-tv-chess/attachments/Chess_qlt45.png filter=lfs 
 doc/marketplace-scripts/lichess-tv-chess/attachments/Chess_rdt45.png filter=lfs diff=lfs merge=lfs -text
 doc/marketplace-scripts/lichess-tv-chess/attachments/Chess_rlt45.png filter=lfs diff=lfs merge=lfs -text
 doc/marketplace-scripts/lichess-tv-chess/attachments/Chess_blt45.png filter=lfs diff=lfs merge=lfs -text
+doc/marketplace-scripts/lichess-tv-chess/logo.png filter=lfs diff=lfs merge=lfs -text
