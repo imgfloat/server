@@ -322,10 +322,15 @@ async function streamFeed(state) {
     state.whiteClock = null;
     state.blackClock = null;
 
+    state.feedBuffer = "";
+    state.feedDecoder = new TextDecoder();
+    state.feedReader = null;
+    state.feedReading = false;
+    state.streamEnded = false;
+
     const controller = new AbortController();
     state.abortController = controller;
 
-    let streamEnded = false;
     try {
         const response = await fetch(FEED_URL, {
             method: "GET",
@@ -335,73 +340,81 @@ async function streamFeed(state) {
         if (!response.ok || !response.body) {
             throw new Error("Unable to load Lichess TV feed");
         }
+        state.feedReader = response.body.getReader();
+    } catch (error) {
+        if (error?.name !== "AbortError") {
+            state.error = error?.message || String(error);
+        }
+        state.shouldStop = true;
+    }
+}
 
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = "";
+function finalizeFeed(state) {
+    if (state.abortController) {
+        state.abortController.abort();
+        state.abortController = null;
+    }
+    state.feedReader = null;
+    state.feedReading = false;
+    state.feedActive = false;
+    state.streamEnded = false;
+    if (state.shouldStop) {
+        state.boardVisible = false;
+        state.board = null;
+        state.fen = null;
+        state.status = null;
+        state.gameId = null;
+        state.lastMove = null;
+        state.turn = null;
+        state.gameOver = false;
+        state.whiteClock = null;
+        state.blackClock = null;
+        state.needsClear = true;
+    }
+}
 
-        while (true) {
-            if (state.shouldStop) {
-                break;
+async function readFeedChunk(state) {
+    if (!state.feedReader || state.feedReading || state.shouldStop) {
+        return;
+    }
+    state.feedReading = true;
+    try {
+        const { value, done } = await state.feedReader.read();
+        if (done) {
+            state.streamEnded = true;
+            state.shouldStop = true;
+            return;
+        }
+        state.feedBuffer += state.feedDecoder.decode(value, { stream: true });
+        const lines = state.feedBuffer.split("\n");
+        state.feedBuffer = lines.pop() || "";
+        lines.forEach((line) => {
+            if (!line.trim()) {
+                return;
             }
-            const { value, done } = await reader.read();
-            if (done) {
-                streamEnded = true;
-                break;
+            try {
+                const event = JSON.parse(line);
+                updateFromEvent(event, state);
+            } catch (_error) {
+                // Ignore malformed events.
             }
-            buffer += decoder.decode(value, { stream: true });
-            const lines = buffer.split("\n");
-            buffer = lines.pop() || "";
-            lines.forEach((line) => {
-                if (!line.trim()) {
-                    return;
-                }
-                try {
-                    const event = JSON.parse(line);
-                    updateFromEvent(event, state);
-                } catch (_error) {
-                    // Ignore malformed events.
-                }
-            });
-
-            if (state.gameOver) {
-                state.shouldStop = true;
-            }
+        });
+        if (state.gameOver) {
+            state.shouldStop = true;
         }
     } catch (error) {
         if (error?.name !== "AbortError") {
             state.error = error?.message || String(error);
         }
+        state.shouldStop = true;
     } finally {
-        if (state.abortController === controller) {
-            state.abortController = null;
-        }
-        state.feedActive = false;
-        if (streamEnded && !state.shouldStop) {
-            state.shouldStop = true;
-        }
-        if (state.shouldStop) {
-            state.boardVisible = false;
-            state.board = null;
-            state.fen = null;
-            state.status = null;
-            state.gameId = null;
-            state.lastMove = null;
-            state.turn = null;
-            state.gameOver = false;
-            state.whiteClock = null;
-            state.blackClock = null;
-            state.needsClear = true;
-        }
+        state.feedReading = false;
     }
 }
 
 function stopFeed(state) {
     state.shouldStop = true;
-    if (state.abortController) {
-        state.abortController.abort();
-    }
-    state.needsClear = true;
+    finalizeFeed(state);
 }
 
 function processChatCommands(chatMessages, state) {
@@ -424,14 +437,12 @@ function processChatCommands(chatMessages, state) {
         }
         latestSeen = Math.max(latestSeen, timestamp);
         if (!shouldStart && isCommandMatch(message?.message)) {
-            console.log("Lichess TV: Detected command to start stream feed.");
             shouldStart = true;
         }
     });
 
     state.lastChatTimestamp = latestSeen;
 
-    console.log(`Lichess TV: shouldStart=${shouldStart}, feedActive=${state.feedActive}, boardVisible=${state.boardVisible}`);
     if (shouldStart && !state.feedActive && !state.boardVisible) {
         streamFeed(state);
     }
@@ -548,6 +559,10 @@ function tick(context, state) {
     }
 
     processChatCommands(chatMessages, state);
+
+    if (state.feedActive) {
+        readFeedChunk(state);
+    }
 
     if (state.needsClear) {
         ctx.clearRect(0, 0, width, height);
