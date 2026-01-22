@@ -291,17 +291,19 @@ export class BroadcastRenderer {
             this.hideAssetWithTransition(merged);
             return;
         }
-        const targetOrder = Number.isFinite(patch.order) ? patch.order : null;
+        const targetOrder = Number.isFinite(sanitizedPatch.order) ? sanitizedPatch.order : null;
         if (Number.isFinite(targetOrder)) {
             if (isScript) {
                 const currentOrder = getScriptLayerOrder(this.state).filter((id) => id !== assetId);
-                const insertIndex = Math.max(0, currentOrder.length - Math.round(targetOrder));
+                const totalCount = currentOrder.length + 1;
+                const insertIndex = Math.max(0, Math.min(currentOrder.length, totalCount - Math.round(targetOrder)));
                 currentOrder.splice(insertIndex, 0, assetId);
                 this.state.scriptLayerOrder = currentOrder;
                 this.applyScriptCanvasOrder();
             } else if (isVisual) {
                 const currentOrder = getLayerOrder(this.state).filter((id) => id !== assetId);
-                const insertIndex = Math.max(0, currentOrder.length - Math.round(targetOrder));
+                const totalCount = currentOrder.length + 1;
+                const insertIndex = Math.max(0, Math.min(currentOrder.length, totalCount - Math.round(targetOrder)));
                 currentOrder.splice(insertIndex, 0, assetId);
                 this.state.layerOrder = currentOrder;
             }

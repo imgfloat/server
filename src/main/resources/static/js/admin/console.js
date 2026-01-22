@@ -688,12 +688,14 @@ export function createAdminConsole({
         if (!isAudio && Number.isFinite(targetOrder)) {
             if (isScript) {
                 const currentOrder = getScriptLayerOrder().filter((id) => id !== assetId);
-                const insertIndex = Math.max(0, currentOrder.length - Math.round(targetOrder));
+                const totalCount = currentOrder.length + 1;
+                const insertIndex = Math.max(0, Math.min(currentOrder.length, totalCount - Math.round(targetOrder)));
                 currentOrder.splice(insertIndex, 0, assetId);
                 scriptLayerOrder = currentOrder;
             } else {
                 const currentOrder = getLayerOrder().filter((id) => id !== assetId);
-                const insertIndex = Math.max(0, currentOrder.length - Math.round(targetOrder));
+                const totalCount = currentOrder.length + 1;
+                const insertIndex = Math.max(0, Math.min(currentOrder.length, totalCount - Math.round(targetOrder)));
                 currentOrder.splice(insertIndex, 0, assetId);
                 layerOrder = currentOrder;
             }
