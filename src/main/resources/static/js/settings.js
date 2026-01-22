@@ -187,14 +187,16 @@ function renderSystemAdministrators(admins) {
         const button = document.createElement("button");
         button.classList.add("button", "secondary");
         button.type = "button";
-        button.textContent = "Remove";
-        button.addEventListener("click", () => removeSystemAdministrator(admin));
         button.setAttribute("data-sysadmin-remove", "true");
         button.setAttribute("data-sysadmin-username", admin);
 
         if (isInitialSysadmin) {
             button.disabled = true;
-            button.title = "The initial system administrator cannot be removed.";
+            button.textContent = "System default";
+            button.title = "The system default administrator cannot be removed.";
+        } else {
+            button.textContent = "Remove";
+            button.addEventListener("click", () => removeSystemAdministrator(admin));
         }
 
         listItem.appendChild(text);
@@ -224,6 +226,10 @@ function addSystemAdministrator() {
     const username = sysadminInputElement.value.trim();
     if (!username) {
         showToast("Enter a Twitch username", "warning");
+        return;
+    }
+    if (initialSysadmin && username.toLowerCase() === initialSysadmin) {
+        showToast("That user is already the system default administrator.", "warning");
         return;
     }
     fetch("/api/system-administrators", {

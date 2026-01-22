@@ -71,7 +71,7 @@ public class SystemAdministratorService {
         String initialSysadmin = getInitialSysadmin();
 
         if (initialSysadmin != null && initialSysadmin.equals(normalized)) {
-            return;
+            throw new IllegalStateException("Cannot add the initial system administrator");
         }
 
         if (repo.existsByTwitchUsername(normalized)) {
@@ -81,6 +81,7 @@ public class SystemAdministratorService {
         repo.save(new SystemAdministrator(normalized));
     }
 
+    @Transactional
     public void removeSysadmin(String twitchUsername) {
         String normalized = normalize(twitchUsername);
         String initialSysadmin = getInitialSysadmin();
@@ -118,10 +119,20 @@ public class SystemAdministratorService {
     }
 
     public List<String> listSysadmins() {
-        return repo
+        String initialSysadmin = getInitialSysadmin();
+        List<String> persistedAdmins = repo
             .findAllByOrderByTwitchUsernameAsc()
             .stream()
             .map(SystemAdministrator::getTwitchUsername)
+            .collect(Collectors.toList());
+        if (initialSysadmin == null) {
+            return persistedAdmins;
+        }
+        return java.util.stream.Stream
+            .concat(persistedAdmins.stream(), java.util.stream.Stream.of(initialSysadmin))
+            .map(this::normalize)
+            .distinct()
+            .sorted()
             .collect(Collectors.toList());
     }
 

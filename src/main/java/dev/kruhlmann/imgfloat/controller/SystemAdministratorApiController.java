@@ -57,7 +57,11 @@ public class SystemAdministratorApiController {
             throw new ResponseStatusException(BAD_REQUEST, "Username is required");
         }
         String username = request.twitchUsername().trim();
-        systemAdministratorService.addSysadmin(username);
+        try {
+            systemAdministratorService.addSysadmin(username);
+        } catch (IllegalStateException e) {
+            throw new ResponseStatusException(BAD_REQUEST, e.getMessage(), e);
+        }
         LOG.info("System administrator added: {} (requested by {})", username, sessionUsername);
         return ResponseEntity.ok().body(systemAdministratorService.listSysadmins());
     }
