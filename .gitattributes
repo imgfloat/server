@@ -26,3 +26,15 @@ doc/marketplace-scripts/kirov-reporting/logo.png filter=lfs diff=lfs merge=lfs -
 doc/marketplace-scripts/teapot-viewer/logo.png filter=lfs diff=lfs merge=lfs -text
 doc/marketplace-scripts/kirov-reporting/attachments/kirov_reporting.mp3 filter=lfs diff=lfs merge=lfs -text
 doc/marketplace-scripts/emote-combo/logo.png filter=lfs diff=lfs merge=lfs -text
+doc/marketplace-scripts/lichess-tv-chess/attachments/Chess_kdt45.png filter=lfs diff=lfs merge=lfs -text
+doc/marketplace-scripts/lichess-tv-chess/attachments/Chess_klt45.png filter=lfs diff=lfs merge=lfs -text
+doc/marketplace-scripts/lichess-tv-chess/attachments/Chess_ndt45.png filter=lfs diff=lfs merge=lfs -text
+doc/marketplace-scripts/lichess-tv-chess/attachments/Chess_pdt45.png filter=lfs diff=lfs merge=lfs -text
+doc/marketplace-scripts/lichess-tv-chess/attachments/Chess_plt45.png filter=lfs diff=lfs merge=lfs -text
+doc/marketplace-scripts/lichess-tv-chess/attachments/Chess_bdt45.png filter=lfs diff=lfs merge=lfs -text
+doc/marketplace-scripts/lichess-tv-chess/attachments/Chess_nlt45.png filter=lfs diff=lfs merge=lfs -text
+doc/marketplace-scripts/lichess-tv-chess/attachments/Chess_qdt45.png filter=lfs diff=lfs merge=lfs -text
+doc/marketplace-scripts/lichess-tv-chess/attachments/Chess_qlt45.png filter=lfs diff=lfs merge=lfs -text
+doc/marketplace-scripts/lichess-tv-chess/attachments/Chess_rdt45.png filter=lfs diff=lfs merge=lfs -text
+doc/marketplace-scripts/lichess-tv-chess/attachments/Chess_rlt45.png filter=lfs diff=lfs merge=lfs -text
+doc/marketplace-scripts/lichess-tv-chess/attachments/Chess_blt45.png filter=lfs diff=lfs merge=lfs -text

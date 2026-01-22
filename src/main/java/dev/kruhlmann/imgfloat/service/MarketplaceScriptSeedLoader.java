@@ -34,6 +34,7 @@ public class MarketplaceScriptSeedLoader {
         java.util.Map.entry("jpeg", "image/jpeg"),
         java.util.Map.entry("gif", "image/gif"),
         java.util.Map.entry("webp", "image/webp"),
+        java.util.Map.entry("svg", "image/svg+xml"),
         java.util.Map.entry("mp4", "video/mp4"),
         java.util.Map.entry("webm", "video/webm"),
         java.util.Map.entry("mov", "video/quicktime"),

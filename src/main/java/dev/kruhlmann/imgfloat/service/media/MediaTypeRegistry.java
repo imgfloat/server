@@ -64,6 +64,7 @@ public final class MediaTypeRegistry {
         map.put("jpeg", "image/jpeg");
         map.put("gif", "image/gif");
         map.put("webp", "image/webp");
+        map.put("svg", "image/svg+xml");
         map.put("bmp", "image/bmp");
         map.put("tiff", "image/tiff");
         map.put("mp4", "video/mp4");
@@ -89,6 +90,7 @@ public final class MediaTypeRegistry {
         map.put("image/jpg", ".jpg");
         map.put("image/gif", ".gif");
         map.put("image/webp", ".webp");
+        map.put("image/svg+xml", ".svg");
         map.put("image/bmp", ".bmp");
         map.put("image/tiff", ".tiff");
         map.put("video/mp4", ".mp4");
