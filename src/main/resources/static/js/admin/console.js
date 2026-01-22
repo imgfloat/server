@@ -2406,7 +2406,9 @@ export function createAdminConsole({
         })
             .then((response) => {
                 if (!response.ok) {
-                    throw new Error("Upload failed");
+                    return extractErrorMessage(response, "Upload failed").then((message) => {
+                        throw new Error(message);
+                    });
                 }
                 if (fileInput) {
                     fileInput.value = "";
@@ -2421,8 +2423,29 @@ export function createAdminConsole({
                 }
                 console.error(e);
                 removePendingUpload(pendingId);
-                showToast("Upload failed. Please try again with a supported file.", "error");
+                showToast(e?.message || "Upload failed. Please try again with a supported file.", "error");
             });
+    }
+
+    function extractErrorMessage(response, fallback) {
+        if (!response) {
+            return Promise.resolve(fallback);
+        }
+        return response
+            .json()
+            .then((data) => {
+                if (data?.message) {
+                    return data.message;
+                }
+                if (data?.error) {
+                    return data.error;
+                }
+                if (typeof data === "string" && data.trim()) {
+                    return data;
+                }
+                return fallback;
+            })
+            .catch(() => response.text().then((text) => text?.trim() || fallback).catch(() => fallback));
     }
 
     function getCanvasPoint(event) {

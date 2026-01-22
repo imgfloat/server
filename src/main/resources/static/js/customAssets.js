@@ -390,7 +390,7 @@ export function createCustomAssetModal({
                 }
             })
             .catch((e) => {
-                showToast?.("Unable to save custom asset. Please try again.", "error");
+                showToast?.(e?.message || "Unable to save custom asset. Please try again.", "error");
                 console.error(e);
             })
             .finally(() => {
@@ -498,7 +498,7 @@ export function createCustomAssetModal({
                 })
                 .catch((error) => {
                     console.error(error);
-                    showToast?.("Unable to upload attachment. Please try again.", "error");
+                    showToast?.(error?.message || "Unable to upload attachment. Please try again.", "error");
                 })
                 .finally(() => {
                     attachmentInput.value = "";
@@ -591,10 +591,33 @@ export function createCustomAssetModal({
             body: payload,
         }).then((response) => {
             if (!response.ok) {
-                throw new Error("Failed to upload attachment");
+                return extractErrorMessage(response, "Failed to upload attachment").then((message) => {
+                    throw new Error(message);
+                });
             }
             return response.json();
         });
+    }
+
+    function extractErrorMessage(response, fallback) {
+        if (!response) {
+            return Promise.resolve(fallback);
+        }
+        return response
+            .json()
+            .then((data) => {
+                if (data?.message) {
+                    return data.message;
+                }
+                if (data?.error) {
+                    return data.error;
+                }
+                if (typeof data === "string" && data.trim()) {
+                    return data;
+                }
+                return fallback;
+            })
+            .catch(() => response.text().then((text) => text?.trim() || fallback).catch(() => fallback));
     }
 
     function removeAttachment(attachmentId) {
@@ -694,7 +717,9 @@ export function createCustomAssetModal({
             body: payload,
         }).then((response) => {
             if (!response.ok) {
-                throw new Error("Failed to upload logo");
+                return extractErrorMessage(response, "Failed to upload logo").then((message) => {
+                    throw new Error(message);
+                });
             }
             pendingLogoFile = null;
             return response.json();

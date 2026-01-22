@@ -37,6 +37,7 @@ import dev.kruhlmann.imgfloat.service.media.AssetContent;
 import dev.kruhlmann.imgfloat.service.media.MediaDetectionService;
 import dev.kruhlmann.imgfloat.service.media.MediaOptimizationService;
 import dev.kruhlmann.imgfloat.service.media.OptimizedAsset;
+import dev.kruhlmann.imgfloat.service.media.MediaTypeRegistry;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -303,11 +304,11 @@ public class ChannelDirectoryService {
         byte[] bytes = file.getBytes();
         String mediaType = mediaDetectionService
             .detectAllowedMediaType(file, bytes)
-            .orElseThrow(() -> new ResponseStatusException(BAD_REQUEST, "Unsupported media type"));
+            .orElseThrow(() -> new ResponseStatusException(BAD_REQUEST, unsupportedMediaTypeMessage()));
 
         OptimizedAsset optimized = mediaOptimizationService.optimizeAsset(bytes, mediaType);
         if (optimized == null) {
-            return Optional.empty();
+            throw new ResponseStatusException(BAD_REQUEST, mediaProcessingErrorMessage());
         }
 
         String safeName = Optional.ofNullable(file.getOriginalFilename())
@@ -499,10 +500,10 @@ public class ChannelDirectoryService {
         enforceUploadLimit(bytes.length);
         String mediaType = mediaDetectionService
             .detectAllowedMediaType(file, bytes)
-            .orElseThrow(() -> new ResponseStatusException(BAD_REQUEST, "Unsupported media type"));
+            .orElseThrow(() -> new ResponseStatusException(BAD_REQUEST, unsupportedMediaTypeMessage()));
         OptimizedAsset optimized = mediaOptimizationService.optimizeAsset(bytes, mediaType);
         if (optimized == null) {
-            return Optional.empty();
+            throw new ResponseStatusException(BAD_REQUEST, mediaProcessingErrorMessage());
         }
         AssetType assetType = AssetType.fromMediaType(optimized.mediaType(), mediaType);
         if (assetType != AssetType.IMAGE) {
@@ -1344,11 +1345,11 @@ public class ChannelDirectoryService {
         byte[] bytes = file.getBytes();
         String mediaType = mediaDetectionService
             .detectAllowedMediaType(file, bytes)
-            .orElseThrow(() -> new ResponseStatusException(BAD_REQUEST, "Unsupported media type"));
+            .orElseThrow(() -> new ResponseStatusException(BAD_REQUEST, unsupportedMediaTypeMessage()));
 
         OptimizedAsset optimized = mediaOptimizationService.optimizeAsset(bytes, mediaType);
         if (optimized == null) {
-            return Optional.empty();
+            throw new ResponseStatusException(BAD_REQUEST, mediaProcessingErrorMessage());
         }
 
         AssetType assetType = AssetType.fromMediaType(optimized.mediaType(), mediaType);
@@ -1502,6 +1503,14 @@ public class ChannelDirectoryService {
         }
         String normalized = mediaType.toLowerCase(Locale.ROOT);
         return normalized.startsWith("application/javascript") || normalized.startsWith("text/javascript");
+    }
+
+    private String unsupportedMediaTypeMessage() {
+        return "Unsupported media type. Supported types: " + MediaTypeRegistry.supportedMediaTypesSummary();
+    }
+
+    private String mediaProcessingErrorMessage() {
+        return "Unable to process media. Ensure ffmpeg is installed on the server.";
     }
 
     private void validateCodeAssetSource(String source) {

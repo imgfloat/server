@@ -15,7 +15,8 @@ class MediaOptimizationServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new MediaOptimizationService(new MediaPreviewService());
+        FfmpegService ffmpegService = new FfmpegService();
+        service = new MediaOptimizationService(new MediaPreviewService(ffmpegService), ffmpegService);
     }
 
     @Test

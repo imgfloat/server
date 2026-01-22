@@ -3,8 +3,8 @@ package dev.kruhlmann.imgfloat.service;
 import dev.kruhlmann.imgfloat.service.media.AssetContent;
 import java.io.IOException;
 import java.nio.file.*;
+import dev.kruhlmann.imgfloat.service.media.MediaTypeRegistry;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import org.slf4j.Logger;
@@ -16,30 +16,7 @@ import org.springframework.stereotype.Service;
 public class AssetStorageService {
 
     private static final Logger logger = LoggerFactory.getLogger(AssetStorageService.class);
-    private static final Map<String, String> EXTENSIONS = Map.ofEntries(
-        Map.entry("image/png", ".png"),
-        Map.entry("image/jpeg", ".jpg"),
-        Map.entry("image/jpg", ".jpg"),
-        Map.entry("image/gif", ".gif"),
-        Map.entry("image/webp", ".webp"),
-        Map.entry("image/bmp", ".bmp"),
-        Map.entry("image/tiff", ".tiff"),
-        Map.entry("video/mp4", ".mp4"),
-        Map.entry("video/webm", ".webm"),
-        Map.entry("video/quicktime", ".mov"),
-        Map.entry("video/x-matroska", ".mkv"),
-        Map.entry("audio/mpeg", ".mp3"),
-        Map.entry("audio/mp3", ".mp3"),
-        Map.entry("audio/wav", ".wav"),
-        Map.entry("audio/ogg", ".ogg"),
-        Map.entry("audio/webm", ".webm"),
-        Map.entry("audio/flac", ".flac"),
-        Map.entry("model/gltf-binary", ".glb"),
-        Map.entry("model/gltf+json", ".gltf"),
-        Map.entry("model/obj", ".obj"),
-        Map.entry("application/javascript", ".js"),
-        Map.entry("text/javascript", ".js")
-    );
+    private static final String DEFAULT_PREVIEW_MEDIA_TYPE = "image/png";
 
     private final Path assetRoot;
     private final Path previewRoot;
@@ -119,7 +96,7 @@ public class AssetStorageService {
             if (!Files.exists(file)) return Optional.empty();
 
             byte[] bytes = Files.readAllBytes(file);
-            return Optional.of(new AssetContent(bytes, "image/png"));
+            return Optional.of(new AssetContent(bytes, DEFAULT_PREVIEW_MEDIA_TYPE));
         } catch (Exception e) {
             logger.warn("Failed to load preview {}", assetId, e);
             return Optional.empty();
@@ -196,10 +173,9 @@ public class AssetStorageService {
     }
 
     private String resolveExtension(String mediaType) throws IOException {
-        if (mediaType == null || !EXTENSIONS.containsKey(mediaType)) {
-            throw new IOException("Unsupported media type: " + mediaType);
-        }
-        return EXTENSIONS.get(mediaType);
+        return MediaTypeRegistry
+            .extensionForMediaType(mediaType)
+            .orElseThrow(() -> new IOException("Unsupported media type: " + mediaType));
     }
 
     private Path assetPath(String broadcaster, String assetId, String mediaType) throws IOException {
