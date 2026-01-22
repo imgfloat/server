@@ -1,10 +1,10 @@
 const COMMAND = "!chess";
 const FEED_URL = "https://lichess.org/api/tv/feed";
-const HEADER_HEIGHT = 40;
+const HEADER_HEIGHT = 54;
 const PADDING = 16;
 const BOARD_MARGIN = 12;
 const BORDER_RADIUS = 14;
-const FOOTER_HEIGHT = 30;
+const FOOTER_HEIGHT = 36;
 const LIGHT_SQUARE = "#f0d9b5";
 const DARK_SQUARE = "#b58863";
 const BOARD_OUTLINE = "#111827";
@@ -217,6 +217,13 @@ function resolveClockValue(payload, color) {
     if (Number.isFinite(fromList?.seconds)) {
         return fromList.seconds;
     }
+    const shorthandKey = color === "white" ? "wc" : "bc";
+    if (Number.isFinite(payload?.[shorthandKey])) {
+        return payload[shorthandKey];
+    }
+    if (Number.isFinite(payload?.game?.[shorthandKey])) {
+        return payload.game[shorthandKey];
+    }
     const direct = payload?.clocks?.[color];
     if (Number.isFinite(direct)) {
         return direct;
@@ -232,7 +239,12 @@ function formatClock(value) {
     if (!Number.isFinite(value)) {
         return "--:--";
     }
-    const seconds = value > 1000 ? Math.floor(value / 100) : Math.floor(value);
+    let seconds = Math.floor(value);
+    if (value > 100000) {
+        seconds = Math.floor(value / 1000);
+    } else if (value > 1000) {
+        seconds = Math.floor(value / 100);
+    }
     const minutes = Math.floor(seconds / 60);
     const remaining = Math.max(seconds % 60, 0);
     return `${minutes}:${String(remaining).padStart(2, "0")}`;
@@ -313,12 +325,11 @@ async function streamFeed(state) {
     const controller = new AbortController();
     state.abortController = controller;
 
+    let streamEnded = false;
     try {
         const response = await fetch(FEED_URL, {
             method: "GET",
-            headers: {
-                Accept: "application/x-ndjson",
-            },
+            headers: { Accept: "application/x-ndjson" },
             signal: controller.signal,
         });
         if (!response.ok || !response.body) {
@@ -335,6 +346,7 @@ async function streamFeed(state) {
             }
             const { value, done } = await reader.read();
             if (done) {
+                streamEnded = true;
                 break;
             }
             buffer += decoder.decode(value, { stream: true });
@@ -365,6 +377,9 @@ async function streamFeed(state) {
             state.abortController = null;
         }
         state.feedActive = false;
+        if (streamEnded && !state.shouldStop) {
+            state.shouldStop = true;
+        }
         if (state.shouldStop) {
             state.boardVisible = false;
             state.board = null;
@@ -396,20 +411,27 @@ function processChatCommands(chatMessages, state) {
     const lastSeen = state.lastChatTimestamp ?? 0;
     let latestSeen = lastSeen;
     let shouldStart = false;
+    let fallbackTimestamp = lastSeen;
 
     chatMessages.forEach((message) => {
-        const timestamp = message?.timestamp ?? 0;
+        let timestamp = message?.timestamp;
+        if (!Number.isFinite(timestamp)) {
+            fallbackTimestamp += 1;
+            timestamp = fallbackTimestamp;
+        }
         if (timestamp <= lastSeen) {
             return;
         }
         latestSeen = Math.max(latestSeen, timestamp);
         if (!shouldStart && isCommandMatch(message?.message)) {
+            console.log("Lichess TV: Detected command to start stream feed.");
             shouldStart = true;
         }
     });
 
     state.lastChatTimestamp = latestSeen;
 
+    console.log(`Lichess TV: shouldStart=${shouldStart}, feedActive=${state.feedActive}, boardVisible=${state.boardVisible}`);
     if (shouldStart && !state.feedActive && !state.boardVisible) {
         streamFeed(state);
     }
@@ -448,20 +470,16 @@ function drawBoard(context, state) {
     ctx.textAlign = "left";
     ctx.textBaseline = "top";
 
-    const whiteLabel = state.whiteRating ? `${state.whiteName} (${state.whiteRating})` : state.whiteName || "White";
-    const blackLabel = state.blackRating ? `${state.blackName} (${state.blackRating})` : state.blackName || "Black";
-    const whiteClock = formatClock(state.whiteClock);
-    const blackClock = formatClock(state.blackClock);
+    const metaLabel = `White (${state.whiteRating || "?"}) [${formatClock(state.whiteClock)}] versus Black (${state.blackRating || "?"}) [${formatClock(state.blackClock)}]`;
 
-    ctx.fillText(blackLabel, headerX, headerY);
-    ctx.textAlign = "right";
-    ctx.fillText(blackClock, panelX + panelWidth - BOARD_MARGIN, headerY);
-    ctx.textAlign = "left";
+    ctx.fillText(metaLabel, headerX, headerY);
 
-    const statusText = state.status ? String(state.status).toUpperCase() : "LIVE";
-    ctx.fillStyle = TEXT_MUTED;
-    ctx.font = "600 13px 'Inter', 'Segoe UI', sans-serif";
-    ctx.fillText(statusText, headerX, headerY + 22);
+    const statusValue = state.status ? String(state.status).toUpperCase() : "";
+    if (statusValue && statusValue !== "CONNECTING") {
+        ctx.fillStyle = TEXT_MUTED;
+        ctx.font = "600 13px 'Inter', 'Segoe UI', sans-serif";
+        ctx.fillText(statusValue, headerX, headerY + 26);
+    }
 
     const boardX = panelX + BOARD_MARGIN;
     const boardY = panelY + HEADER_HEIGHT;
@@ -513,15 +531,10 @@ function drawBoard(context, state) {
     }
 
     const turnIndicator = state.turn === "b" ? "Black to move" : "White to move";
+    ctx.fillStyle = TEXT_PRIMARY;
+    ctx.textAlign = "left";
     ctx.fillStyle = TEXT_MUTED;
-    ctx.font = "500 13px 'Inter', 'Segoe UI', sans-serif";
-    ctx.textAlign = "left";
-    ctx.textBaseline = "bottom";
-    ctx.fillText(whiteLabel, panelX + BOARD_MARGIN, panelY + panelHeight - BOARD_MARGIN / 2);
-    ctx.textAlign = "right";
-    ctx.fillText(whiteClock, panelX + panelWidth - BOARD_MARGIN, panelY + panelHeight - BOARD_MARGIN / 2);
-    ctx.textAlign = "left";
-    ctx.textBaseline = "alphabetic";
+    ctx.textBaseline = "top";
     ctx.font = "500 12px 'Inter', 'Segoe UI', sans-serif";
     ctx.fillText(turnIndicator, panelX + BOARD_MARGIN, panelY + panelHeight - FOOTER_HEIGHT + 12);
 }
