@@ -890,7 +890,6 @@ button:disabled:hover {
 .dashboard-grid {
     display: grid;
     gap: 20px;
-    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
     align-items: start;
 }
 
@@ -982,6 +981,47 @@ button:disabled:hover {
     display: flex;
     flex-direction: column;
     gap: 4px;
+}
+
+.large-dashboard-tiles {
+    display: flex;
+    justify-content: space-evenly
+}
+
+.large-dashboard-tiles a {
+    width: 200px;
+    height: 200px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 16px;
+    border-radius: 12px;
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    background: rgba(15, 23, 42, 0.75);
+    color: #e2e8f0;
+    text-decoration: none;
+    min-height: 140px;
+    transition:
+        border-color 0.2s ease,
+        background-color 0.2s ease,
+        transform 0.2s ease;
+    justify-content: space-evenly;
+    align-items: center;
+}
+
+.large-dashboard-tiles a:hover,
+.large-dashboard-tiles a:focus-visible {
+    border-color: rgba(226, 232, 240, 0.7);
+    background: rgba(30, 41, 59, 0.8);
+    transform: translateY(-1px);
+}
+
+.large-dashboard-tiles a i {
+    font-size: 72px;
+}
+
+.large-dashboard-tiles a span {
+    font-size: 18px;
 }
 
 .dashboard-action-copy strong {
@@ -2479,4 +2519,31 @@ button:disabled:hover {
     border-radius: 12px;
     background: rgba(30, 41, 59, 0.4);
     color: #cbd5e1;
+}
+
+.control-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 250px;
+    overflow-y: auto;
+    margin-top: 8px;
+}
+
+.control-list .control {
+    padding: 12px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    background-color: #0f172a;
+    border: 1px solid #1f2937;
+    border-radius: 8px;
+}
+
+.control-list .control .title-block {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.control-list .control input {
 }

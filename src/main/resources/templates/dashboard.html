@@ -7,6 +7,13 @@
         <meta name="_csrf_header" th:content="${_csrf.headerName}" />
         <link rel="icon" href="/favicon.ico" />
         <link rel="stylesheet" href="/css/styles.css" />
+        <link
+            rel="stylesheet"
+            href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+            integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A=="
+            crossorigin="anonymous"
+            referrerpolicy="no-referrer"
+        />
     </head>
     <body class="dashboard-body" th:classappend="${isStaging} ? ' has-staging-banner' : ''">
         <div th:insert="~{fragments/staging :: banner}"></div>
@@ -30,30 +37,26 @@
                 </div>
             </header>
 
-            <div class="dashboard-grid">
-                <section class="card">
-                    <p class="eyebrow">Navigation</p>
-                    <h3>Shortcuts</h3>
-                    <p class="muted">Jump into your overlay</p>
-                    <div class="dashboard-tile-grid">
-                        <a class="dashboard-tile" th:href="@{'/view/' + ${channel} + '/broadcast'}">
-                            <span class="tile-icon">Live</span>
-                            <span class="tile-title">Open broadcast overlay</span>
-                            <span class="tile-subtitle">Launch your live overlay view.</span>
-                        </a>
-                        <a class="dashboard-tile" th:href="@{'/view/' + ${channel} + '/admin'}">
-                            <span class="tile-icon">Admin</span>
-                            <span class="tile-title">Open admin console</span>
-                            <span class="tile-subtitle">Manage assets, scripts, and layout.</span>
-                        </a>
-                        <a class="dashboard-tile" th:if="${isSystemAdmin}" href="/settings">
-                            <span class="tile-icon">App</span>
-                            <span class="tile-title">Application settings</span>
-                            <span class="tile-subtitle">Configure server-wide preferences.</span>
-                        </a>
-                    </div>
-                </section>
+            <section class="large-dashboard-tiles">
+                <a th:href="@{'/view/' + ${channel} + '/broadcast'}">
+                    <i class="fa-solid fa-tower-broadcast"></i>
+                    <span>Broadcast Overlay</span>
+                </a>
+                <a th:href="@{'/view/' + ${channel} + '/admin'}">
+                    <i class="fa-solid fa-layer-group"></i>
+                    <span>Admin Console</span>
+                </a>
+                <a th:href="@{'/view/' + ${channel} + '/audit'}">
+                    <i class="fa-solid fa-user-shield"></i>
+                    <span>Audit Log</span>
+                </a>
+                <a th:if="${isSystemAdmin}" href="/settings">
+                    <i class="fa-solid fa-gear"></i>
+                    <span>Application Settings</span>
+                </a>
+            </section>
 
+            <div class="dashboard-grid">
                 <section class="card">
                     <p class="eyebrow">Settings</p>
                     <h3>Overlay dimensions</h3>
@@ -68,42 +71,36 @@
                             <input id="canvas-height" type="number" min="100" step="10" />
                         </label>
                     </div>
-                    <div class="control-actions">
-                        <button id="save-canvas-btn" type="button" onclick="saveCanvasSettings()">Save canvas size</button>
-                        <span id="canvas-status" class="muted" role="status" aria-live="polite"></span>
-                    </div>
-                </section>
 
-                <section class="card">
-                    <p class="eyebrow">Script privacy</p>
-                    <h3>Script asset access</h3>
-                    <p class="muted">Control what data scripts can access in your channel.</p>
-                    <div class="dashboard-tile-grid">
-                        <label class="dashboard-tile dashboard-toggle-tile">
-                            <div class="tile-row">
-                                <span class="tile-title">Twitch emotes</span>
-                                <input id="allow-channel-emotes" type="checkbox" checked />
+                    <h3>Integrations</h3>
+                    <p class="muted">Set access policy for script assets.</p>
+
+                    <div class="control-list">
+                        <label class="control">
+                            <div class="title-block">
+                                <p class="eyebrow">Twitch emotes</p>
+                                <span class="desc">Allow script assets to use this channel's Twitch emotes.</span>
                             </div>
-                            <span class="tile-subtitle">Allow script assets to use this channel's Twitch emotes.</span>
+                            <input id="allow-channel-emotes" type="checkbox" checked />
                         </label>
-                        <label class="dashboard-tile dashboard-toggle-tile">
-                            <div class="tile-row">
-                                <span class="tile-title">7TV emotes</span>
-                                <input id="allow-7tv-emotes" type="checkbox" checked />
+                        <label class="control">
+                            <div class="title-block">
+                                <p class="eyebrow">7TV emotes</p>
+                                <span class="desc">Allow script assets to use this channel's 7TV emotes.</span>
                             </div>
-                            <span class="tile-subtitle">Allow script assets to use this channel's 7TV emotes.</span>
+                            <input id="allow-7tv-emotes" type="checkbox" checked />
                         </label>
-                        <label class="dashboard-tile dashboard-toggle-tile">
-                            <div class="tile-row">
-                                <span class="tile-title">Chat access</span>
-                                <input id="allow-script-chat" type="checkbox" checked />
+                        <label class="control">
+                            <div class="title-block">
+                                <p class="eyebrow">Chat access</p>
+                                <span class="desc">Allow script assets to access this channel's Twitch chat log.</span>
                             </div>
-                            <span class="tile-subtitle">Allow script assets to access this channel's Twitch chat log.</span>
+                            <input id="allow-script-chat" type="checkbox" checked />
                         </label>
                     </div>
                     <div class="control-actions">
                         <button id="save-script-settings-btn" type="button" onclick="saveScriptSettings()">
-                            Save script settings
+                            Save settings
                         </button>
                         <span id="script-settings-status" class="muted" role="status" aria-live="polite"></span>
                     </div>

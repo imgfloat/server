@@ -275,6 +275,7 @@ async function fetchScriptSettings() {
 }
 
 async function saveScriptSettings() {
+    saveCanvasSettings()
     const allowChannelEmotesForAssets = elements.allowChannelEmotes?.checked ?? true;
     const allowSevenTvEmotesForAssets = elements.allowSevenTvEmotes?.checked ?? true;
     const allowScriptChatAccess = elements.allowScriptChat?.checked ?? true;
