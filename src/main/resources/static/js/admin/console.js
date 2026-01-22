@@ -40,8 +40,8 @@ export function createAdminConsole({
     const KEYBOARD_NUDGE_STEP = 5;
     const KEYBOARD_NUDGE_FAST_STEP = 20;
     const controlsPanel = document.getElementById("asset-controls");
-    const widthInput = document.getElementById("asset-width");
-    const heightInput = document.getElementById("asset-height");
+    const widthDisplay = document.getElementById("asset-width-display");
+    const heightDisplay = document.getElementById("asset-height-display");
     const aspectLockInput = document.getElementById("maintain-aspect");
     const speedInput = document.getElementById("asset-speed");
     const speedLabel = document.getElementById("asset-speed-label");
@@ -102,7 +102,6 @@ export function createAdminConsole({
     let pendingUploads = [];
     let selectedAssetId = null;
     let interactionState = null;
-    let lastSizeInputChanged = null;
     let stompClient;
 
     function start() {
@@ -425,10 +424,6 @@ export function createAdminConsole({
         }
     }
 
-    if (widthInput) widthInput.addEventListener("input", () => handleSizeInputChange("width"));
-    if (widthInput) widthInput.addEventListener("change", () => commitSizeChange());
-    if (heightInput) heightInput.addEventListener("input", () => handleSizeInputChange("height"));
-    if (heightInput) heightInput.addEventListener("change", () => commitSizeChange());
     if (speedInput) {
         const minPercent = clamp(playbackSpeedMinPercent, 0, playbackSpeedMaxPercent);
         const maxPercent = Math.max(minPercent, playbackSpeedMaxPercent);
@@ -1827,15 +1822,14 @@ export function createAdminConsole({
         }
 
         controlsPanel.classList.remove("hidden");
-        lastSizeInputChanged = null;
         if (selectedOrderLabel) {
             selectedOrderLabel.textContent = isCodeAsset(asset)
                 ? getScriptLayerPosition(asset.id)
                 : getLayerPosition(asset.id);
         }
 
-        if (widthInput) widthInput.value = Math.round(asset.width);
-        if (heightInput) heightInput.value = Math.round(asset.height);
+        if (widthDisplay) widthDisplay.textContent = `${Math.round(asset.width)} px`;
+        if (heightDisplay) heightDisplay.textContent = `${Math.round(asset.height)} px`;
         if (aspectLockInput) {
             aspectLockInput.checked = isAspectLocked(asset.id);
             aspectLockInput.onchange = () => setAspectLock(asset.id, aspectLockInput.checked);
@@ -2045,31 +2039,6 @@ export function createAdminConsole({
         element.addEventListener("error", cleanup, { once: true });
     }
 
-    function applyTransformFromInputs() {
-        const asset = getSelectedAsset();
-        if (!asset) return;
-        const locked = isAspectLocked(asset.id);
-        const ratio = getAssetAspectRatio(asset);
-        let nextWidth = parseFloat(widthInput?.value) || asset.width;
-        let nextHeight = parseFloat(heightInput?.value) || asset.height;
-
-        if (locked && ratio) {
-            if (lastSizeInputChanged === "height") {
-                nextWidth = nextHeight * ratio;
-                if (widthInput) widthInput.value = Math.round(nextWidth);
-            } else {
-                nextHeight = nextWidth / ratio;
-                if (heightInput) heightInput.value = Math.round(nextHeight);
-            }
-        }
-
-        asset.width = Math.max(10, nextWidth);
-        asset.height = Math.max(10, nextHeight);
-        updateRenderState(asset);
-        persistTransform(asset);
-        drawAndList();
-    }
-
     function updatePlaybackFromInputs() {
         const asset = getSelectedAsset();
         if (!asset || !isVideoAsset(asset)) return;
@@ -2272,34 +2241,6 @@ export function createAdminConsole({
 
     function isAspectLocked(assetId) {
         return aspectLockState.has(assetId) ? aspectLockState.get(assetId) : true;
-    }
-
-    function handleSizeInputChange(type) {
-        lastSizeInputChanged = type;
-        const asset = getSelectedAsset();
-        if (!asset) {
-            return;
-        }
-        if (!isAspectLocked(asset.id)) {
-            commitSizeChange();
-            return;
-        }
-        const ratio = getAssetAspectRatio(asset);
-        if (!ratio) {
-            return;
-        }
-        if (type === "width" && widthInput && heightInput) {
-            const width = parseFloat(widthInput.value);
-            if (width > 0) {
-                heightInput.value = Math.round(width / ratio);
-            }
-        } else if (type === "height" && widthInput && heightInput) {
-            const height = parseFloat(heightInput.value);
-            if (height > 0) {
-                widthInput.value = Math.round(height * ratio);
-            }
-        }
-        commitSizeChange();
     }
 
     function updateVisibility(asset, hidden) {
