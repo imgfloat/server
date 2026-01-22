@@ -34,38 +34,33 @@
             <main class="settings-main">
                 <section class="settings-card settings-hero">
                     <div class="hero-copy">
-                        <p class="eyebrow subtle">System administrator settings</p>
                         <h1>Application defaults</h1>
-                        <p class="muted">
-                            Configure overlay performance and audio guardrails for every channel using Imgfloat. These
-                            settings are applied globally.
-                        </p>
+                        <p class="muted">Global settings for overlay performance and audio.</p>
                     </div>
                     <div class="stat-grid compact">
                         <div class="stat">
                             <p class="stat-label">Canvas FPS</p>
                             <p class="stat-value" id="stat-canvas-fps">--</p>
-                            <p class="stat-subtitle">Longest side <span id="stat-canvas-size">--</span></p>
+                        </div>
+                        <div class="stat">
+                            <p class="stat-label">Canvas max size</p>
+                            <p class="stat-value" id="stat-canvas-size">--</p>
                         </div>
                         <div class="stat">
                             <p class="stat-label">Playback speed</p>
                             <p class="stat-value" id="stat-playback-range">--</p>
-                            <p class="stat-subtitle">Applies to all animations</p>
                         </div>
                         <div class="stat">
                             <p class="stat-label">Audio pitch</p>
                             <p class="stat-value" id="stat-audio-range">--</p>
-                            <p class="stat-subtitle">Fraction of original clip</p>
                         </div>
                         <div class="stat">
                             <p class="stat-label">Volume limits</p>
                             <p class="stat-value" id="stat-volume-range">--</p>
-                            <p class="stat-subtitle">Keeps alerts comfortable</p>
                         </div>
                         <div class="stat">
                             <p class="stat-label">Emote sync</p>
                             <p class="stat-value" id="stat-emote-sync">--</p>
-                            <p class="stat-subtitle">Minutes between refreshes</p>
                         </div>
                     </div>
                 </section>
@@ -74,22 +69,15 @@
                     <section class="settings-card settings-panel">
                         <div class="section-heading">
                             <div>
-                                <p class="eyebrow subtle">Overlay defaults</p>
-                                <h2>Performance & audio budget</h2>
-                                <p class="muted tiny">
-                                    Tune the canvas and audio guardrails to keep overlays smooth and balanced.
-                                </p>
+                                <h2>Performance & audio</h2>
+                                <p class="muted tiny">Adjust the global defaults below.</p>
                             </div>
                         </div>
 
                         <form novalidate id="settings-form" class="settings-form">
                             <div class="form-section">
                                 <div class="form-heading">
-                                    <p class="eyebrow subtle">Canvas</p>
-                                    <h3>Rendering budget</h3>
-                                    <p class="muted tiny">
-                                        Match FPS and max dimensions to your streaming canvas for consistent overlays.
-                                    </p>
+                                    <h3>Canvas</h3>
                                 </div>
                                 <div class="control-grid split-row">
                                     <label for="canvas-fps"
@@ -118,18 +106,11 @@
                                         />
                                     </label>
                                 </div>
-                                <p class="field-hint">
-                                    Use the longest edge of your OBS browser source to prevent stretching.
-                                </p>
                             </div>
 
                             <div class="form-section">
                                 <div class="form-heading">
-                                    <p class="eyebrow subtle">Playback</p>
-                                    <h3>Animation speed limits</h3>
-                                    <p class="muted tiny">
-                                        Bound default speeds between 0 and 1 so clips run predictably.
-                                    </p>
+                                    <h3>Playback</h3>
                                 </div>
                                 <div class="control-grid split-row">
                                     <label for="min-playback-speed"
@@ -158,18 +139,11 @@
                                         />
                                     </label>
                                 </div>
-                                <p class="field-hint">
-                                    Keep the maximum at 1.0 to avoid speeding overlays beyond their source frame rate.
-                                </p>
                             </div>
 
                             <div class="form-section">
                                 <div class="form-heading">
-                                    <p class="eyebrow subtle">Audio</p>
-                                    <h3>Pitch & volume guardrails</h3>
-                                    <p class="muted tiny">
-                                        Prevent harsh audio by bounding pitch and volume as fractions of the source.
-                                    </p>
+                                    <h3>Audio</h3>
                                 </div>
                                 <div class="control-grid split-row">
                                     <label for="min-audio-pitch"
@@ -225,18 +199,11 @@
                                         />
                                     </label>
                                 </div>
-                                <p class="field-hint">
-                                    Volume and pitch values are percentages of the original clip between 0 and 1.
-                                </p>
                             </div>
 
                             <div class="form-section">
                                 <div class="form-heading">
-                                    <p class="eyebrow subtle">Emotes</p>
-                                    <h3>Emote sync interval</h3>
-                                    <p class="muted tiny">
-                                        Choose how often Imgfloat refreshes Twitch and 7TV emote catalogs.
-                                    </p>
+                                    <h3>Emote sync</h3>
                                 </div>
                                 <div class="control-grid">
                                     <label for="emote-sync-interval"
@@ -252,7 +219,6 @@
                                         />
                                     </label>
                                 </div>
-                                <p class="field-hint">Set to 60 for hourly refreshes.</p>
                             </div>
 
                             <div class="form-footer">
@@ -266,11 +232,7 @@
 
                     <section class="settings-card">
                         <div class="form-heading">
-                            <p class="eyebrow subtle">Access</p>
                             <h3>System administrators</h3>
-                            <p class="muted tiny">
-                                Invite teammates who can manage global defaults and other system-wide actions.
-                            </p>
                         </div>
                         <div class="inline-form">
                             <input id="new-sysadmin" placeholder="Twitch username" />
@@ -279,29 +241,9 @@
                         <div class="card-section">
                             <div class="section-header">
                                 <h4 class="list-title">Current system admins</h4>
-                                <p class="muted">These users can access the settings page and APIs.</p>
                             </div>
                             <ul id="sysadmin-list" class="stacked-list"></ul>
                         </div>
-                    </section>
-
-                    <section class="settings-card info-card">
-                        <p class="eyebrow subtle">Checklist</p>
-                        <h3>Before you save</h3>
-                        <ul class="hint-list">
-                            <li>Match canvas dimensions to the OBS browser source you embed.</li>
-                            <li>Use 30–60 FPS for smoother overlays without overwhelming viewers.</li>
-                            <li>Keep playback and pitch bounds between 0 and 1 to avoid distortion.</li>
-                            <li>Lower the minimum volume if alerts feel too loud on stream.</li>
-                        </ul>
-                    </section>
-
-                    <section class="settings-card info-card subtle">
-                        <p class="eyebrow subtle">Heads up</p>
-                        <h3>Global impact</h3>
-                        <p class="muted tiny">
-                            Changes here update every channel immediately. Save carefully and confirm with your team.
-                        </p>
                     </section>
                 </div>
             </main>
