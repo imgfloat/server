@@ -28,6 +28,7 @@ Optional:
 | Variable | Description | Example Value |
 |----------|-------------|---------------|
 | `IMGFLOAT_COMMIT_URL_PREFIX` | Git commit URL prefix used for the build link badge (unset to hide the badge) | https://github.com/imgfloat/server/commit/ |
+| `IMGFLOAT_DOCS_URL` | Base URL for Imgfloat documentation links | https://docs.imgflo.at |
 | `IMGFLOAT_IS_STAGING` | Show a staging warning banner on non-broadcast pages when set to `1` | 1 |
 | `IMGFLOAT_MARKETPLACE_SCRIPTS_PATH` | Filesystem path to marketplace script seed directories (each containing `metadata.json`, optional `source.js`, optional `logo.png`, and optional `attachments/`) | /var/imgfloat/marketplace-scripts |
 | `IMGFLOAT_SYSADMIN_CHANNEL_ACCESS_ENABLED` | Allow sysadmins to manage any channel without being listed as a channel admin | true |

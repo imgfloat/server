@@ -36,6 +36,7 @@ public class ViewController {
     private final SystemAdministratorService systemAdministratorService;
     private final long uploadLimitBytes;
     private final boolean isStaging;
+    private final String docsUrl;
 
     public ViewController(
         ChannelDirectoryService channelDirectoryService,
@@ -47,7 +48,8 @@ public class ViewController {
         GithubReleaseService githubReleaseService,
         SystemAdministratorService systemAdministratorService,
         long uploadLimitBytes,
-        @Value("${IMGFLOAT_IS_STAGING:0}") String isStagingFlag
+        @Value("${IMGFLOAT_IS_STAGING:0}") String isStagingFlag,
+        @Value("${IMGFLOAT_DOCS_URL:https://docs.imgflo.at}") String docsUrl
     ) {
         this.channelDirectoryService = channelDirectoryService;
         this.versionService = versionService;
@@ -59,6 +61,7 @@ public class ViewController {
         this.systemAdministratorService = systemAdministratorService;
         this.uploadLimitBytes = uploadLimitBytes;
         this.isStaging = "1".equals(isStagingFlag);
+        this.docsUrl = docsUrl;
     }
 
     @org.springframework.web.bind.annotation.GetMapping("/")
@@ -127,6 +130,7 @@ public class ViewController {
         }
         model.addAttribute("initialSysadmin", systemAdministratorService.getInitialSysadmin());
         addStagingAttribute(model);
+        addDocsAttribute(model);
         return "settings";
     }
 
@@ -156,6 +160,7 @@ public class ViewController {
             throw new ResponseStatusException(INTERNAL_SERVER_ERROR, "Failed to serialize settings");
         }
         addStagingAttribute(model);
+        addDocsAttribute(model);
 
         return "admin";
     }
@@ -196,9 +201,14 @@ public class ViewController {
         model.addAttribute("showCommitChip", gitInfoService.shouldShowCommitChip());
         model.addAttribute("buildCommitShort", gitInfoService.getShortCommitSha());
         model.addAttribute("buildCommitUrl", gitInfoService.getCommitUrl());
+        addDocsAttribute(model);
     }
 
     private void addStagingAttribute(Model model) {
         model.addAttribute("isStaging", isStaging);
+    }
+
+    private void addDocsAttribute(Model model) {
+        model.addAttribute("docsUrl", docsUrl);
     }
 }
