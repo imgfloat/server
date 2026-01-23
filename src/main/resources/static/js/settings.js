@@ -170,13 +170,6 @@ function renderSystemAdministrators(admins) {
         title.textContent = admin;
         titleRow.appendChild(title);
 
-        if (isInitialSysadmin) {
-            const badge = document.createElement("span");
-            badge.classList.add("chip", "subtle", "sysadmin-badge");
-            badge.textContent = "Initial system admin";
-            titleRow.appendChild(badge);
-        }
-
         const subtitle = document.createElement("p");
         subtitle.classList.add("muted");
         subtitle.textContent = "System admin access";
