@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+    <th:block th:fragment="socialMeta (title, description)">
+        <th:block
+            th:with="baseUrl=${#httpServletRequest != null ? (#httpServletRequest.scheme + '://' + #httpServletRequest.serverName + ((#httpServletRequest.serverPort == 80 || #httpServletRequest.serverPort == 443) ? '' : ':' + #httpServletRequest.serverPort)) : ''}"
+        >
+            <meta property="og:site_name" content="Imgfloat" />
+            <meta property="og:type" content="website" />
+            <meta property="og:title" th:content="${title}" />
+            <meta property="og:description" th:content="${description}" />
+            <meta
+                property="og:url"
+                th:content="${#httpServletRequest != null ? #httpServletRequest.requestURL : ''}"
+            />
+            <meta property="og:image" th:content="${baseUrl + '/img/brand.png'}" />
+            <meta name="twitter:card" content="summary" />
+            <meta name="twitter:title" th:content="${title}" />
+            <meta name="twitter:description" th:content="${description}" />
+            <meta name="twitter:image" th:content="${baseUrl + '/img/brand.png'}" />
+        </th:block>
+    </th:block>
+</html>
