@@ -1,4 +1,4 @@
-package dev.kruhlmann.imgfloat.model;
+package dev.kruhlmann.imgfloat.audit.model;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

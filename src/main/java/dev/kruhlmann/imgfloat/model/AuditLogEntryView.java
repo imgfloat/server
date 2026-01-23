@@ -1,5 +1,6 @@
 package dev.kruhlmann.imgfloat.model;
 
+import dev.kruhlmann.imgfloat.audit.model.AuditLogEntry;
 import java.time.Instant;
 
 public record AuditLogEntryView(String id, String actor, String action, String details, Instant createdAt) {

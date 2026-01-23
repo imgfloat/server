@@ -20,7 +20,7 @@ spring:
     thymeleaf:
         cache: false
     datasource:
-        url: jdbc:sqlite:${IMGFLOAT_DB_PATH}?busy_timeout=5000&journal_mode=WAL
+        url: jdbc:sqlite:${IMGFLOAT_DB_PATH:./imgfloat.db}?busy_timeout=5000&journal_mode=WAL
         driver-class-name: org.sqlite.JDBC
         hikari:
             connection-init-sql: "PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;"
@@ -58,6 +58,20 @@ spring:
                         token-uri: https://id.twitch.tv/oauth2/token
                         user-info-uri: https://api.twitch.tv/helix/users
                         user-name-attribute: login
+
+imgfloat:
+    audit:
+        datasource:
+            url: jdbc:sqlite:${IMGFLOAT_AUDIT_DB_PATH:./imgfloat.audit.db}?busy_timeout=5000&journal_mode=WAL
+            driver-class-name: org.sqlite.JDBC
+            hikari:
+                connection-init-sql: "PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;"
+                maximum-pool-size: 1
+                minimum-idle: 1
+        flyway:
+            locations: classpath:db/audit
+            baseline-on-migrate: true
+            baseline-version: 1
 
 management:
     endpoints:

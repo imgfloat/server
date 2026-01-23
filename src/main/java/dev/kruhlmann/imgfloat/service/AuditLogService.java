@@ -1,8 +1,8 @@
 package dev.kruhlmann.imgfloat.service;
 
-import dev.kruhlmann.imgfloat.model.AuditLogEntry;
+import dev.kruhlmann.imgfloat.audit.model.AuditLogEntry;
 import dev.kruhlmann.imgfloat.model.AuditLogEntryView;
-import dev.kruhlmann.imgfloat.repository.AuditLogRepository;
+import dev.kruhlmann.imgfloat.repository.audit.AuditLogRepository;
 import dev.kruhlmann.imgfloat.util.LogSanitizer;
 import java.util.List;
 import java.util.Locale;

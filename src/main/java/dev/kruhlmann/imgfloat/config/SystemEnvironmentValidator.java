@@ -37,6 +37,9 @@ public class SystemEnvironmentValidator {
     @Value("${IMGFLOAT_DB_PATH:#{null}}")
     private String dbPath;
 
+    @Value("${IMGFLOAT_AUDIT_DB_PATH:${IMGFLOAT_DB_PATH:#{null}}}")
+    private String auditDbPath;
+
     @Value("${IMGFLOAT_INITIAL_TWITCH_USERNAME_SYSADMIN:#{null}}")
     private String initialSysadmin;
 
@@ -76,6 +79,7 @@ public class SystemEnvironmentValidator {
         checkString(twitchClientId, "TWITCH_CLIENT_ID", missing);
         checkString(initialSysadmin, "IMGFLOAT_INITIAL_TWITCH_USERNAME_SYSADMIN", missing);
         checkString(dbPath, "IMGFLOAT_DB_PATH", missing);
+        checkString(auditDbPath, "IMGFLOAT_AUDIT_DB_PATH", missing);
         checkString(twitchClientSecret, "TWITCH_CLIENT_SECRET", missing);
         checkString(assetsPath, "IMGFLOAT_ASSETS_PATH", missing);
         checkString(previewsPath, "IMGFLOAT_PREVIEWS_PATH", missing);
@@ -93,6 +97,7 @@ public class SystemEnvironmentValidator {
         log.info(" - SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE: {} ({} bytes)", springMaxFileSize, maxUploadBytes);
         log.info(" - SPRING_SERVLET_MULTIPART_MAX_REQUEST_SIZE: {} ({} bytes)", springMaxRequestSize, maxRequestBytes);
         log.info(" - IMGFLOAT_DB_PATH: {}", dbPath);
+        log.info(" - IMGFLOAT_AUDIT_DB_PATH: {}", auditDbPath);
         log.info(" - IMGFLOAT_INITIAL_TWITCH_USERNAME_SYSADMIN: {}", initialSysadmin);
         log.info(" - IMGFLOAT_ASSETS_PATH: {}", assetsPath);
         log.info(" - IMGFLOAT_PREVIEWS_PATH: {}", previewsPath);

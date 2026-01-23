@@ -13,6 +13,7 @@ Define the following required environment variables:
 | `IMGFLOAT_ASSETS_PATH` | Filesystem path to store uploaded assets | /var/imgfloat/assets |
 | `IMGFLOAT_PREVIEWS_PATH` | Filesystem path to store generated image previews | /var/imgfloat/previews |
 | `IMGFLOAT_DB_PATH` | Filesystem path to the SQLite database file | /var/imgfloat/imgfloat.db |
+| `IMGFLOAT_AUDIT_DB_PATH` | Filesystem path to the SQLite audit log database file | /var/imgfloat/imgfloat-audit.db |
 | `IMGFLOAT_INITIAL_TWITCH_USERNAME_SYSADMIN` | Twitch username of the initial sysadmin user | example_broadcaster |
 | `IMGFLOAT_GITHUB_CLIENT_OWNER` | GitHub user or org which has the client repository | imgfloat |
 | `IMGFLOAT_GITHUB_CLIENT_REPO` | Client repository name | client |
