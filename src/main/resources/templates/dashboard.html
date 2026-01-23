@@ -31,7 +31,6 @@
                         <span class="eyebrow subtle">Signed in as</span>
                         <span class="user-display" th:text="${username}">user</span>
                     </div>
-                    <a class="ghost" th:href="${docsUrl}" target="_blank" rel="noreferrer">Docs</a>
                     <form class="user-logout" th:action="@{/logout}" method="post">
                         <button class="ghost" type="submit">Logout</button>
                     </form>
