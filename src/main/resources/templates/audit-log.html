@@ -24,9 +24,36 @@
                     <div class="audit-panel-header">
                         <div>
                             <h2>Recent activity</h2>
-                            <p class="subtle">Latest 200 entries for your channel.</p>
+                            <p class="subtle">Filter and search through audit activity for your channel.</p>
                         </div>
                     </div>
+                    <form class="audit-filters" id="audit-filters">
+                        <label class="audit-filter">
+                            <span>Search</span>
+                            <input type="search" id="audit-search" placeholder="Search action, actor, or details" />
+                        </label>
+                        <label class="audit-filter">
+                            <span>Actor</span>
+                            <input type="text" id="audit-actor" placeholder="Filter by actor" />
+                        </label>
+                        <label class="audit-filter">
+                            <span>Action</span>
+                            <input type="text" id="audit-action" placeholder="Filter by action" />
+                        </label>
+                        <label class="audit-filter">
+                            <span>Page size</span>
+                            <select id="audit-size">
+                                <option value="10">10</option>
+                                <option value="25" selected>25</option>
+                                <option value="50">50</option>
+                                <option value="100">100</option>
+                            </select>
+                        </label>
+                        <div class="audit-filter-actions">
+                            <button type="submit" class="button">Apply filters</button>
+                            <button type="button" class="button ghost" id="audit-clear">Clear</button>
+                        </div>
+                    </form>
                     <div class="audit-table-wrapper">
                         <table class="audit-table">
                             <thead>
@@ -40,6 +67,13 @@
                             <tbody id="audit-log-body"></tbody>
                         </table>
                         <div id="audit-empty" class="audit-empty hidden">No audit entries yet.</div>
+                    </div>
+                    <div class="audit-pagination" id="audit-pagination">
+                        <div class="audit-pagination-info" id="audit-pagination-info"></div>
+                        <div class="audit-pagination-actions">
+                            <button type="button" class="button ghost" id="audit-prev">Previous</button>
+                            <button type="button" class="button" id="audit-next">Next</button>
+                        </div>
                     </div>
                 </section>
             </main>

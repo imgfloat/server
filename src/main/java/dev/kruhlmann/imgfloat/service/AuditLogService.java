@@ -6,6 +6,9 @@ import dev.kruhlmann.imgfloat.repository.AuditLogRepository;
 import dev.kruhlmann.imgfloat.util.LogSanitizer;
 import java.util.List;
 import java.util.Locale;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
@@ -63,6 +66,33 @@ public class AuditLogService {
             .toList();
     }
 
+    public Page<AuditLogEntry> listEntries(
+        String broadcaster,
+        String actor,
+        String action,
+        String search,
+        int page,
+        int size
+    ) {
+        String normalizedBroadcaster = normalize(broadcaster);
+        if (normalizedBroadcaster == null || normalizedBroadcaster.isBlank()) {
+            return Page.empty();
+        }
+        String normalizedActor = normalizeFilter(actor);
+        String normalizedAction = normalizeFilter(action);
+        String normalizedSearch = normalizeFilter(search);
+        int safePage = Math.max(page, 0);
+        int safeSize = Math.min(Math.max(size, 1), 200);
+        PageRequest pageRequest = PageRequest.of(safePage, safeSize, Sort.by(Sort.Direction.DESC, "createdAt"));
+        return auditLogRepository.searchEntries(
+            normalizedBroadcaster,
+            normalizedActor,
+            normalizedAction,
+            normalizedSearch,
+            pageRequest
+        );
+    }
+
     public void deleteEntriesForBroadcaster(String broadcaster) {
         String normalizedBroadcaster = normalize(broadcaster);
         if (normalizedBroadcaster == null || normalizedBroadcaster.isBlank()) {
@@ -73,5 +103,10 @@ public class AuditLogService {
 
     private String normalize(String value) {
         return value == null ? null : value.toLowerCase(Locale.ROOT);
+    }
+
+    private String normalizeFilter(String value) {
+        String normalized = normalize(value);
+        return normalized == null || normalized.isBlank() ? null : normalized;
     }
 }
