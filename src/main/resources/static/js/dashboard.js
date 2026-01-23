@@ -216,10 +216,14 @@ async function fetchCanvasSettings() {
 }
 
 async function saveCanvasSettings() {
-    const width = parseFloat(elements.canvasWidth?.value) || 0;
-    const height = parseFloat(elements.canvasHeight?.value) || 0;
-    if (width <= 0 || height <= 0) {
+    const width = Number(elements.canvasWidth?.value);
+    const height = Number(elements.canvasHeight?.value);
+    if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
         showToast("Please enter a valid width and height.", "info");
+        return;
+    }
+    if (!Number.isInteger(width) || !Number.isInteger(height)) {
+        showToast("Please enter whole-number dimensions for the canvas size.", "info");
         return;
     }
     if (elements.canvasStatus) elements.canvasStatus.textContent = "Saving...";

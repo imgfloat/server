@@ -204,6 +204,7 @@ public class ChannelDirectoryService {
     }
 
     public CanvasSettingsRequest updateCanvasSettings(String broadcaster, CanvasSettingsRequest req, String actor) {
+        validateCanvasSettings(req);
         Channel channel = getOrCreateChannel(broadcaster);
         double beforeWidth = channel.getCanvasWidth();
         double beforeHeight = channel.getCanvasHeight();
@@ -228,6 +229,30 @@ public class ChannelDirectoryService {
             );
         }
         return response;
+    }
+
+    private void validateCanvasSettings(CanvasSettingsRequest req) {
+        Settings settings = settingsService.get();
+        int canvasMaxSizePixels = settings.getMaxCanvasSideLengthPixels();
+
+        if (
+            req.getWidth() <= 0 ||
+            req.getWidth() > canvasMaxSizePixels ||
+            !Double.isFinite(req.getWidth()) ||
+            req.getWidth() % 1 != 0
+        ) throw new ResponseStatusException(
+            BAD_REQUEST,
+            "Canvas width must be a whole number within [1 to " + canvasMaxSizePixels + "]"
+        );
+        if (
+            req.getHeight() <= 0 ||
+            req.getHeight() > canvasMaxSizePixels ||
+            !Double.isFinite(req.getHeight()) ||
+            req.getHeight() % 1 != 0
+        ) throw new ResponseStatusException(
+            BAD_REQUEST,
+            "Canvas height must be a whole number within [1 to " + canvasMaxSizePixels + "]"
+        );
     }
 
     public ChannelScriptSettingsRequest getChannelScriptSettings(String broadcaster) {
