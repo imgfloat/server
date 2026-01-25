@@ -76,6 +76,10 @@ public final class MediaTypeRegistry {
         map.put("wav", "audio/wav");
         map.put("ogg", "audio/ogg");
         map.put("flac", "audio/flac");
+        map.put("ttf", "font/ttf");
+        map.put("otf", "font/otf");
+        map.put("woff", "font/woff");
+        map.put("woff2", "font/woff2");
         map.put("glb", "model/gltf-binary");
         map.put("gltf", "model/gltf+json");
         map.put("obj", "model/obj");
@@ -105,6 +109,10 @@ public final class MediaTypeRegistry {
         map.put("audio/ogg", ".ogg");
         map.put("audio/webm", ".webm");
         map.put("audio/flac", ".flac");
+        map.put("font/ttf", ".ttf");
+        map.put("font/otf", ".otf");
+        map.put("font/woff", ".woff");
+        map.put("font/woff2", ".woff2");
         map.put("model/gltf-binary", ".glb");
         map.put("model/gltf+json", ".gltf");
         map.put("model/obj", ".obj");

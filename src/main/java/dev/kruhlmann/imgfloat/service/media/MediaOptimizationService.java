@@ -61,6 +61,10 @@ public class MediaOptimizationService {
             return new OptimizedAsset(bytes, mediaType, 0, 0, null);
         }
 
+        if (mediaType.startsWith("font/")) {
+            return new OptimizedAsset(bytes, mediaType, 0, 0, null);
+        }
+
         if (mediaType.startsWith("model/")) {
             return new OptimizedAsset(bytes, mediaType, 0, 0, null);
         }

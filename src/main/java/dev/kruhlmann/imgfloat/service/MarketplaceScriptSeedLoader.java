@@ -41,6 +41,10 @@ public class MarketplaceScriptSeedLoader {
         java.util.Map.entry("mp3", "audio/mpeg"),
         java.util.Map.entry("wav", "audio/wav"),
         java.util.Map.entry("ogg", "audio/ogg"),
+        java.util.Map.entry("ttf", "font/ttf"),
+        java.util.Map.entry("otf", "font/otf"),
+        java.util.Map.entry("woff", "font/woff"),
+        java.util.Map.entry("woff2", "font/woff2"),
         java.util.Map.entry("glb", "model/gltf-binary"),
         java.util.Map.entry("gltf", "model/gltf+json"),
         java.util.Map.entry("obj", "model/obj")
