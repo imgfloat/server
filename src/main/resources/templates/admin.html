@@ -448,6 +448,26 @@
                         ></textarea>
                     </div>
                     <div class="form-group">
+                        <label for="custom-asset-allowed-domain">Allowed domains</label>
+                        <div class="attachment-actions">
+                            <input
+                                id="custom-asset-allowed-domain"
+                                class="text-input"
+                                type="text"
+                                placeholder="api.example.com"
+                                autocomplete="off"
+                            />
+                            <button type="button" class="secondary" id="custom-asset-allowed-domain-add">
+                                Add domain
+                            </button>
+                        </div>
+                        <p class="field-note" id="custom-asset-allowed-domain-hint">
+                            Scripts may fetch data only from these domains (max 32). Relative and Imgfloat URLs are always
+                            allowed.
+                        </p>
+                        <ul id="custom-asset-allowed-domain-list" class="attachment-list compact"></ul>
+                    </div>
+                    <div class="form-group">
                         <label>Logo (optional)</label>
                         <div class="attachment-actions">
                             <input

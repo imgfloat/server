@@ -3,6 +3,7 @@ package dev.kruhlmann.imgfloat.service;
 import dev.kruhlmann.imgfloat.model.ScriptMarketplaceEntry;
 import dev.kruhlmann.imgfloat.service.media.AssetContent;
 import java.io.IOException;
+import java.net.URI;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -81,6 +82,7 @@ public class MarketplaceScriptSeedLoader {
         String logoMediaType,
         Optional<Path> sourcePath,
         Optional<Path> logoPath,
+        List<String> allowedDomains,
         List<SeedAttachment> attachments,
         AtomicReference<byte[]> sourceBytes,
         AtomicReference<byte[]> logoBytes
@@ -92,6 +94,7 @@ public class MarketplaceScriptSeedLoader {
                 description,
                 logoPath.isPresent() ? "/api/marketplace/scripts/" + id + "/logo" : null,
                 broadcaster,
+                allowedDomains,
                 0,
                 false
             );
@@ -166,6 +169,7 @@ public class MarketplaceScriptSeedLoader {
         if (attachments == null) {
             return Optional.empty();
         }
+        List<String> allowedDomains = normalizeAllowedDomains(metadata.allowedDomains());
 
         return Optional.of(
             new SeedScript(
@@ -177,6 +181,7 @@ public class MarketplaceScriptSeedLoader {
                 logoMediaType,
                 Optional.ofNullable(sourcePath),
                 Optional.ofNullable(logoPath),
+                allowedDomains,
                 attachments,
                 new AtomicReference<>(),
                 new AtomicReference<>()
@@ -284,6 +289,46 @@ public class MarketplaceScriptSeedLoader {
         return Optional.of(new AssetContent(bytes, mediaType));
     }
 
+    private List<String> normalizeAllowedDomains(List<String> requestedDomains) {
+        if (requestedDomains == null || requestedDomains.isEmpty()) {
+            return List.of();
+        }
+        List<String> normalized = new ArrayList<>();
+        for (String raw : requestedDomains) {
+            if (raw == null) {
+                continue;
+            }
+            String candidate = raw.trim();
+            if (candidate.isEmpty()) {
+                continue;
+            }
+            String withScheme = candidate.contains("://") ? candidate : "https://" + candidate;
+            try {
+                URI uri = URI.create(withScheme);
+                String host = uri.getHost();
+                if (host == null || host.isBlank()) {
+                    logger.warn("Skipping invalid allowed domain {}", candidate);
+                    continue;
+                }
+                String value = host.toLowerCase(Locale.ROOT);
+                if (uri.getPort() > 0) {
+                    value = value + ":" + uri.getPort();
+                }
+                if (normalized.contains(value)) {
+                    continue;
+                }
+                if (normalized.size() >= 32) {
+                    logger.warn("Trimming allowed domains for marketplace script {}, limit reached", candidate);
+                    break;
+                }
+                normalized.add(value);
+            } catch (IllegalArgumentException ex) {
+                logger.warn("Skipping invalid allowed domain {}", candidate, ex);
+            }
+        }
+        return new ArrayList<>(normalized);
+    }
+
     private static Optional<byte[]> readBytes(Path filePath) {
         if (!Files.isRegularFile(filePath)) {
             return Optional.empty();
@@ -296,7 +341,7 @@ public class MarketplaceScriptSeedLoader {
         }
     }
 
-    record ScriptSeedMetadata(String name, String description, String broadcaster) {
+    record ScriptSeedMetadata(String name, String description, String broadcaster, List<String> allowedDomains) {
         static ScriptSeedMetadata read(Path path) {
             if (!Files.isRegularFile(path)) {
                 return null;

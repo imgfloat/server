@@ -14,6 +14,8 @@ import dev.kruhlmann.imgfloat.model.AssetView;
 import dev.kruhlmann.imgfloat.model.AudioAsset;
 import dev.kruhlmann.imgfloat.model.Channel;
 import dev.kruhlmann.imgfloat.model.ScriptAsset;
+import dev.kruhlmann.imgfloat.model.CodeAssetRequest;
+import dev.kruhlmann.imgfloat.model.AssetType;
 import dev.kruhlmann.imgfloat.model.Settings;
 import dev.kruhlmann.imgfloat.model.TransformRequest;
 import dev.kruhlmann.imgfloat.model.VisibilityRequest;
@@ -219,6 +221,31 @@ class ChannelDirectoryServiceTest {
             .anyMatch((entry) -> "rotating-logo".equals(entry.id()));
     }
 
+    @Test
+    void clearsAllowedDomainsWhenUpdatedToEmpty() {
+        CodeAssetRequest request = new CodeAssetRequest();
+        request.setName("Test script");
+        request.setSource("exports.init = function() {}; exports.tick = function() {};");
+        request.setAllowedDomains(List.of("example.com"));
+        AssetView created = service.createCodeAsset("caster", request, "caster").orElseThrow();
+        scriptAssetRepository.findById(created.id()).ifPresent((script) -> script.setSourceFileId(created.id()));
+        scriptAssetFileRepository.save(new dev.kruhlmann.imgfloat.model.ScriptAssetFile("caster", AssetType.SCRIPT) {
+            {
+                setId(created.id());
+            }
+        });
+
+        CodeAssetRequest updated = new CodeAssetRequest();
+        updated.setName("Test script");
+        updated.setSource(request.getSource());
+        updated.setAllowedDomains(List.of()); // clear allowlist
+        AssetView saved = service.updateCodeAsset("caster", created.id(), updated, "caster").orElseThrow();
+
+        ScriptAsset script = scriptAssetRepository.findById(created.id()).orElseThrow();
+        assertThat(script.getAllowedDomains()).isEmpty();
+        assertThat(saved.allowedDomains()).isEmpty();
+    }
+
     private byte[] samplePng() throws IOException {
         BufferedImage image = new BufferedImage(2, 2, BufferedImage.TYPE_INT_ARGB);
         ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -247,6 +274,7 @@ class ChannelDirectoryServiceTest {
         Map<String, dev.kruhlmann.imgfloat.model.VisualAsset> visualAssets = new ConcurrentHashMap<>();
         Map<String, AudioAsset> audioAssets = new ConcurrentHashMap<>();
         Map<String, ScriptAsset> scriptAssets = new ConcurrentHashMap<>();
+        Map<String, dev.kruhlmann.imgfloat.model.ScriptAssetFile> scriptFiles = new ConcurrentHashMap<>();
 
         when(channelRepository.findById(anyString())).thenAnswer((invocation) ->
             Optional.ofNullable(channels.get(invocation.getArgument(0)))
@@ -353,12 +381,26 @@ class ChannelDirectoryServiceTest {
             return scriptAssets
                 .values()
                 .stream()
-                .filter((script) -> ids.contains(script.getId()))
-                .toList();
+            .filter((script) -> ids.contains(script.getId()))
+            .toList();
         });
         doAnswer((invocation) -> scriptAssets.remove(invocation.getArgument(0, String.class)))
             .when(scriptAssetRepository)
             .deleteById(anyString());
+
+        when(scriptAssetFileRepository.save(any(dev.kruhlmann.imgfloat.model.ScriptAssetFile.class))).thenAnswer(
+            (invocation) -> {
+                dev.kruhlmann.imgfloat.model.ScriptAssetFile file = invocation.getArgument(0);
+                if (file.getId() == null) {
+                    file.setId(java.util.UUID.randomUUID().toString());
+                }
+                scriptFiles.put(file.getId(), file);
+                return file;
+            }
+        );
+        when(scriptAssetFileRepository.findById(anyString())).thenAnswer((invocation) ->
+            Optional.ofNullable(scriptFiles.get(invocation.getArgument(0)))
+        );
     }
 
     private List<Asset> filterAssetsByBroadcaster(Collection<Asset> assets, String broadcaster) {

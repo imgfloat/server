@@ -30,10 +30,15 @@ export function createCustomAssetModal({
     const attachmentInput = document.getElementById("custom-asset-attachment-file");
     const attachmentList = document.getElementById("custom-asset-attachment-list");
     const attachmentHint = document.getElementById("custom-asset-attachment-hint");
+    const allowedDomainInput = document.getElementById("custom-asset-allowed-domain");
+    const allowedDomainList = document.getElementById("custom-asset-allowed-domain-list");
+    const allowedDomainAddButton = document.getElementById("custom-asset-allowed-domain-add");
+    const allowedDomainHint = document.getElementById("custom-asset-allowed-domain-hint");
     let currentAssetId = null;
     let pendingLogoFile = null;
     let logoRemoved = false;
     let attachmentState = [];
+    let allowedDomainState = [];
     let marketplaceEntries = [];
 
     const resetErrors = () => {
@@ -47,6 +52,99 @@ export function createCustomAssetModal({
             jsErrorDetails.textContent = "";
         }
     };
+
+    const normalizeAllowedDomain = (value) => {
+        if (!value) return null;
+        const trimmed = value.trim();
+        if (!trimmed) return null;
+        const candidate = trimmed.includes("://") ? trimmed : `https://${trimmed}`;
+        try {
+            const url = new URL(candidate);
+            if (!url.hostname) {
+                return null;
+            }
+            const host = url.hostname.toLowerCase();
+            const port = url.port ? `:${url.port}` : "";
+            return `${host}${port}`;
+        } catch (_error) {
+            return null;
+        }
+    };
+
+    const setAllowedDomainState = (domains) => {
+        allowedDomainState = Array.isArray(domains)
+            ? domains
+                  .map((domain) => normalizeAllowedDomain(domain))
+                  .filter((domain, index, list) => domain && list.indexOf(domain) === index)
+            : [];
+        renderAllowedDomains();
+        if (allowedDomainInput) {
+            allowedDomainInput.value = "";
+        }
+    };
+
+    const removeAllowedDomain = (domain) => {
+        allowedDomainState = allowedDomainState.filter((item) => item !== domain);
+        renderAllowedDomains();
+    };
+
+    const addAllowedDomain = (value) => {
+        const normalized = normalizeAllowedDomain(value);
+        if (!normalized) {
+            showToast?.("Enter a valid domain like api.example.com.", "error");
+            return;
+        }
+        if (allowedDomainState.includes(normalized)) {
+            showToast?.("Domain already added.", "info");
+            if (allowedDomainInput) allowedDomainInput.value = "";
+            return;
+        }
+        if (allowedDomainState.length >= 32) {
+            showToast?.("You can allow up to 32 domains per script.", "error");
+            return;
+        }
+        allowedDomainState = [...allowedDomainState, normalized];
+        renderAllowedDomains();
+        if (allowedDomainInput) {
+            allowedDomainInput.value = "";
+        }
+    };
+
+    function renderAllowedDomains() {
+        if (!allowedDomainList) {
+            return;
+        }
+        allowedDomainList.innerHTML = "";
+        if (!allowedDomainState.length) {
+            const empty = document.createElement("li");
+            empty.className = "attachment-empty";
+            empty.textContent = "No external domains allowed (only same-origin requests).";
+            allowedDomainList.appendChild(empty);
+            return;
+        }
+        allowedDomainState.forEach((domain) => {
+            const item = document.createElement("li");
+            item.className = "attachment-item";
+            const meta = document.createElement("div");
+            meta.className = "attachment-meta";
+            const name = document.createElement("strong");
+            name.textContent = domain;
+            meta.appendChild(name);
+
+            const actions = document.createElement("div");
+            actions.className = "attachment-actions-row";
+            const remove = document.createElement("button");
+            remove.type = "button";
+            remove.className = "secondary danger";
+            remove.textContent = "Remove";
+            remove.addEventListener("click", () => removeAllowedDomain(domain));
+            actions.appendChild(remove);
+
+            item.appendChild(meta);
+            item.appendChild(actions);
+            allowedDomainList.appendChild(item);
+        });
+    }
 
     const registerCodeEditorLint = () => {
         const CodeMirror = globalThis.CodeMirror;
@@ -282,6 +380,7 @@ export function createCustomAssetModal({
             "function init(context, state) {\n  const { assets } = context;\n\n}\n\nfunction tick(context, state) {\n\n}\n\n// or\n// module.exports.init = (context, state) => {};\n// module.exports.tick = (context, state) => {};",
         );
         setAttachmentState(null, []);
+        setAllowedDomainState([]);
         resetErrors();
         openModal();
     };
@@ -314,6 +413,7 @@ export function createCustomAssetModal({
         setCodeReadOnly(true);
         setCodePlaceholder("Loading script...");
         setAttachmentState(asset.id, asset.scriptAttachments || []);
+        setAllowedDomainState(asset.allowedDomains || []);
         openModal();
 
         fetch(asset.url)
@@ -373,7 +473,7 @@ export function createCustomAssetModal({
             submitButton.disabled = true;
             submitButton.textContent = "Saving...";
         }
-        saveCodeAsset({ name, src, assetId, description, isPublic })
+        saveCodeAsset({ name, src, assetId, description, isPublic, allowedDomains: allowedDomainState })
             .then((asset) => {
                 if (asset) {
                     return syncLogoChanges(asset).then((updated) => {
@@ -495,14 +595,25 @@ export function createCustomAssetModal({
                         renderAttachmentList();
                         showToast?.("Attachment added.", "success");
                     }
-                })
-                .catch((error) => {
-                    console.error(error);
-                    showToast?.(error?.message || "Unable to upload attachment. Please try again.", "error");
-                })
-                .finally(() => {
-                    attachmentInput.value = "";
-                });
+            })
+            .catch((error) => {
+                console.error(error);
+                showToast?.(error?.message || "Unable to upload attachment. Please try again.", "error");
+            })
+            .finally(() => {
+                attachmentInput.value = "";
+            });
+        });
+    }
+    if (allowedDomainAddButton) {
+        allowedDomainAddButton.addEventListener("click", () => addAllowedDomain(allowedDomainInput?.value));
+    }
+    if (allowedDomainInput) {
+        allowedDomainInput.addEventListener("keydown", (event) => {
+            if (event.key === "Enter") {
+                event.preventDefault();
+                addAllowedDomain(event.target?.value);
+            }
         });
     }
 
@@ -642,12 +753,13 @@ export function createCustomAssetModal({
             });
     }
 
-    function saveCodeAsset({ name, src, assetId, description, isPublic }) {
+    function saveCodeAsset({ name, src, assetId, description, isPublic, allowedDomains }) {
         const payload = {
             name,
             source: src,
             description: description || null,
             isPublic,
+            allowedDomains: Array.isArray(allowedDomains) ? allowedDomains : [],
         };
         const method = assetId ? "PUT" : "POST";
         const url = assetId
@@ -810,6 +922,16 @@ export function createCustomAssetModal({
             content.appendChild(title);
             content.appendChild(description);
             content.appendChild(meta);
+            if (Array.isArray(entry.allowedDomains) && entry.allowedDomains.length) {
+                const domains = document.createElement("small");
+                domains.className = "marketplace-domains";
+                const summary =
+                    entry.allowedDomains.length > 3
+                        ? `${entry.allowedDomains.slice(0, 3).join(", ")}, …`
+                        : entry.allowedDomains.join(", ");
+                domains.textContent = `Allowed domains: ${summary}`;
+                content.appendChild(domains);
+            }
 
             const actions = document.createElement("div");
             actions.className = "marketplace-actions";
@@ -854,25 +976,34 @@ export function createCustomAssetModal({
             return;
         }
         const target = marketplaceChannelSelect?.value || broadcaster;
-        fetch(`/api/marketplace/scripts/${entry.id}/import`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ targetBroadcaster: target }),
-        })
-            .then((response) => {
-                if (!response.ok) {
-                    throw new Error("Failed to import script");
+        const allowedDomains = Array.isArray(entry.allowedDomains) ? entry.allowedDomains.filter(Boolean) : [];
+        confirmDomainImport(allowedDomains, target)
+            .then((confirmed) => {
+                if (!confirmed) {
+                    return null;
                 }
-                return response.json();
+                return fetch(`/api/marketplace/scripts/${entry.id}/import`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ targetBroadcaster: target }),
+                }).then((response) => {
+                    if (!response.ok) {
+                        throw new Error("Failed to import script");
+                    }
+                    return response.json();
+                });
             })
             .then((asset) => {
+                if (!asset) {
+                    return;
+                }
                 closeMarketplaceModal();
                 showToast?.("Script imported.", "success");
                 onAssetSaved?.(asset);
             })
             .catch((error) => {
                 console.error(error);
-                showToast?.("Unable to import script. Please try again.", "error");
+                showToast?.(error?.message || "Unable to import script. Please try again.", "error");
             });
     }
 
@@ -1042,5 +1173,73 @@ export function createCustomAssetModal({
         }
 
         return undefined;
+    }
+
+    function confirmDomainImport(domains, target) {
+        if (!Array.isArray(domains) || domains.length === 0) {
+            return Promise.resolve(true);
+        }
+        return new Promise((resolve) => {
+            const overlay = document.createElement("div");
+            overlay.className = "modal";
+            overlay.setAttribute("role", "dialog");
+            overlay.setAttribute("aria-modal", "true");
+
+            const dialog = document.createElement("div");
+            dialog.className = "modal-card";
+
+            const title = document.createElement("h3");
+            title.textContent = "Allow external domains?";
+            dialog.appendChild(title);
+
+            const copy = document.createElement("p");
+            copy.textContent = `This script requests network access to the following domains on ${target}:`;
+            dialog.appendChild(copy);
+
+            const list = document.createElement("ul");
+            list.className = "domain-list";
+            domains.forEach((domain) => {
+                const item = document.createElement("li");
+                item.textContent = domain;
+                list.appendChild(item);
+            });
+            dialog.appendChild(list);
+
+            const buttons = document.createElement("div");
+            buttons.className = "modal-actions";
+            const cancel = document.createElement("button");
+            cancel.type = "button";
+            cancel.className = "secondary";
+            cancel.textContent = "Cancel";
+            cancel.addEventListener("click", () => {
+                cleanup();
+                resolve(false);
+            });
+            const confirm = document.createElement("button");
+            confirm.type = "button";
+            confirm.className = "primary";
+            confirm.textContent = "Allow & import";
+            confirm.addEventListener("click", () => {
+                cleanup();
+                resolve(true);
+            });
+            buttons.appendChild(cancel);
+            buttons.appendChild(confirm);
+            dialog.appendChild(buttons);
+
+            overlay.addEventListener("click", (event) => {
+                if (event.target === overlay) {
+                    cleanup();
+                    resolve(false);
+                }
+            });
+
+            overlay.appendChild(dialog);
+            document.body.appendChild(overlay);
+
+            function cleanup() {
+                overlay.remove();
+            }
+        });
     }
 }

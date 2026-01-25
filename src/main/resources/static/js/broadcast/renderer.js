@@ -720,6 +720,7 @@ export class BroadcastRenderer {
                 width: scriptCanvas.width,
                 height: scriptCanvas.height,
                 attachments,
+                allowedDomains: Array.isArray(asset.allowedDomains) ? asset.allowedDomains : [],
             },
         }, [offscreen]);
     }
@@ -735,6 +736,7 @@ export class BroadcastRenderer {
             payload: {
                 id: asset.id,
                 attachments,
+                allowedDomains: Array.isArray(asset.allowedDomains) ? asset.allowedDomains : [],
             },
         });
     }

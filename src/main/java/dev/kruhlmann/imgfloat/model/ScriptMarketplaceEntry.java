@@ -6,6 +6,7 @@ public record ScriptMarketplaceEntry(
     String description,
     String logoUrl,
     String broadcaster,
+    java.util.List<String> allowedDomains,
     long heartsCount,
     boolean hearted
 ) {}

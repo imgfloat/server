@@ -1,4 +1,5 @@
 {
   "name": "Lichess TV Chess",
-  "description": "Listen for !chess in chat, then render the current Lichess TV game live until it ends."
+  "description": "Listen for !chess in chat, then render the current Lichess TV game live until it ends.",
+  "allowedDomains": ["lichess.org"]
 }

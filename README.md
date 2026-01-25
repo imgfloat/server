@@ -74,10 +74,13 @@ marketplace-scripts/
 {
   "name": "Script display name",
   "description": "Short description",
+  "allowedDomains": ["api.example.com", "cdn.example.com:8443"]
 }
 ```
 
 Only `name` is required. The folder name is used to identify the marketplace listing; when a script is imported, the asset receives a new generated ID. Media types are inferred from the files on disk. Attachments are loaded from the `attachments/` folder and appear in the imported script's attachments list, referenced by filename (for example `rotate.png`). Attachment filenames must be unique within a script. The logo is optional and remains separate from attachments; if you want to use the same image inside the script, add a copy of it under `attachments/`.
+
+`allowedDomains` is optional; when provided it limits script `fetch` calls to the listed hostnames (up to 32 entries, ports allowed). Relative and same-origin requests remain permitted.
 
 ### Build and run
 

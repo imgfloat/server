@@ -9,6 +9,8 @@ const errorKeys = new Set();
 const allowedImportUrls = new Set();
 const nativeImportScripts = typeof self.importScripts === "function" ? self.importScripts.bind(self) : null;
 const sharedDependencyUrls = ["/js/vendor/three.min.js", "/js/vendor/GLTFLoader.js", "/js/vendor/OBJLoader.js"];
+const nativeFetch = typeof self.fetch === "function" ? self.fetch.bind(self) : null;
+let activeScriptId = null;
 let chatMessages = [];
 let emoteCatalog = [];
 
@@ -48,6 +50,148 @@ function loadSharedDependencies() {
 }
 
 loadSharedDependencies();
+
+function sanitizeAllowedDomains(domains) {
+    if (!Array.isArray(domains)) {
+        return [];
+    }
+    const normalized = [];
+    domains.forEach((raw) => {
+        const candidate = typeof raw === "string" ? raw.trim() : "";
+        if (!candidate) {
+            return;
+        }
+        const withScheme = candidate.includes("://") ? candidate : `https://${candidate}`;
+        try {
+            const url = new URL(withScheme, self.location?.href || "http://localhost");
+            if (!url.hostname) {
+                return;
+            }
+            const host = url.hostname.toLowerCase();
+            const port = url.port ? `:${url.port}` : "";
+            const value = `${host}${port}`;
+            if (!normalized.includes(value) && normalized.length < 32) {
+                normalized.push(value);
+            }
+        } catch (_error) {
+            // ignore invalid domains from metadata/user input
+        }
+    });
+    return normalized;
+}
+
+function extractUrlFromInput(input) {
+    if (typeof input === "string") {
+        return input;
+    }
+    if (input && typeof input.url === "string") {
+        return input.url;
+    }
+    return "";
+}
+
+function extractDomain(url) {
+    try {
+        return new URL(url, self.location?.href || "http://localhost").host.toLowerCase();
+    } catch (_error) {
+        return "";
+    }
+}
+
+function isSameOrigin(url) {
+    if (!self.location?.origin) {
+        return false;
+    }
+    try {
+        return new URL(url, self.location.origin).origin === self.location.origin;
+    } catch (_error) {
+        return false;
+    }
+}
+
+function domainMatches(domain, allowed) {
+    if (!domain || !allowed) {
+        return false;
+    }
+    if (allowed.includes(":")) {
+        return domain === allowed;
+    }
+    return domain === allowed || domain.endsWith(`.${allowed}`);
+}
+
+function isFetchAllowedForScript(script, targetUrl) {
+    const normalized = normalizeUrl(targetUrl);
+    if (!normalized) {
+        return { allowed: false, reason: "Invalid or empty URL" };
+    }
+    if (isSameOrigin(normalized) || allowedFetchUrls.has(normalized)) {
+        return { allowed: true, normalized };
+    }
+    const domain = extractDomain(normalized);
+    if (!domain) {
+        return { allowed: false, reason: "Invalid URL" };
+    }
+    const allowedDomains = Array.isArray(script.allowedDomains) ? script.allowedDomains : [];
+    const allowed = allowedDomains.some((value) => domainMatches(domain, value));
+    return allowed
+        ? { allowed: true, normalized }
+        : { allowed: false, reason: `Domain ${domain} is not in the allowed list.`, normalized };
+}
+
+function createScriptFetch(script) {
+    return async function scriptFetch(input, init) {
+        const targetUrl = extractUrlFromInput(input);
+        const decision = isFetchAllowedForScript(script, targetUrl);
+        console.info(
+            `Script ${script.id} fetch attempt`,
+            JSON.stringify({
+                url: targetUrl || "",
+                normalized: decision.normalized || "",
+                allowedDomains: script.allowedDomains,
+                allowed: decision.allowed,
+                reason: decision.reason,
+            })
+        );
+        if (!decision.allowed) {
+            const message = `Fetch blocked for script ${script.id}: ${decision.reason}`;
+            const error = new Error(message);
+            console.error(message);
+            reportScriptError(script.id, "fetch", error);
+            return Promise.reject(error);
+        }
+        if (!nativeFetch) {
+            const error = new Error("Fetch is unavailable in this environment.");
+            reportScriptError(script.id, "fetch", error);
+            return Promise.reject(error);
+        }
+        try {
+            return await nativeFetch(input, init);
+        } catch (error) {
+            console.error(`Fetch failed for script ${script.id} (${targetUrl || "<unknown>"})`, error);
+            reportScriptError(script.id, "fetch", error);
+            throw error;
+        }
+    };
+}
+
+function fetchForActiveScript(input, init) {
+    const script = activeScriptId ? scripts.get(activeScriptId) : null;
+    if (!script) {
+        const error = new Error("Fetch is only available inside a running script context.");
+        console.error(error.message);
+        return Promise.reject(error);
+    }
+    if (!script.context.fetch) {
+        script.context.fetch = createScriptFetch(script);
+    }
+    return script.context.fetch(input, init);
+}
+
+if (nativeFetch) {
+    self.fetch = function sandboxedFetch(input, init) {
+        return fetchForActiveScript(input, init);
+    };
+}
 
 function refreshAllowedFetchUrls() {
     allowedFetchUrls.clear();
@@ -125,6 +269,7 @@ function updateScriptContexts() {
         script.context.height = script.canvas?.height ?? 0;
         script.context.chatMessages = chatMessages;
         script.context.emoteCatalog = emoteCatalog;
+        script.context.allowedDomains = script.allowedDomains;
     });
 }
 
@@ -151,9 +296,12 @@ function ensureTickLoop() {
             script.context.deltaMs = deltaMs;
             script.context.elapsedMs = elapsedMs;
             try {
+                activeScriptId = script.id;
                 script.tick(script.context, script.state);
             } catch (error) {
                 console.error(`Script ${script.id} tick failed`, error);
+            } finally {
+                activeScriptId = null;
             }
         });
     }, tickIntervalMs);
@@ -168,7 +316,7 @@ function stopTickLoopIfIdle() {
 
 function createScriptHandlers(source, context, state, sourceLabel = "") {
     const contextPrelude =
-        "const { canvas, ctx, channelName, width, height, now, deltaMs, elapsedMs, assets, chatMessages, emoteCatalog, playAudio } = context;";
+        "const { canvas, ctx, channelName, width, height, now, deltaMs, elapsedMs, assets, chatMessages, emoteCatalog, playAudio, fetch, allowedDomains } = context;";
     const sourceUrl = sourceLabel ? `\n//# sourceURL=${sourceLabel}` : "";
     const factory = new Function(
         "context",
@@ -212,6 +360,7 @@ self.addEventListener("message", (event) => {
         if (!payload?.id || !payload?.source || !payload?.canvas) {
             return;
         }
+        const allowedDomains = sanitizeAllowedDomains(payload.allowedDomains);
         const canvas = payload.canvas;
         canvas.width = payload.width || canvas.width;
         canvas.height = payload.height || canvas.height;
@@ -229,6 +378,7 @@ self.addEventListener("message", (event) => {
             assets: Array.isArray(payload.attachments) ? payload.attachments : [],
             chatMessages,
             emoteCatalog,
+            allowedDomains,
             playAudio: (attachment) => {
                 const attachmentId = typeof attachment === "string" ? attachment : attachment?.id;
                 if (!attachmentId) {
@@ -243,31 +393,41 @@ self.addEventListener("message", (event) => {
                 });
             },
         };
+        const script = {
+            id: payload.id,
+            allowedDomains,
+            canvas,
+            ctx,
+            context,
+            state,
+            init: null,
+            tick: null,
+        };
+        context.fetch = createScriptFetch(script);
         let handlers = {};
         try {
+            activeScriptId = payload.id;
             handlers = createScriptHandlers(payload.source, context, state, `user-script-${payload.id}.js`);
         } catch (error) {
             console.error(`Script ${payload.id} failed to initialize`, error);
             reportScriptError(payload.id, "initialize", error);
             return;
+        } finally {
+            activeScriptId = null;
         }
-        const script = {
-            id: payload.id,
-            canvas,
-            ctx,
-            context,
-            state,
-            init: handlers.init,
-            tick: handlers.tick,
-        };
+        script.init = handlers.init;
+        script.tick = handlers.tick;
         scripts.set(payload.id, script);
         refreshAllowedFetchUrls();
         if (script.init) {
             try {
+                activeScriptId = script.id;
                 script.init(script.context, script.state);
             } catch (error) {
                 console.error(`Script ${payload.id} init failed`, error);
                 reportScriptError(payload.id, "init", error);
+            } finally {
+                activeScriptId = null;
             }
         }
         ensureTickLoop();
@@ -292,6 +452,8 @@ self.addEventListener("message", (event) => {
             return;
         }
         script.context.assets = Array.isArray(payload.attachments) ? payload.attachments : [];
+        script.allowedDomains = sanitizeAllowedDomains(payload.allowedDomains);
+        script.context.allowedDomains = script.allowedDomains;
         refreshAllowedFetchUrls();
     }
 

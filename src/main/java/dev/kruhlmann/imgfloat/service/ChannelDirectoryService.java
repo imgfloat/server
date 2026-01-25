@@ -39,6 +39,7 @@ import dev.kruhlmann.imgfloat.service.media.MediaOptimizationService;
 import dev.kruhlmann.imgfloat.service.media.OptimizedAsset;
 import dev.kruhlmann.imgfloat.service.media.MediaTypeRegistry;
 import java.io.IOException;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.charset.StandardCharsets;
@@ -62,6 +63,8 @@ public class ChannelDirectoryService {
     private static final Logger logger = LoggerFactory.getLogger(ChannelDirectoryService.class);
     private static final Pattern SAFE_FILENAME = Pattern.compile("[^a-zA-Z0-9._ -]");
     private static final String DEFAULT_CODE_MEDIA_TYPE = "application/javascript";
+    private static final int MAX_ALLOWED_SCRIPT_DOMAINS = 32;
+    private static final Pattern ALLOWED_DOMAIN_PATTERN = Pattern.compile("^[a-z0-9.-]+(?::[0-9]{1,5})?$");
 
     private final ChannelRepository channelRepository;
     private final AssetRepository assetRepository;
@@ -374,6 +377,7 @@ public class ChannelDirectoryService {
             script.setMediaType(optimized.mediaType());
             script.setOriginalMediaType(mediaType);
             script.setSourceFileId(asset.getId());
+            script.setAllowedDomains(List.of());
             script.setAttachments(List.of());
             scriptAssetRepository.save(script);
             ScriptAssetFile sourceFile = new ScriptAssetFile(asset.getBroadcaster(), AssetType.SCRIPT);
@@ -413,6 +417,7 @@ public class ChannelDirectoryService {
         Channel channel = getOrCreateChannel(broadcaster);
         byte[] bytes = request.getSource().getBytes(StandardCharsets.UTF_8);
         enforceUploadLimit(bytes.length);
+        List<String> allowedDomains = normalizeAllowedDomains(request.getAllowedDomains());
 
         Asset asset = new Asset(channel.getBroadcaster(), AssetType.SCRIPT);
         asset.setDisplayOrder(nextDisplayOrder(channel.getBroadcaster(), AssetType.SCRIPT));
@@ -440,6 +445,7 @@ public class ChannelDirectoryService {
         script.setSourceFileId(sourceFile.getId());
         script.setDescription(normalizeDescription(request.getDescription()));
         script.setPublic(Boolean.TRUE.equals(request.getIsPublic()));
+        script.setAllowedDomains(allowedDomains);
         script.setAttachments(List.of());
         scriptAssetRepository.save(script);
         AssetView view = AssetView.fromScript(channel.getBroadcaster(), asset, script);
@@ -458,6 +464,7 @@ public class ChannelDirectoryService {
         String normalized = normalize(broadcaster);
         byte[] bytes = request.getSource().getBytes(StandardCharsets.UTF_8);
         enforceUploadLimit(bytes.length);
+        List<String> allowedDomains = normalizeAllowedDomains(request.getAllowedDomains());
 
         return assetRepository
             .findById(assetId)
@@ -491,6 +498,7 @@ public class ChannelDirectoryService {
                 if (request.getIsPublic() != null) {
                     script.setPublic(request.getIsPublic());
                 }
+                script.setAllowedDomains(allowedDomains);
                 script.setOriginalMediaType(DEFAULT_CODE_MEDIA_TYPE);
                 script.setMediaType(DEFAULT_CODE_MEDIA_TYPE);
                 script.setAttachments(loadScriptAttachments(normalized, asset.getId(), null));
@@ -635,6 +643,7 @@ public class ChannelDirectoryService {
                         script.getDescription(),
                         logoUrl,
                         broadcaster,
+                        normalizeAllowedDomainsLenient(script.getAllowedDomains()),
                         0,
                         false
                     );
@@ -687,6 +696,7 @@ public class ChannelDirectoryService {
             script.getDescription(),
             logoUrl,
             broadcaster,
+            normalizeAllowedDomainsLenient(script.getAllowedDomains()),
             0,
             false
         );
@@ -715,6 +725,7 @@ public class ChannelDirectoryService {
             entry.description(),
             entry.logoUrl(),
             entry.broadcaster(),
+            entry.allowedDomains(),
             heartCount,
             hearted
         );
@@ -769,6 +780,7 @@ public class ChannelDirectoryService {
                     entry.description(),
                     entry.logoUrl(),
                     entry.broadcaster(),
+                    entry.allowedDomains(),
                     counts.getOrDefault(entry.id(), 0L),
                     heartedIds.contains(entry.id())
                 )
@@ -845,6 +857,7 @@ public class ChannelDirectoryService {
             script.setOriginalMediaType(sourceContent.mediaType());
             script.setSourceFileId(sourceFile.getId());
             script.setLogoFileId(sourceScript.getLogoFileId());
+            script.setAllowedDomains(normalizeAllowedDomains(sourceScript.getAllowedDomains()));
             script.setAttachments(List.of());
             scriptAssetRepository.save(script);
 
@@ -889,6 +902,7 @@ public class ChannelDirectoryService {
         if (sourceContent == null) {
             return Optional.empty();
         }
+        List<String> allowedDomains = normalizeAllowedDomains(seedScript.allowedDomains());
 
         Asset asset = new Asset(targetBroadcaster, AssetType.SCRIPT);
         asset.setDisplayOrder(nextDisplayOrder(targetBroadcaster, AssetType.SCRIPT));
@@ -915,6 +929,7 @@ public class ChannelDirectoryService {
         script.setMediaType(sourceContent.mediaType());
         script.setOriginalMediaType(sourceContent.mediaType());
         script.setSourceFileId(sourceFile.getId());
+        script.setAllowedDomains(allowedDomains);
         script.setAttachments(List.of());
         scriptAssetRepository.save(script);
 
@@ -1553,6 +1568,61 @@ public class ChannelDirectoryService {
         }
         String trimmed = description.trim();
         return trimmed.isBlank() ? null : trimmed;
+    }
+
+    private List<String> normalizeAllowedDomains(List<String> requestedDomains) {
+        if (requestedDomains == null || requestedDomains.isEmpty()) {
+            return List.of();
+        }
+        List<String> normalized = new ArrayList<>();
+        for (String raw : requestedDomains) {
+            if (raw == null) {
+                continue;
+            }
+            String candidate = raw.trim();
+            if (candidate.isEmpty()) {
+                continue;
+            }
+            String withScheme = candidate.contains("://") ? candidate : "https://" + candidate;
+            URI uri;
+            try {
+                uri = URI.create(withScheme);
+            } catch (IllegalArgumentException ex) {
+                throw new ResponseStatusException(BAD_REQUEST, "Invalid allowed domain: " + candidate, ex);
+            }
+            String host = uri.getHost();
+            if (host == null || host.isBlank()) {
+                throw new ResponseStatusException(BAD_REQUEST, "Invalid allowed domain: " + candidate);
+            }
+            String domain = host.toLowerCase(Locale.ROOT);
+            int port = uri.getPort();
+            if (port > 0) {
+                domain = domain + ":" + port;
+            }
+            if (!ALLOWED_DOMAIN_PATTERN.matcher(domain).matches()) {
+                throw new ResponseStatusException(BAD_REQUEST, "Invalid allowed domain: " + candidate);
+            }
+            if (normalized.contains(domain)) {
+                continue;
+            }
+            if (normalized.size() >= MAX_ALLOWED_SCRIPT_DOMAINS) {
+                throw new ResponseStatusException(
+                    BAD_REQUEST,
+                    "A maximum of 32 allowed domains are supported per script asset"
+                );
+            }
+            normalized.add(domain);
+        }
+        return new ArrayList<>(normalized);
+    }
+
+    private List<String> normalizeAllowedDomainsLenient(List<String> requestedDomains) {
+        try {
+            return normalizeAllowedDomains(requestedDomains);
+        } catch (ResponseStatusException ex) {
+            logger.warn("Ignoring invalid allowed domains: {}", ex.getReason());
+            return List.of();
+        }
     }
 
     private void removeScriptAssetFileIfOrphaned(String fileId) {

@@ -14,6 +14,8 @@ public class CodeAssetRequest {
 
     private Boolean isPublic;
 
+    private java.util.List<String> allowedDomains;
+
     public String getName() {
         return name;
     }
@@ -44,5 +46,13 @@ public class CodeAssetRequest {
 
     public void setIsPublic(Boolean isPublic) {
         this.isPublic = isPublic;
+    }
+
+    public java.util.List<String> getAllowedDomains() {
+        return allowedDomains;
+    }
+
+    public void setAllowedDomains(java.util.List<String> allowedDomains) {
+        this.allowedDomains = allowedDomains;
     }
 }

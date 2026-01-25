@@ -14,7 +14,7 @@
         <java.version>17</java.version>
         <spring.boot.version>3.2.5</spring.boot.version>
         <hibernate.version>6.4.4.Final</hibernate.version>
-        <bytebuddy.version>1.18.3</bytebuddy.version>
+        <bytebuddy.version>1.14.13</bytebuddy.version>
         <jacoco.version>0.8.14</jacoco.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
