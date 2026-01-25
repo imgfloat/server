@@ -333,7 +333,7 @@ public class ChannelDirectoryService {
 
         OptimizedAsset optimized = mediaOptimizationService.optimizeAsset(bytes, mediaType);
         if (optimized == null) {
-            throw new ResponseStatusException(BAD_REQUEST, mediaProcessingErrorMessage());
+            throw new ResponseStatusException(BAD_REQUEST, mediaProcessingErrorMessage(mediaType));
         }
 
         String safeName = Optional.ofNullable(file.getOriginalFilename())
@@ -528,7 +528,7 @@ public class ChannelDirectoryService {
             .orElseThrow(() -> new ResponseStatusException(BAD_REQUEST, unsupportedMediaTypeMessage()));
         OptimizedAsset optimized = mediaOptimizationService.optimizeAsset(bytes, mediaType);
         if (optimized == null) {
-            throw new ResponseStatusException(BAD_REQUEST, mediaProcessingErrorMessage());
+            throw new ResponseStatusException(BAD_REQUEST, mediaProcessingErrorMessage(mediaType));
         }
         AssetType assetType = AssetType.fromMediaType(optimized.mediaType(), mediaType);
         if (assetType != AssetType.IMAGE) {
@@ -1374,7 +1374,7 @@ public class ChannelDirectoryService {
 
         OptimizedAsset optimized = mediaOptimizationService.optimizeAsset(bytes, mediaType);
         if (optimized == null) {
-            throw new ResponseStatusException(BAD_REQUEST, mediaProcessingErrorMessage());
+            throw new ResponseStatusException(BAD_REQUEST, mediaProcessingErrorMessage(mediaType));
         }
 
         AssetType assetType = AssetType.fromMediaType(optimized.mediaType(), mediaType);
@@ -1534,7 +1534,10 @@ public class ChannelDirectoryService {
         return "Unsupported media type. Supported types: " + MediaTypeRegistry.supportedMediaTypesSummary();
     }
 
-    private String mediaProcessingErrorMessage() {
+    private String mediaProcessingErrorMessage(String mediaType) {
+        if (mediaType != null && mediaType.equalsIgnoreCase("image/apng")) {
+            return "Unable to convert APNG to GIF. Ensure ffmpeg is installed on the server.";
+        }
         return "Unable to process media. Ensure ffmpeg is installed on the server.";
     }
 

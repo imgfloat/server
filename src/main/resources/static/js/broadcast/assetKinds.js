@@ -31,6 +31,11 @@ export function isGifAsset(asset) {
     return asset?.mediaType?.toLowerCase() === "image/gif";
 }
 
+export function isApngAsset(asset) {
+    const type = (asset?.mediaType || "").toLowerCase();
+    return type === "image/apng";
+}
+
 export function getAssetKind(asset) {
     if (isAudioAsset(asset)) {
         return AssetKind.AUDIO;

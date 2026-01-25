@@ -60,6 +60,7 @@ public final class MediaTypeRegistry {
     private static Map<String, String> buildExtensionMap() {
         Map<String, String> map = new LinkedHashMap<>();
         map.put("png", "image/png");
+        map.put("apng", "image/apng");
         map.put("jpg", "image/jpeg");
         map.put("jpeg", "image/jpeg");
         map.put("gif", "image/gif");
@@ -86,6 +87,7 @@ public final class MediaTypeRegistry {
     private static Map<String, String> buildMediaTypeMap() {
         Map<String, String> map = new LinkedHashMap<>();
         map.put("image/png", ".png");
+        map.put("image/apng", ".apng");
         map.put("image/jpeg", ".jpg");
         map.put("image/jpg", ".jpg");
         map.put("image/gif", ".gif");

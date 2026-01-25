@@ -85,9 +85,9 @@ public class FfmpegService {
         }));
     }
 
-    public Optional<byte[]> transcodeGifToMp4(byte[] bytes) {
+    public Optional<byte[]> transcodeGifToWebm(byte[] bytes) {
         return Optional.ofNullable(withTempFile(bytes, ".gif", (input) -> {
-            Path output = Files.createTempFile("imgfloat-transcode", ".mp4");
+            Path output = Files.createTempFile("imgfloat-transcode", ".webm");
             try {
                 List<String> command = List.of(
                     "ffmpeg",
@@ -97,17 +97,49 @@ public class FfmpegService {
                     "error",
                     "-i",
                     input.toString(),
-                    "-movflags",
-                    "+faststart",
+                    "-c:v",
+                    "libvpx-vp9",
                     "-pix_fmt",
-                    "yuv420p",
-                    "-vf",
-                    "scale=trunc(iw/2)*2:trunc(ih/2)*2",
+                    "yuva420p",
+                    "-auto-alt-ref",
+                    "0",
+                    "-crf",
+                    "30",
+                    "-b:v",
+                    "0",
                     output.toString()
                 );
                 ProcessResult result = run(command);
                 if (result.exitCode() != 0) {
                     logger.warn("ffmpeg transcode failed: {}", result.output());
+                    return null;
+                }
+                return Files.readAllBytes(output);
+            } finally {
+                Files.deleteIfExists(output);
+            }
+        }));
+    }
+
+    public Optional<byte[]> transcodeApngToGif(byte[] bytes) {
+        return Optional.ofNullable(withTempFile(bytes, ".png", (input) -> {
+            Path output = Files.createTempFile("imgfloat-transcode", ".gif");
+            try {
+                List<String> command = List.of(
+                    "ffmpeg",
+                    "-y",
+                    "-hide_banner",
+                    "-loglevel",
+                    "error",
+                    "-i",
+                    input.toString(),
+                    "-filter_complex",
+                    "[0:v]split[s0][s1];[s0]palettegen=reserve_transparent=1[p];[s1][p]paletteuse",
+                    output.toString()
+                );
+                ProcessResult result = run(command);
+                if (result.exitCode() != 0) {
+                    logger.warn("ffmpeg APNG transcode failed: {}", result.output());
                     return null;
                 }
                 return Files.readAllBytes(output);

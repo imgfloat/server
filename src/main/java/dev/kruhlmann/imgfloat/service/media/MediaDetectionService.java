@@ -39,6 +39,9 @@ public class MediaDetectionService {
 
     private Optional<String> detectMediaType(byte[] bytes) {
         try (var stream = new ByteArrayInputStream(bytes)) {
+            if (ApngDetector.isApng(bytes)) {
+                return Optional.of("image/apng");
+            }
             String guessed = URLConnection.guessContentTypeFromStream(stream);
             if (guessed != null && !guessed.isBlank()) {
                 return Optional.of(guessed);

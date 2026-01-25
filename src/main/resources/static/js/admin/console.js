@@ -1,5 +1,5 @@
 import { isAudioAsset } from "../media/audio.js";
-import { isCodeAsset, isGifAsset, isModelAsset, isVideoAsset, isVideoElement } from "../broadcast/assetKinds.js";
+import { isApngAsset, isCodeAsset, isGifAsset, isModelAsset, isVideoAsset, isVideoElement } from "../broadcast/assetKinds.js";
 import { createModelManager } from "../media/modelManager.js";
 import {
     ensureLayerPosition as ensureLayerPositionForState,
@@ -753,7 +753,7 @@ export function createAdminConsole({
             const model = modelManager.ensureModel(asset);
             drawSource = model?.canvas || null;
             ready = !!model?.ready;
-        } else if (isVideoAsset(asset) || isGifAsset(asset)) {
+        } else if (isVideoAsset(asset)) {
             drawSource = ensureCanvasPreview(asset);
             ready = isDrawable(drawSource);
             showPlayOverlay = true;
@@ -1213,7 +1213,7 @@ export function createAdminConsole({
             return null;
         }
 
-        if (isGifAsset(asset) && "ImageDecoder" in globalThis) {
+        if ((isGifAsset(asset) || isApngAsset(asset)) && "ImageDecoder" in globalThis) {
             const animated = ensureAnimatedImage(asset);
             if (animated) {
                 mediaCache.set(asset.id, animated);

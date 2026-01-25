@@ -29,19 +29,24 @@ public class MediaOptimizationService {
         if (mediaType == null || mediaType.isBlank() || bytes == null || bytes.length == 0) {
             return null;
         }
+        if (isApng(mediaType, bytes)) {
+            OptimizedAsset apngAsset = optimizeApng(bytes, mediaType);
+            if (apngAsset != null) {
+                return apngAsset;
+            }
+        }
         if ("image/gif".equalsIgnoreCase(mediaType)) {
             OptimizedAsset transcoded = transcodeGifToVideo(bytes);
             if (transcoded != null) {
                 return transcoded;
             }
         }
-
         if (mediaType.startsWith("image/")) {
-            BufferedImage image = ImageIO.read(new ByteArrayInputStream(bytes));
-            if (image == null) {
+            OptimizedAsset imageAsset = optimizeImage(bytes, mediaType);
+            if (imageAsset == null) {
                 return null;
             }
-            return new OptimizedAsset(bytes, mediaType, image.getWidth(), image.getHeight(), null);
+            return imageAsset;
         }
 
         if (mediaType.startsWith("video/")) {
@@ -64,26 +69,50 @@ public class MediaOptimizationService {
             return new OptimizedAsset(bytes, mediaType, 0, 0, null);
         }
 
-        BufferedImage image = ImageIO.read(new ByteArrayInputStream(bytes));
-        if (image != null) {
-            return new OptimizedAsset(bytes, mediaType, image.getWidth(), image.getHeight(), null);
+        return optimizeImage(bytes, mediaType);
+    }
+
+    private boolean isApng(String mediaType, byte[] bytes) {
+        if (mediaType == null) {
+            return false;
         }
-        return null;
+        if ("image/apng".equalsIgnoreCase(mediaType)) {
+            return true;
+        }
+        return "image/png".equalsIgnoreCase(mediaType) && ApngDetector.isApng(bytes);
+    }
+
+    private OptimizedAsset optimizeApng(byte[] bytes, String mediaType) throws IOException {
+        return ffmpegService
+            .transcodeApngToGif(bytes)
+            .map(this::transcodeGifToVideo)
+            .orElseGet(() -> {
+                logger.warn("Unable to transcode APNG to GIF via ffmpeg");
+                return null;
+            });
     }
 
     private OptimizedAsset transcodeGifToVideo(byte[] bytes) {
         return ffmpegService
-            .transcodeGifToMp4(bytes)
+            .transcodeGifToWebm(bytes)
             .map((videoBytes) -> {
                 FfmpegService.VideoDimensions dimensions = ffmpegService
                     .extractVideoDimensions(videoBytes)
                     .orElse(DEFAULT_VIDEO_DIMENSIONS);
-                byte[] preview = previewService.extractVideoPreview(videoBytes, "video/mp4");
-                return new OptimizedAsset(videoBytes, "video/mp4", dimensions.width(), dimensions.height(), preview);
+                byte[] preview = previewService.extractVideoPreview(videoBytes, "video/webm");
+                return new OptimizedAsset(videoBytes, "video/webm", dimensions.width(), dimensions.height(), preview);
             })
             .orElseGet(() -> {
                 logger.warn("Unable to transcode GIF to video via ffmpeg");
                 return null;
             });
+    }
+
+    private OptimizedAsset optimizeImage(byte[] bytes, String mediaType) throws IOException {
+        BufferedImage image = ImageIO.read(new ByteArrayInputStream(bytes));
+        if (image == null) {
+            return null;
+        }
+        return new OptimizedAsset(bytes, mediaType, image.getWidth(), image.getHeight(), null);
     }
 }
