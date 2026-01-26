@@ -316,6 +316,7 @@ public class ChannelDirectoryService {
         );
     }
 
+    @Transactional(rollbackFor = IOException.class)
     public Optional<AssetView> createAsset(String broadcaster, MultipartFile file, String actor) throws IOException {
         long fileSize = file.getSize();
         if (fileSize > uploadLimitBytes) {
@@ -412,6 +413,7 @@ public class ChannelDirectoryService {
         return Optional.of(view);
     }
 
+    @Transactional
     public Optional<AssetView> createCodeAsset(String broadcaster, CodeAssetRequest request, String actor) {
         validateCodeAssetSource(request.getSource());
         Channel channel = getOrCreateChannel(broadcaster);
@@ -459,6 +461,7 @@ public class ChannelDirectoryService {
         return Optional.of(view);
     }
 
+    @Transactional
     public Optional<AssetView> updateCodeAsset(String broadcaster, String assetId, CodeAssetRequest request, String actor) {
         validateCodeAssetSource(request.getSource());
         String normalized = normalize(broadcaster);
@@ -526,6 +529,7 @@ public class ChannelDirectoryService {
             });
     }
 
+    @Transactional(rollbackFor = IOException.class)
     public Optional<AssetView> updateScriptLogo(String broadcaster, String assetId, MultipartFile file, String actor)
         throws IOException {
         Asset asset = requireScriptAssetForBroadcaster(broadcaster, assetId);
@@ -576,6 +580,7 @@ public class ChannelDirectoryService {
         return Optional.of(view);
     }
 
+    @Transactional
     public Optional<AssetView> clearScriptLogo(String broadcaster, String assetId, String actor) {
         Asset asset = requireScriptAssetForBroadcaster(broadcaster, assetId);
         ScriptAsset script = scriptAssetRepository
@@ -809,6 +814,7 @@ public class ChannelDirectoryService {
         }
     }
 
+    @Transactional
     public Optional<AssetView> importMarketplaceScript(String targetBroadcaster, String scriptId, String actor) {
         Optional<MarketplaceScriptSeedLoader.SeedScript> seedScript = marketplaceScriptSeedLoader.findById(scriptId);
         Optional<AssetView> imported;
@@ -1014,6 +1020,7 @@ public class ChannelDirectoryService {
         return SAFE_FILENAME.matcher(stripped).replaceAll("_");
     }
 
+    @Transactional
     public Optional<AssetView> updateTransform(String broadcaster, String assetId, TransformRequest req, String actor) {
         String normalized = normalize(broadcaster);
 
@@ -1240,6 +1247,7 @@ public class ChannelDirectoryService {
             });
     }
 
+    @Transactional
     public Optional<AssetView> updateVisibility(
         String broadcaster,
         String assetId,
@@ -1363,6 +1371,7 @@ public class ChannelDirectoryService {
         return loadScriptAttachments(normalize(broadcaster), asset.getId(), null);
     }
 
+    @Transactional(rollbackFor = IOException.class)
     public Optional<ScriptAssetAttachmentView> createScriptAttachment(
         String broadcaster,
         String scriptAssetId,
@@ -1446,6 +1455,7 @@ public class ChannelDirectoryService {
         return Optional.of(view);
     }
 
+    @Transactional
     public boolean deleteScriptAttachment(
         String broadcaster,
         String scriptAssetId,
