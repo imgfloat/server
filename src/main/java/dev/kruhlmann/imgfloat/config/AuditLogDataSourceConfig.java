@@ -51,7 +51,7 @@ public class AuditLogDataSourceConfig {
     ) {
         return builder
             .dataSource(dataSource)
-            .packages("dev.kruhlmann.imgfloat.audit.model")
+            .packages("dev.kruhlmann.imgfloat.model.db.audit")
             .properties(hibernateProperties.determineHibernateProperties(jpaProperties.getProperties(), new HibernateSettings()))
             .persistenceUnit("audit")
             .build();

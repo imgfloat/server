@@ -9,16 +9,16 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import dev.kruhlmann.imgfloat.model.Asset;
-import dev.kruhlmann.imgfloat.model.AssetView;
-import dev.kruhlmann.imgfloat.model.AudioAsset;
-import dev.kruhlmann.imgfloat.model.Channel;
-import dev.kruhlmann.imgfloat.model.ScriptAsset;
-import dev.kruhlmann.imgfloat.model.CodeAssetRequest;
 import dev.kruhlmann.imgfloat.model.AssetType;
-import dev.kruhlmann.imgfloat.model.Settings;
-import dev.kruhlmann.imgfloat.model.TransformRequest;
-import dev.kruhlmann.imgfloat.model.VisibilityRequest;
+import dev.kruhlmann.imgfloat.model.api.request.CodeAssetRequest;
+import dev.kruhlmann.imgfloat.model.api.request.TransformRequest;
+import dev.kruhlmann.imgfloat.model.api.request.VisibilityRequest;
+import dev.kruhlmann.imgfloat.model.api.response.AssetView;
+import dev.kruhlmann.imgfloat.model.db.imgfloat.Asset;
+import dev.kruhlmann.imgfloat.model.db.imgfloat.AudioAsset;
+import dev.kruhlmann.imgfloat.model.db.imgfloat.Channel;
+import dev.kruhlmann.imgfloat.model.db.imgfloat.ScriptAsset;
+import dev.kruhlmann.imgfloat.model.db.imgfloat.Settings;
 import dev.kruhlmann.imgfloat.repository.AssetRepository;
 import dev.kruhlmann.imgfloat.repository.AudioAssetRepository;
 import dev.kruhlmann.imgfloat.repository.ChannelRepository;
@@ -215,7 +215,7 @@ class ChannelDirectoryServiceTest {
     void includesDefaultMarketplaceScript() {
         when(scriptAssetRepository.findByIsPublicTrue()).thenReturn(List.of());
 
-        List<dev.kruhlmann.imgfloat.model.ScriptMarketplaceEntry> entries = service.listMarketplaceScripts(null, null);
+        List<dev.kruhlmann.imgfloat.model.api.response.ScriptMarketplaceEntry> entries = service.listMarketplaceScripts(null, null);
 
         assertThat(entries)
             .anyMatch((entry) -> "rotating-logo".equals(entry.id()));
@@ -229,7 +229,7 @@ class ChannelDirectoryServiceTest {
         request.setAllowedDomains(List.of("example.com"));
         AssetView created = service.createCodeAsset("caster", request, "caster").orElseThrow();
         scriptAssetRepository.findById(created.id()).ifPresent((script) -> script.setSourceFileId(created.id()));
-        scriptAssetFileRepository.save(new dev.kruhlmann.imgfloat.model.ScriptAssetFile("caster", AssetType.SCRIPT) {
+        scriptAssetFileRepository.save(new dev.kruhlmann.imgfloat.model.db.imgfloat.ScriptAssetFile("caster", AssetType.SCRIPT) {
             {
                 setId(created.id());
             }
@@ -271,10 +271,10 @@ class ChannelDirectoryServiceTest {
     private void setupInMemoryPersistence() {
         Map<String, Channel> channels = new ConcurrentHashMap<>();
         Map<String, Asset> assets = new ConcurrentHashMap<>();
-        Map<String, dev.kruhlmann.imgfloat.model.VisualAsset> visualAssets = new ConcurrentHashMap<>();
+        Map<String, dev.kruhlmann.imgfloat.model.db.imgfloat.VisualAsset> visualAssets = new ConcurrentHashMap<>();
         Map<String, AudioAsset> audioAssets = new ConcurrentHashMap<>();
         Map<String, ScriptAsset> scriptAssets = new ConcurrentHashMap<>();
-        Map<String, dev.kruhlmann.imgfloat.model.ScriptAssetFile> scriptFiles = new ConcurrentHashMap<>();
+        Map<String, dev.kruhlmann.imgfloat.model.db.imgfloat.ScriptAssetFile> scriptFiles = new ConcurrentHashMap<>();
 
         when(channelRepository.findById(anyString())).thenAnswer((invocation) ->
             Optional.ofNullable(channels.get(invocation.getArgument(0)))
@@ -317,9 +317,9 @@ class ChannelDirectoryServiceTest {
             .when(assetRepository)
             .delete(any(Asset.class));
 
-        when(visualAssetRepository.save(any(dev.kruhlmann.imgfloat.model.VisualAsset.class))).thenAnswer(
+        when(visualAssetRepository.save(any(dev.kruhlmann.imgfloat.model.db.imgfloat.VisualAsset.class))).thenAnswer(
             (invocation) -> {
-                dev.kruhlmann.imgfloat.model.VisualAsset visual = invocation.getArgument(0);
+                dev.kruhlmann.imgfloat.model.db.imgfloat.VisualAsset visual = invocation.getArgument(0);
                 visualAssets.put(visual.getId(), visual);
                 return visual;
             }
@@ -388,9 +388,9 @@ class ChannelDirectoryServiceTest {
             .when(scriptAssetRepository)
             .deleteById(anyString());
 
-        when(scriptAssetFileRepository.save(any(dev.kruhlmann.imgfloat.model.ScriptAssetFile.class))).thenAnswer(
+        when(scriptAssetFileRepository.save(any(dev.kruhlmann.imgfloat.model.db.imgfloat.ScriptAssetFile.class))).thenAnswer(
             (invocation) -> {
-                dev.kruhlmann.imgfloat.model.ScriptAssetFile file = invocation.getArgument(0);
+                dev.kruhlmann.imgfloat.model.db.imgfloat.ScriptAssetFile file = invocation.getArgument(0);
                 if (file.getId() == null) {
                     file.setId(java.util.UUID.randomUUID().toString());
                 }

@@ -5,7 +5,7 @@ import static org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.kruhlmann.imgfloat.model.OauthSessionUser;
-import dev.kruhlmann.imgfloat.model.Settings;
+import dev.kruhlmann.imgfloat.model.db.imgfloat.Settings;
 import dev.kruhlmann.imgfloat.service.AuthorizationService;
 import dev.kruhlmann.imgfloat.service.ChannelDirectoryService;
 import dev.kruhlmann.imgfloat.service.GitInfoService;

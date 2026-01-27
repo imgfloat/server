@@ -1,7 +1,7 @@
 package dev.kruhlmann.imgfloat.controller;
 
 import dev.kruhlmann.imgfloat.model.OauthSessionUser;
-import dev.kruhlmann.imgfloat.model.Settings;
+import dev.kruhlmann.imgfloat.model.db.imgfloat.Settings;
 import dev.kruhlmann.imgfloat.service.AuthorizationService;
 import dev.kruhlmann.imgfloat.service.SettingsService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;

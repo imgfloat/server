@@ -1,6 +1,6 @@
 package dev.kruhlmann.imgfloat.service;
 
-import dev.kruhlmann.imgfloat.model.ScriptMarketplaceEntry;
+import dev.kruhlmann.imgfloat.model.api.response.ScriptMarketplaceEntry;
 import dev.kruhlmann.imgfloat.service.media.AssetContent;
 import java.io.IOException;
 import java.net.URI;

@@ -1,7 +1,7 @@
 package dev.kruhlmann.imgfloat.service;
 
-import dev.kruhlmann.imgfloat.model.Asset;
-import dev.kruhlmann.imgfloat.model.ScriptAssetFile;
+import dev.kruhlmann.imgfloat.model.db.imgfloat.Asset;
+import dev.kruhlmann.imgfloat.model.db.imgfloat.ScriptAssetFile;
 import dev.kruhlmann.imgfloat.repository.AssetRepository;
 import dev.kruhlmann.imgfloat.repository.ChannelRepository;
 import dev.kruhlmann.imgfloat.repository.MarketplaceScriptHeartRepository;

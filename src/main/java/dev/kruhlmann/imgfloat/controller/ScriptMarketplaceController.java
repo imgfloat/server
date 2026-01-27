@@ -3,10 +3,10 @@ package dev.kruhlmann.imgfloat.controller;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 
-import dev.kruhlmann.imgfloat.model.AssetView;
+import dev.kruhlmann.imgfloat.model.api.response.AssetView;
 import dev.kruhlmann.imgfloat.model.OauthSessionUser;
-import dev.kruhlmann.imgfloat.model.ScriptMarketplaceEntry;
-import dev.kruhlmann.imgfloat.model.ScriptMarketplaceImportRequest;
+import dev.kruhlmann.imgfloat.model.api.response.ScriptMarketplaceEntry;
+import dev.kruhlmann.imgfloat.model.api.request.ScriptMarketplaceImportRequest;
 import dev.kruhlmann.imgfloat.service.AuthorizationService;
 import dev.kruhlmann.imgfloat.service.ChannelDirectoryService;
 import dev.kruhlmann.imgfloat.util.LogSanitizer;

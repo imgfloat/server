@@ -2,9 +2,9 @@ package dev.kruhlmann.imgfloat.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import dev.kruhlmann.imgfloat.model.AudioAsset;
-import dev.kruhlmann.imgfloat.model.Settings;
-import dev.kruhlmann.imgfloat.model.VisualAsset;
+import dev.kruhlmann.imgfloat.model.db.imgfloat.AudioAsset;
+import dev.kruhlmann.imgfloat.model.db.imgfloat.Settings;
+import dev.kruhlmann.imgfloat.model.db.imgfloat.VisualAsset;
 import dev.kruhlmann.imgfloat.repository.AudioAssetRepository;
 import dev.kruhlmann.imgfloat.repository.SettingsRepository;
 import dev.kruhlmann.imgfloat.repository.VisualAssetRepository;

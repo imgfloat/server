@@ -2,7 +2,7 @@ package dev.kruhlmann.imgfloat.service;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import dev.kruhlmann.imgfloat.model.TwitchUserProfile;
+import dev.kruhlmann.imgfloat.model.api.response.TwitchUserProfile;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;

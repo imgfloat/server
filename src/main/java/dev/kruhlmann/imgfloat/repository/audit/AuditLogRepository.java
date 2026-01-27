@@ -1,6 +1,6 @@
 package dev.kruhlmann.imgfloat.repository.audit;
 
-import dev.kruhlmann.imgfloat.audit.model.AuditLogEntry;
+import dev.kruhlmann.imgfloat.model.db.audit.AuditLogEntry;
 import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;

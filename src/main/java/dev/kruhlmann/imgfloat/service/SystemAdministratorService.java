@@ -1,6 +1,6 @@
 package dev.kruhlmann.imgfloat.service;
 
-import dev.kruhlmann.imgfloat.model.SystemAdministrator;
+import dev.kruhlmann.imgfloat.model.db.imgfloat.SystemAdministrator;
 import dev.kruhlmann.imgfloat.repository.SystemAdministratorRepository;
 import java.util.List;
 import java.util.Locale;

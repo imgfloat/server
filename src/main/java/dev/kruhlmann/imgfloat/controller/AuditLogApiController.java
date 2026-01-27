@@ -1,7 +1,7 @@
 package dev.kruhlmann.imgfloat.controller;
 
-import dev.kruhlmann.imgfloat.model.AuditLogEntryView;
-import dev.kruhlmann.imgfloat.model.AuditLogPageView;
+import dev.kruhlmann.imgfloat.model.api.response.AuditLogEntryView;
+import dev.kruhlmann.imgfloat.model.api.response.AuditLogPageView;
 import dev.kruhlmann.imgfloat.model.OauthSessionUser;
 import dev.kruhlmann.imgfloat.service.AuditLogService;
 import dev.kruhlmann.imgfloat.service.AuthorizationService;

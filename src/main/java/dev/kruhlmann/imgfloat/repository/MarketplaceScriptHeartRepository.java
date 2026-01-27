@@ -1,7 +1,7 @@
 package dev.kruhlmann.imgfloat.repository;
 
-import dev.kruhlmann.imgfloat.model.MarketplaceScriptHeart;
-import dev.kruhlmann.imgfloat.model.MarketplaceScriptHeartId;
+import dev.kruhlmann.imgfloat.model.db.imgfloat.MarketplaceScriptHeart;
+import dev.kruhlmann.imgfloat.model.db.imgfloat.MarketplaceScriptHeartId;
 import java.util.Collection;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;

@@ -1,6 +1,6 @@
 package dev.kruhlmann.imgfloat.controller;
 
-import dev.kruhlmann.imgfloat.model.ErrorResponse;
+import dev.kruhlmann.imgfloat.model.api.response.ErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

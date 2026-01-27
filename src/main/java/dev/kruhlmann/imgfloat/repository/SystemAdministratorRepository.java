@@ -1,6 +1,6 @@
 package dev.kruhlmann.imgfloat.repository;
 
-import dev.kruhlmann.imgfloat.model.SystemAdministrator;
+import dev.kruhlmann.imgfloat.model.db.imgfloat.SystemAdministrator;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 

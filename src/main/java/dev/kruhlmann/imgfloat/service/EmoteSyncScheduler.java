@@ -1,7 +1,7 @@
 package dev.kruhlmann.imgfloat.service;
 
-import dev.kruhlmann.imgfloat.model.Channel;
-import dev.kruhlmann.imgfloat.model.Settings;
+import dev.kruhlmann.imgfloat.model.db.imgfloat.Channel;
+import dev.kruhlmann.imgfloat.model.db.imgfloat.Settings;
 import dev.kruhlmann.imgfloat.repository.ChannelRepository;
 import java.time.Duration;
 import java.time.Instant;

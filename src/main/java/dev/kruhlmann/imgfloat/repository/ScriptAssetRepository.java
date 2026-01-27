@@ -1,6 +1,6 @@
 package dev.kruhlmann.imgfloat.repository;
 
-import dev.kruhlmann.imgfloat.model.ScriptAsset;
+import dev.kruhlmann.imgfloat.model.db.imgfloat.ScriptAsset;
 import java.util.Collection;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
