@@ -24,7 +24,6 @@ public class SQLiteOAuth2AuthorizedClientService implements OAuth2AuthorizedClie
     private static final String TABLE_NAME = "oauth2_authorized_client";
 
     private final JdbcOperations jdbcOperations;
-    private final ClientRegistrationRepository clientRegistrationRepository;
     private final RowMapper<OAuth2AuthorizedClient> rowMapper;
     private final OAuthTokenCipher tokenCipher;
 
@@ -41,7 +40,6 @@ public class SQLiteOAuth2AuthorizedClientService implements OAuth2AuthorizedClie
         OAuthTokenCipher tokenCipher
     ) {
         this.jdbcOperations = jdbcOperations;
-        this.clientRegistrationRepository = clientRegistrationRepository;
         this.tokenCipher = tokenCipher;
         this.rowMapper = (rs, rowNum) -> {
             String registrationId = rs.getString("client_registration_id");

@@ -1,5 +1,7 @@
 package dev.kruhlmann.imgfloat.service.media;
 
+import jakarta.validation.constraints.NotNull;
+
 import java.util.Arrays;
 import java.util.Objects;
 
@@ -19,6 +21,7 @@ public record AssetContent(byte[] bytes, String mediaType) {
         return result;
     }
 
+    @NotNull
     @Override
     public String toString() {
         return "AssetContent{" + "bytes=" + Arrays.toString(bytes) + ", mediaType='" + mediaType + '\'' + '}';

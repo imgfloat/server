@@ -42,11 +42,7 @@ public class MediaOptimizationService {
             }
         }
         if (mediaType.startsWith("image/")) {
-            OptimizedAsset imageAsset = optimizeImage(bytes, mediaType);
-            if (imageAsset == null) {
-                return null;
-            }
-            return imageAsset;
+            return optimizeImage(bytes, mediaType);
         }
 
         if (mediaType.startsWith("video/")) {
@@ -86,7 +82,7 @@ public class MediaOptimizationService {
         return "image/png".equalsIgnoreCase(mediaType) && ApngDetector.isApng(bytes);
     }
 
-    private OptimizedAsset optimizeApng(byte[] bytes, String mediaType) throws IOException {
+    private OptimizedAsset optimizeApng(byte[] bytes, String mediaType) {
         return ffmpegService
             .transcodeApngToGif(bytes)
             .map(this::transcodeGifToVideo)

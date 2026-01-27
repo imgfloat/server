@@ -4,6 +4,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.constraints.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Bean;
@@ -154,11 +155,12 @@ public class SecurityConfig {
     @Bean
     OncePerRequestFilter csrfTokenCookieFilter() {
         return new OncePerRequestFilter() {
+            @NotNull
             @Override
             protected void doFilterInternal(
-                HttpServletRequest request,
-                HttpServletResponse response,
-                FilterChain filterChain
+                @NotNull HttpServletRequest request,
+                @NotNull HttpServletResponse response,
+                @NotNull FilterChain filterChain
             ) throws java.io.IOException, jakarta.servlet.ServletException {
                 CsrfToken csrfToken = (CsrfToken) request.getAttribute("_csrf");
                 if (csrfToken == null) {

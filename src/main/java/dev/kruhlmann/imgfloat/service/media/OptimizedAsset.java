@@ -1,5 +1,7 @@
 package dev.kruhlmann.imgfloat.service.media;
 
+import jakarta.validation.constraints.NotNull;
+
 import java.util.Arrays;
 import java.util.Objects;
 
@@ -26,6 +28,7 @@ public record OptimizedAsset(byte[] bytes, String mediaType, int width, int heig
         return result;
     }
 
+    @NotNull
     @Override
     public String toString() {
         return (

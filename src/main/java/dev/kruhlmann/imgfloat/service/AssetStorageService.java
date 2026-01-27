@@ -73,7 +73,7 @@ public class AssetStorageService {
             StandardOpenOption.TRUNCATE_EXISTING,
             StandardOpenOption.WRITE
         );
-        logger.info("Wrote asset to {}", file);
+        logger.info("Wrote asset preview to {}", file);
     }
 
     public Optional<AssetContent> loadAssetFile(String broadcaster, String assetId, String mediaType) {

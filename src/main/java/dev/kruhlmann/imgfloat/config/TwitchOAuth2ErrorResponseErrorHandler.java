@@ -3,6 +3,8 @@ package dev.kruhlmann.imgfloat.config;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.client.ClientHttpResponse;
@@ -58,26 +60,15 @@ class TwitchOAuth2ErrorResponseErrorHandler extends OAuth2ErrorResponseErrorHand
         return new OAuth2AuthorizationException(oauth2Error, ex);
     }
 
-    private static final class CachedBodyClientHttpResponse implements ClientHttpResponse {
+    private record CachedBodyClientHttpResponse(ClientHttpResponse delegate, byte[] body) implements ClientHttpResponse {
 
-        private final ClientHttpResponse delegate;
-        private final byte[] body;
-
-        private CachedBodyClientHttpResponse(ClientHttpResponse delegate, byte[] body) {
-            this.delegate = delegate;
-            this.body = body;
-        }
-
+        @NotNull
         @Override
         public org.springframework.http.HttpStatusCode getStatusCode() throws IOException {
             return delegate.getStatusCode();
         }
 
-        @Override
-        public int getRawStatusCode() throws IOException {
-            return delegate.getRawStatusCode();
-        }
-
+        @NotNull
         @Override
         public String getStatusText() throws IOException {
             return delegate.getStatusText();
@@ -88,11 +79,13 @@ class TwitchOAuth2ErrorResponseErrorHandler extends OAuth2ErrorResponseErrorHand
             delegate.close();
         }
 
+        @NotNull
         @Override
-        public java.io.InputStream getBody() throws IOException {
+        public java.io.InputStream getBody() {
             return new ByteArrayInputStream(body);
         }
 
+        @NotNull
         @Override
         public org.springframework.http.HttpHeaders getHeaders() {
             return delegate.getHeaders();

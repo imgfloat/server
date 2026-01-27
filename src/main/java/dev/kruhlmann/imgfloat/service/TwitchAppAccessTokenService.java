@@ -42,12 +42,12 @@ public class TwitchAppAccessTokenService {
             return Optional.empty();
         }
         AccessToken current = cachedToken;
-        if (current != null && !current.isExpired()) {
+        if (current != null && current.isActive()) {
             return Optional.of(current.token());
         }
         synchronized (this) {
             AccessToken refreshed = cachedToken;
-            if (refreshed != null && !refreshed.isExpired()) {
+            if (refreshed != null && refreshed.isActive()) {
                 return Optional.of(refreshed.token());
             }
             cachedToken = requestToken();
@@ -91,8 +91,8 @@ public class TwitchAppAccessTokenService {
     }
 
     private record AccessToken(String token, Instant expiresAt) {
-        boolean isExpired() {
-            return expiresAt == null || expiresAt.isBefore(Instant.now());
+        boolean isActive() {
+            return expiresAt != null && !expiresAt.isBefore(Instant.now());
         }
     }
 

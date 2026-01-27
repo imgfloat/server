@@ -112,32 +112,16 @@ public class TransformRequest {
         return audioLoop;
     }
 
-    public void setAudioLoop(Boolean audioLoop) {
-        this.audioLoop = audioLoop;
-    }
-
     public Integer getAudioDelayMillis() {
         return audioDelayMillis;
-    }
-
-    public void setAudioDelayMillis(Integer audioDelayMillis) {
-        this.audioDelayMillis = audioDelayMillis;
     }
 
     public Double getAudioSpeed() {
         return audioSpeed;
     }
 
-    public void setAudioSpeed(Double audioSpeed) {
-        this.audioSpeed = audioSpeed;
-    }
-
     public Double getAudioPitch() {
         return audioPitch;
-    }
-
-    public void setAudioPitch(Double audioPitch) {
-        this.audioPitch = audioPitch;
     }
 
     public Double getAudioVolume() {

@@ -1,14 +1,10 @@
 package dev.kruhlmann.imgfloat.service;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -17,30 +13,15 @@ import org.springframework.stereotype.Component;
 public class VersionService {
 
     private static final Logger LOG = LoggerFactory.getLogger(VersionService.class);
-    private static final Pattern PACKAGE_VERSION_PATTERN = Pattern.compile("\"version\"\\s*:\\s*\"([^\"]+)\"");
 
     private final String serverVersion;
-    private final String releaseVersion;
 
-    public VersionService() throws IOException {
+    public VersionService() {
         this.serverVersion = resolveServerVersion();
-        this.releaseVersion = normalizeReleaseVersion(serverVersion);
     }
 
     public String getVersion() {
         return serverVersion;
-    }
-
-    public String getReleaseVersion() {
-        return releaseVersion;
-    }
-
-    public String getReleaseTag() {
-        if (releaseVersion == null || releaseVersion.isBlank()) {
-            throw new IllegalStateException("Release version is not available");
-        }
-        String normalized = releaseVersion.startsWith("v") ? releaseVersion.substring(1) : releaseVersion;
-        return "v" + normalized;
     }
 
     private String resolveServerVersion() {
@@ -55,16 +36,6 @@ public class VersionService {
         }
 
         throw new IllegalStateException("Release version is not available");
-    }
-
-    private String normalizeReleaseVersion(String baseVersion) throws IllegalStateException {
-        String normalized = baseVersion.trim();
-        normalized = normalized.replaceFirst("(?i)^v", "");
-        normalized = normalized.replaceFirst("-SNAPSHOT$", "");
-        if (normalized.isBlank()) {
-            throw new IllegalStateException("Invalid version: " + baseVersion);
-        }
-        return normalized;
     }
 
     private String getPomVersion() {

@@ -78,14 +78,14 @@ public class ScriptMarketplaceController {
     ) {
         String sessionUsername = OauthSessionUser.from(oauthToken).login();
         authorizationService.userIsBroadcasterOrChannelAdminForBroadcasterOrThrowHttpError(
-            request.getTargetBroadcaster(),
+            request.targetBroadcaster(),
             sessionUsername
         );
         String logScriptId = LogSanitizer.sanitize(scriptId);
-        String logTarget = LogSanitizer.sanitize(request.getTargetBroadcaster());
+        String logTarget = LogSanitizer.sanitize(request.targetBroadcaster());
         LOG.info("Importing marketplace script {} into {}", logScriptId, logTarget);
         return channelDirectoryService
-            .importMarketplaceScript(request.getTargetBroadcaster(), scriptId, sessionUsername)
+            .importMarketplaceScript(request.targetBroadcaster(), scriptId, sessionUsername)
             .map(ResponseEntity::ok)
             .orElseThrow(() -> new ResponseStatusException(BAD_REQUEST, "Unable to import script"));
     }

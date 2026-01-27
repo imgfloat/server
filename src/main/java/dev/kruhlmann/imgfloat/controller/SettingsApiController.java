@@ -39,7 +39,7 @@ public class SettingsApiController {
         authorizationService.userIsSystemAdministratorOrThrowHttpError(sessionUsername);
 
         Settings currentSettings = settingsService.get();
-        LOG.info("Sytem administrator settings change request");
+        LOG.info("System administrator settings change request");
         settingsService.logSettings("From: ", currentSettings);
         settingsService.logSettings("To: ", newSettings);
 

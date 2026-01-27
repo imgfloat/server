@@ -1,7 +1,6 @@
 package dev.kruhlmann.imgfloat.controller;
 
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
-import static org.springframework.http.HttpStatus.FORBIDDEN;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 
 import dev.kruhlmann.imgfloat.model.api.request.AdminRequest;
@@ -32,10 +31,13 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.lang.Nullable;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClientService;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
+import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizedClientRepository;
+import org.springframework.security.oauth2.core.AbstractOAuth2Token;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -83,10 +85,10 @@ public class ChannelApiController {
         String sessionUsername = OauthSessionUser.from(oauthToken).login();
         String logBroadcaster = LogSanitizer.sanitize(broadcaster);
         String logSessionUsername = LogSanitizer.sanitize(sessionUsername);
-        String logRequestUsername = LogSanitizer.sanitize(request.getUsername());
+        String logRequestUsername = LogSanitizer.sanitize(request.username());
         authorizationService.userMatchesSessionUsernameOrThrowHttpError(broadcaster, sessionUsername);
         LOG.info("User {} adding admin {} to {}", logSessionUsername, logRequestUsername, logBroadcaster);
-        boolean added = channelDirectoryService.addAdmin(broadcaster, request.getUsername(), sessionUsername);
+        boolean added = channelDirectoryService.addAdmin(broadcaster, request.username(), sessionUsername);
         if (!added) {
             LOG.info("User {} already admin for {} or could not be added", logRequestUsername, logBroadcaster);
         }
@@ -106,14 +108,14 @@ public class ChannelApiController {
         LOG.debug("Listing admins for {} by {}", logBroadcaster, logSessionUsername);
         var channel = channelDirectoryService.getOrCreateChannel(broadcaster);
         List<String> admins = channel.getAdmins().stream().sorted(Comparator.naturalOrder()).toList();
-        OAuth2AuthorizedClient authorizedClient = resolveAuthorizedClient(oauthToken, null, request);
+        OAuth2AuthorizedClient authorizedClient = resolveAuthorizedClient(oauthToken, request);
         String accessToken = Optional.ofNullable(authorizedClient)
             .map(OAuth2AuthorizedClient::getAccessToken)
-            .map((token) -> token.getTokenValue())
+            .map(AbstractOAuth2Token::getTokenValue)
             .orElse(null);
         String clientId = Optional.ofNullable(authorizedClient)
             .map(OAuth2AuthorizedClient::getClientRegistration)
-            .map((registration) -> registration.getClientId())
+            .map(ClientRegistration::getClientId)
             .orElse(null);
         return twitchUserLookupService.fetchProfiles(admins, accessToken, clientId);
     }
@@ -130,7 +132,7 @@ public class ChannelApiController {
         authorizationService.userMatchesSessionUsernameOrThrowHttpError(broadcaster, sessionUsername);
         LOG.debug("Listing admin suggestions for {} by {}", logBroadcaster, logSessionUsername);
         var channel = channelDirectoryService.getOrCreateChannel(broadcaster);
-        OAuth2AuthorizedClient authorizedClient = resolveAuthorizedClient(oauthToken, null, request);
+        OAuth2AuthorizedClient authorizedClient = resolveAuthorizedClient(oauthToken, request);
 
         if (authorizedClient == null) {
             LOG.warn(
@@ -140,13 +142,13 @@ public class ChannelApiController {
             );
             return List.of();
         }
-        String accessToken = Optional.ofNullable(authorizedClient)
+        String accessToken = Optional.of(authorizedClient)
             .map(OAuth2AuthorizedClient::getAccessToken)
-            .map((token) -> token.getTokenValue())
+            .map(AbstractOAuth2Token::getTokenValue)
             .orElse(null);
-        String clientId = Optional.ofNullable(authorizedClient)
+        String clientId = Optional.of(authorizedClient)
             .map(OAuth2AuthorizedClient::getClientRegistration)
-            .map((registration) -> registration.getClientId())
+            .map(ClientRegistration::getClientId)
             .orElse(null);
         if (accessToken == null || accessToken.isBlank() || clientId == null || clientId.isBlank()) {
             LOG.warn(
@@ -406,7 +408,7 @@ public class ChannelApiController {
                     .contentType(MediaType.parseMediaType(content.mediaType()))
                     .body(content.bytes())
             )
-            .orElseThrow(() -> createAsset404());
+            .orElseThrow(this::createAsset404);
     }
 
     @GetMapping("/script-assets/{assetId}/attachments/{attachmentId}/content")
@@ -433,7 +435,7 @@ public class ChannelApiController {
                     .contentType(MediaType.parseMediaType(content.mediaType()))
                     .body(content.bytes())
             )
-            .orElseThrow(() -> createAsset404());
+            .orElseThrow(this::createAsset404);
     }
 
     @GetMapping("/assets/{assetId}/logo")
@@ -456,7 +458,7 @@ public class ChannelApiController {
                     .contentType(MediaType.parseMediaType(content.mediaType()))
                     .body(content.bytes())
             )
-            .orElseThrow(() -> createAsset404());
+            .orElseThrow(this::createAsset404);
     }
 
     @GetMapping("/assets/{assetId}/preview")
@@ -475,13 +477,12 @@ public class ChannelApiController {
                     .contentType(MediaType.parseMediaType(content.mediaType()))
                     .body(content.bytes())
             )
-            .orElseThrow(() -> createAsset404());
+            .orElseThrow(this::createAsset404);
     }
 
     private String contentDispositionFor(String mediaType) {
         if (
-            mediaType != null &&
-            dev.kruhlmann.imgfloat.service.media.MediaDetectionService.isInlineDisplayType(mediaType)
+                dev.kruhlmann.imgfloat.service.media.MediaDetectionService.isInlineDisplayType(mediaType)
         ) {
             return "inline";
         }
@@ -616,14 +617,11 @@ public class ChannelApiController {
     }
 
     private OAuth2AuthorizedClient resolveAuthorizedClient(
-        OAuth2AuthenticationToken oauthToken,
-        OAuth2AuthorizedClient authorizedClient,
+        @Nullable OAuth2AuthenticationToken oauthToken,
         HttpServletRequest request
     ) {
-        if (authorizedClient != null) {
-            return authorizedClient;
-        }
         if (oauthToken == null) {
+            LOG.error("Attempt to resolve authorized client without oauth token");
             return null;
         }
         OAuth2AuthorizedClient sessionClient = authorizedClientRepository.loadAuthorizedClient(

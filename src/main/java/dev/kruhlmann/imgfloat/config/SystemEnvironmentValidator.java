@@ -52,9 +52,6 @@ public class SystemEnvironmentValidator {
     @Value("${IMGFLOAT_GITHUB_CLIENT_VERSION:#{null}}")
     private String githubClientVersion;
 
-    private long maxUploadBytes;
-    private long maxRequestBytes;
-
     public SystemEnvironmentValidator(Environment environment) {
         this.environment = environment;
     }
@@ -72,8 +69,8 @@ public class SystemEnvironmentValidator {
 
         StringBuilder missing = new StringBuilder();
 
-        maxUploadBytes = DataSize.parse(springMaxFileSize).toBytes();
-        maxRequestBytes = DataSize.parse(springMaxRequestSize).toBytes();
+        long maxUploadBytes = DataSize.parse(springMaxFileSize).toBytes();
+        long maxRequestBytes = DataSize.parse(springMaxRequestSize).toBytes();
         checkUnsignedNumeric(maxUploadBytes, "SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE", missing);
         checkUnsignedNumeric(maxRequestBytes, "SPRING_SERVLET_MULTIPART_MAX_REQUEST_SIZE", missing);
         checkString(twitchClientId, "TWITCH_CLIENT_ID", missing);
@@ -107,7 +104,7 @@ public class SystemEnvironmentValidator {
     }
 
     private void checkString(String value, String name, StringBuilder missing) {
-        if (value != null && StringUtils.hasText(value)) {
+        if (StringUtils.hasText(value)) {
             return;
         }
         missing.append(" - ").append(name).append("\n");
@@ -121,7 +118,7 @@ public class SystemEnvironmentValidator {
     }
 
     private String redact(String value) {
-        if (value != null && StringUtils.hasText(value)) {
+        if (StringUtils.hasText(value)) {
             return "**************";
         }
         return "<not set>";

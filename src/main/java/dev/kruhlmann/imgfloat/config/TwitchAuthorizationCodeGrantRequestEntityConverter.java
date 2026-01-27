@@ -27,6 +27,7 @@ final class TwitchAuthorizationCodeGrantRequestEntityConverter
 
     @Override
     public @Nullable RequestEntity<?> convert(@Nullable OAuth2AuthorizationCodeGrantRequest request) {
+        assert request != null;
         RequestEntity<?> entity = delegate.convert(request);
         if (entity == null || !(entity.getBody() instanceof MultiValueMap<?, ?> existingBody)) {
             return entity;

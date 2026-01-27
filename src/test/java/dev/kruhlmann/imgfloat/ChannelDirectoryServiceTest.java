@@ -64,12 +64,7 @@ class ChannelDirectoryServiceTest {
     private VisualAssetRepository visualAssetRepository;
     private AudioAssetRepository audioAssetRepository;
     private ScriptAssetRepository scriptAssetRepository;
-    private ScriptAssetAttachmentRepository scriptAssetAttachmentRepository;
     private ScriptAssetFileRepository scriptAssetFileRepository;
-    private MarketplaceScriptHeartRepository marketplaceScriptHeartRepository;
-    private SettingsService settingsService;
-    private MarketplaceScriptSeedLoader marketplaceScriptSeedLoader;
-    private AuditLogService auditLogService;
 
     @BeforeEach
     void setup() throws Exception {
@@ -79,13 +74,13 @@ class ChannelDirectoryServiceTest {
         visualAssetRepository = mock(VisualAssetRepository.class);
         audioAssetRepository = mock(AudioAssetRepository.class);
         scriptAssetRepository = mock(ScriptAssetRepository.class);
-        scriptAssetAttachmentRepository = mock(ScriptAssetAttachmentRepository.class);
+        ScriptAssetAttachmentRepository scriptAssetAttachmentRepository = mock(ScriptAssetAttachmentRepository.class);
         scriptAssetFileRepository = mock(ScriptAssetFileRepository.class);
-        marketplaceScriptHeartRepository = mock(MarketplaceScriptHeartRepository.class);
-        auditLogService = mock(AuditLogService.class);
+        MarketplaceScriptHeartRepository marketplaceScriptHeartRepository = mock(MarketplaceScriptHeartRepository.class);
+        AuditLogService auditLogService = mock(AuditLogService.class);
         when(marketplaceScriptHeartRepository.countByScriptIds(any())).thenReturn(List.of());
         when(marketplaceScriptHeartRepository.findByUsernameAndScriptIdIn(anyString(), any())).thenReturn(List.of());
-        settingsService = mock(SettingsService.class);
+        SettingsService settingsService = mock(SettingsService.class);
         when(settingsService.get()).thenReturn(Settings.defaults());
         setupInMemoryPersistence();
         Path assetRoot = Files.createTempDirectory("imgfloat-assets-test");
@@ -112,24 +107,24 @@ class ChannelDirectoryServiceTest {
         Files.writeString(scriptRoot.resolve("source.js"), "console.log('seeded');");
         Files.write(scriptRoot.resolve("logo.png"), samplePng());
         Files.write(scriptRoot.resolve("attachments/rotate.png"), samplePng());
-        marketplaceScriptSeedLoader = new MarketplaceScriptSeedLoader(marketplaceRoot.toString());
+        MarketplaceScriptSeedLoader marketplaceScriptSeedLoader = new MarketplaceScriptSeedLoader(marketplaceRoot.toString());
         service = new ChannelDirectoryService(
             channelRepository,
             assetRepository,
             visualAssetRepository,
             audioAssetRepository,
             scriptAssetRepository,
-            scriptAssetAttachmentRepository,
+                scriptAssetAttachmentRepository,
             scriptAssetFileRepository,
-            marketplaceScriptHeartRepository,
+                marketplaceScriptHeartRepository,
             messagingTemplate,
             assetStorageService,
             mediaDetectionService,
             mediaOptimizationService,
-            settingsService,
+                settingsService,
             uploadLimitBytes,
-            marketplaceScriptSeedLoader,
-            auditLogService
+                marketplaceScriptSeedLoader,
+                auditLogService
         );
     }
 
@@ -195,9 +190,14 @@ class ChannelDirectoryServiceTest {
     }
 
     @Test
-    void appliesBoundaryValues() throws Exception {
+    void appliesBoundaryValues() {
         String channel = "caster";
-        String id = createSampleAsset(channel);
+        String id = null;
+        try {
+            id = createSampleAsset(channel);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
 
         TransformRequest transform = validTransform();
         transform.setSpeed(0.1);

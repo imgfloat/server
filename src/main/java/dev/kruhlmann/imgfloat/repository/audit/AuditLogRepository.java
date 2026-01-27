@@ -1,7 +1,6 @@
 package dev.kruhlmann.imgfloat.repository.audit;
 
 import dev.kruhlmann.imgfloat.model.db.audit.AuditLogEntry;
-import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -11,7 +10,6 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface AuditLogRepository extends JpaRepository<AuditLogEntry, String> {
-    List<AuditLogEntry> findTop200ByBroadcasterOrderByCreatedAtDesc(String broadcaster);
 
     @Query(
         """

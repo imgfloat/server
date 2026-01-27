@@ -134,10 +134,7 @@ public class MarketplaceScriptSeedLoader {
                 if (!Files.isDirectory(scriptDir)) {
                     continue;
                 }
-                SeedScript script = loadScriptDirectory(scriptDir).orElse(null);
-                if (script != null) {
-                    loaded.add(script);
-                }
+                loadScriptDirectory(scriptDir).ifPresent(loaded::add);
             }
         } catch (IOException ex) {
             logger.warn("Failed to read marketplace script directory {}", rootPath, ex);
@@ -179,7 +176,7 @@ public class MarketplaceScriptSeedLoader {
                 broadcaster,
                 sourceMediaType,
                 logoMediaType,
-                Optional.ofNullable(sourcePath),
+                Optional.of(sourcePath),
                 Optional.ofNullable(logoPath),
                 allowedDomains,
                 attachments,
@@ -207,7 +204,7 @@ public class MarketplaceScriptSeedLoader {
                     attachments.add(
                         new SeedAttachment(
                             name,
-                            mediaType == null ? "application/octet-stream" : mediaType,
+                            mediaType,
                             attachment,
                             new AtomicReference<>()
                         )
@@ -348,7 +345,7 @@ public class MarketplaceScriptSeedLoader {
             }
             try {
                 String content = Files.readString(path);
-                return JsonSupport.read(content, ScriptSeedMetadata.class);
+                return JsonSupport.read(content);
             } catch (IOException ex) {
                 logger.warn("Failed to read marketplace metadata {}", path, ex);
                 return null;
@@ -362,8 +359,8 @@ public class MarketplaceScriptSeedLoader {
 
         private JsonSupport() {}
 
-        static <T> T read(String payload, Class<T> type) throws IOException {
-            return mapper().readValue(payload, type);
+        static <T> T read(String payload) throws IOException {
+            return mapper().readValue(payload, (Class<T>) ScriptSeedMetadata.class);
         }
 
         private static com.fasterxml.jackson.databind.ObjectMapper mapper() {

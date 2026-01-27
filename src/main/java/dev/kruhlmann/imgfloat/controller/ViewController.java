@@ -83,14 +83,6 @@ public class ViewController {
         return "index";
     }
 
-    @org.springframework.web.bind.annotation.GetMapping("/channels")
-    public String channelDirectory(Model model) {
-        LOG.info("Rendering channel directory");
-        addStagingAttribute(model);
-        addVersionAttributes(model);
-        return "channels";
-    }
-
     @org.springframework.web.bind.annotation.GetMapping("/terms")
     public String termsOfUse(Model model) {
         LOG.info("Rendering terms of use");

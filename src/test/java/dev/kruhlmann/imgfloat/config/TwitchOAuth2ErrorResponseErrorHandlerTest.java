@@ -22,7 +22,7 @@ class TwitchOAuth2ErrorResponseErrorHandlerTest {
     private final TwitchOAuth2ErrorResponseErrorHandler handler = new TwitchOAuth2ErrorResponseErrorHandler();
 
     @Test
-    void fallsBackToSyntheticErrorWhenErrorBodyIsMissing() throws Exception {
+    void fallsBackToSyntheticErrorWhenErrorBodyIsMissing() {
         MockClientHttpResponse response = new MockClientHttpResponse(new byte[0], HttpStatus.BAD_REQUEST);
         response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
 

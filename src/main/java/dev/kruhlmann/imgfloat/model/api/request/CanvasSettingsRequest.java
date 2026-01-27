@@ -5,12 +5,10 @@ import jakarta.validation.constraints.Positive;
 public class CanvasSettingsRequest {
 
     @Positive
-    private double width;
+    private final double width;
 
     @Positive
-    private double height;
-
-    public CanvasSettingsRequest() {}
+    private final double height;
 
     public CanvasSettingsRequest(double width, double height) {
         this.width = width;
@@ -21,15 +19,8 @@ public class CanvasSettingsRequest {
         return width;
     }
 
-    public void setWidth(double width) {
-        this.width = width;
-    }
-
     public double getHeight() {
         return height;
     }
 
-    public void setHeight(double height) {
-        this.height = height;
-    }
 }

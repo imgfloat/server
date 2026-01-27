@@ -11,16 +11,18 @@ import org.springframework.boot.autoconfigure.jdbc.DataSourceProperties;
 import org.springframework.boot.autoconfigure.orm.jpa.HibernateProperties;
 import org.springframework.boot.autoconfigure.orm.jpa.HibernateSettings;
 import org.springframework.boot.autoconfigure.orm.jpa.JpaProperties;
-import org.springframework.boot.orm.jpa.EntityManagerFactoryBuilder;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.orm.jpa.EntityManagerFactoryBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.orm.jpa.JpaTransactionManager;
 import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.annotation.EnableTransactionManagement;
 
 @Configuration
+@EnableTransactionManagement
 @EnableJpaRepositories(
     basePackages = "dev.kruhlmann.imgfloat.repository.audit",
     entityManagerFactoryRef = "auditEntityManagerFactory",
@@ -36,9 +38,7 @@ public class AuditLogDataSourceConfig {
 
     @Bean
     @ConfigurationProperties("imgfloat.audit.datasource.hikari")
-    public HikariDataSource auditDataSource(
-        @Qualifier("auditDataSourceProperties") DataSourceProperties properties
-    ) {
+    public HikariDataSource auditDataSource(@Qualifier("auditDataSourceProperties") DataSourceProperties properties) {
         return properties.initializeDataSourceBuilder().type(HikariDataSource.class).build();
     }
 

@@ -15,7 +15,6 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Locale;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 @Entity
 @Table(name = "channels")
@@ -27,7 +26,7 @@ public class Channel {
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "channel_admins", joinColumns = @JoinColumn(name = "channel_id"))
     @Column(name = "admin_username")
-    private Set<String> admins = new HashSet<>();
+    private final Set<String> admins = new HashSet<>();
 
     private double canvasWidth = 1920;
 
@@ -52,8 +51,6 @@ public class Channel {
 
     public Channel(String broadcaster) {
         this.broadcaster = normalize(broadcaster);
-        this.canvasWidth = 1920;
-        this.canvasHeight = 1080;
     }
 
     public String getBroadcaster() {
@@ -112,30 +109,28 @@ public class Channel {
         this.allowScriptChatAccess = allowScriptChatAccess;
     }
 
-    @PrePersist
-    @PreUpdate
-    public void normalizeFields() {
-        Instant now = Instant.now();
-        if (createdAt == null) {
-            createdAt = now;
-        }
-        updatedAt = now;
-        this.broadcaster = normalize(broadcaster);
-        this.admins = admins.stream().map(Channel::normalize).collect(Collectors.toSet());
-        if (canvasWidth <= 0) {
-            canvasWidth = 1920;
-        }
-        if (canvasHeight <= 0) {
-            canvasHeight = 1080;
-        }
-    }
-
     public Instant getCreatedAt() {
         return createdAt;
     }
 
     public Instant getUpdatedAt() {
         return updatedAt;
+    }
+
+    @PrePersist
+    private void ensureCreatedAt() {
+        Instant now = Instant.now();
+        if (createdAt == null) {
+            createdAt = now;
+        }
+        if (updatedAt == null) {
+            updatedAt = now;
+        }
+    }
+
+    @PreUpdate
+    private void touchUpdatedAt() {
+        updatedAt = Instant.now();
     }
 
     private static String normalize(String value) {

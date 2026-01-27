@@ -41,10 +41,6 @@ public class GitInfoService {
         this.commitUrlPrefix = normalize(commitUrlPrefix);
     }
 
-    public String getCommitSha() {
-        return commitSha;
-    }
-
     public String getShortCommitSha() {
         return shortCommitSha;
     }

@@ -1,10 +1,8 @@
 package dev.kruhlmann.imgfloat.service;
 
 import dev.kruhlmann.imgfloat.model.db.audit.AuditLogEntry;
-import dev.kruhlmann.imgfloat.model.api.response.AuditLogEntryView;
 import dev.kruhlmann.imgfloat.repository.audit.AuditLogRepository;
 import dev.kruhlmann.imgfloat.util.LogSanitizer;
-import java.util.List;
 import java.util.Locale;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -52,18 +50,6 @@ public class AuditLogService {
                 ex
             );
         }
-    }
-
-    public List<AuditLogEntryView> listEntries(String broadcaster) {
-        String normalizedBroadcaster = normalize(broadcaster);
-        if (normalizedBroadcaster == null || normalizedBroadcaster.isBlank()) {
-            return List.of();
-        }
-        return auditLogRepository
-            .findTop200ByBroadcasterOrderByCreatedAtDesc(normalizedBroadcaster)
-            .stream()
-            .map(AuditLogEntryView::fromEntry)
-            .toList();
     }
 
     public Page<AuditLogEntry> listEntries(

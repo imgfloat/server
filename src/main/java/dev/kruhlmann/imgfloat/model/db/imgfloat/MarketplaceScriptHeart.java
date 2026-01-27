@@ -30,10 +30,6 @@ public class MarketplaceScriptHeart {
         return scriptId;
     }
 
-    public void setScriptId(String scriptId) {
-        this.scriptId = scriptId;
-    }
-
     public String getUsername() {
         return username;
     }

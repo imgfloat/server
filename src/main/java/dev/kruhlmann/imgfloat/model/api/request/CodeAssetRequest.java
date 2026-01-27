@@ -1,5 +1,6 @@
 package dev.kruhlmann.imgfloat.model.api.request;
 
+import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.NotBlank;
 
 public class CodeAssetRequest {
@@ -12,6 +13,7 @@ public class CodeAssetRequest {
 
     private String description;
 
+    @Nullable
     private Boolean isPublic;
 
     private java.util.List<String> allowedDomains;
@@ -40,12 +42,9 @@ public class CodeAssetRequest {
         this.description = description;
     }
 
+    @Nullable
     public Boolean getIsPublic() {
         return isPublic;
-    }
-
-    public void setIsPublic(Boolean isPublic) {
-        this.isPublic = isPublic;
     }
 
     public java.util.List<String> getAllowedDomains() {
@@ -54,5 +53,9 @@ public class CodeAssetRequest {
 
     public void setAllowedDomains(java.util.List<String> allowedDomains) {
         this.allowedDomains = allowedDomains;
+    }
+
+    public void setPublic(@Nullable Boolean aPublic) {
+        isPublic = aPublic;
     }
 }

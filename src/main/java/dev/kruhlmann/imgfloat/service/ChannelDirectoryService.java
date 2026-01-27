@@ -581,14 +581,14 @@ public class ChannelDirectoryService {
     }
 
     @Transactional
-    public Optional<AssetView> clearScriptLogo(String broadcaster, String assetId, String actor) {
+    public void clearScriptLogo(String broadcaster, String assetId, String actor) {
         Asset asset = requireScriptAssetForBroadcaster(broadcaster, assetId);
         ScriptAsset script = scriptAssetRepository
             .findById(asset.getId())
             .orElseThrow(() -> new ResponseStatusException(BAD_REQUEST, "Asset is not a script"));
         String previousLogoFileId = script.getLogoFileId();
         if (previousLogoFileId == null) {
-            return Optional.empty();
+            return;
         }
         script.setLogoFileId(null);
         script.setAttachments(loadScriptAttachments(asset.getBroadcaster(), asset.getId(), null));
@@ -602,7 +602,6 @@ public class ChannelDirectoryService {
             "SCRIPT_LOGO_CLEARED",
             "Cleared script logo for " + script.getName() + " (" + asset.getId() + ")"
         );
-        return Optional.of(view);
     }
 
     public List<ScriptMarketplaceEntry> listMarketplaceScripts(String query, String sessionUsername) {
@@ -804,7 +803,7 @@ public class ChannelDirectoryService {
                 .findById(scriptId)
                 .filter(ScriptAsset::isPublic)
                 .map(ScriptAsset::getLogoFileId)
-                .flatMap((logoFileId) -> scriptAssetFileRepository.findById(logoFileId))
+                .flatMap(scriptAssetFileRepository::findById)
                 .flatMap((file) ->
                     assetStorageService.loadAssetFileSafely(file.getBroadcaster(), file.getId(), file.getMediaType())
                 );
@@ -1065,7 +1064,7 @@ public class ChannelDirectoryService {
                         .findById(asset.getId())
                         .orElseThrow(() -> new ResponseStatusException(BAD_REQUEST, "Asset is not a script"));
                     Integer beforeOrder = asset.getDisplayOrder();
-                    List<Asset> orderUpdates = List.of();
+                    List<Asset> orderUpdates;
                     if (req.getOrder() != null) {
                         if (req.getOrder() < 1) {
                             throw new ResponseStatusException(BAD_REQUEST, "Order must be >= 1");
@@ -1514,7 +1513,7 @@ public class ChannelDirectoryService {
         return scriptAssetRepository
             .findById(asset.getId())
             .map(ScriptAsset::getLogoFileId)
-            .flatMap((logoFileId) -> scriptAssetFileRepository.findById(logoFileId))
+            .flatMap(scriptAssetFileRepository::findById)
             .flatMap((file) ->
                 assetStorageService.loadAssetFileSafely(file.getBroadcaster(), file.getId(), file.getMediaType())
             );
@@ -1723,7 +1722,7 @@ public class ChannelDirectoryService {
         return assets
             .stream()
             .sorted(
-                Comparator.comparingInt((Asset asset) -> displayOrderValue(asset))
+                Comparator.comparingInt(this::displayOrderValue)
                     .reversed()
                     .thenComparing(Asset::getCreatedAt, Comparator.nullsFirst(Comparator.naturalOrder()))
             )
@@ -1761,7 +1760,7 @@ public class ChannelDirectoryService {
             .stream()
             .filter((asset) -> types.contains(asset.getAssetType()))
             .sorted(
-                Comparator.comparingInt((Asset asset) -> displayOrderValue(asset))
+                Comparator.comparingInt(this::displayOrderValue)
                     .reversed()
                     .thenComparing(Asset::getCreatedAt, Comparator.nullsFirst(Comparator.naturalOrder()))
             )

@@ -83,24 +83,12 @@ public class Asset {
         return assetType == null ? AssetType.OTHER : assetType;
     }
 
-    public void setAssetType(AssetType assetType) {
-        this.assetType = assetType == null ? AssetType.OTHER : assetType;
-    }
-
     public Instant getCreatedAt() {
         return createdAt;
     }
 
-    public void setCreatedAt(Instant createdAt) {
-        this.createdAt = createdAt;
-    }
-
     public Instant getUpdatedAt() {
         return updatedAt;
-    }
-
-    public void setUpdatedAt(Instant updatedAt) {
-        this.updatedAt = updatedAt;
     }
 
     public Integer getDisplayOrder() {

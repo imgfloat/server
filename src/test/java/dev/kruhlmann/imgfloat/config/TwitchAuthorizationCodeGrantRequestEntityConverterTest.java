@@ -43,21 +43,25 @@ class TwitchAuthorizationCodeGrantRequestEntityConverterTest {
             .state("state")
             .build();
 
+        MultiValueMap<String, String> body = getStringStringMultiValueMap(authorizationRequest, authorizationResponse, registration);
+
+        assertThat(body.getFirst(OAuth2ParameterNames.CLIENT_ID)).isEqualTo("twitch-id");
+        assertThat(body.getFirst(OAuth2ParameterNames.CLIENT_SECRET)).isEqualTo("twitch-secret");
+    }
+
+    private static MultiValueMap<String, String> getStringStringMultiValueMap(OAuth2AuthorizationRequest authorizationRequest, OAuth2AuthorizationResponse authorizationResponse, ClientRegistration registration) {
         OAuth2AuthorizationExchange exchange = new OAuth2AuthorizationExchange(
-            authorizationRequest,
-            authorizationResponse
+                authorizationRequest,
+                authorizationResponse
         );
         OAuth2AuthorizationCodeGrantRequest grantRequest = new OAuth2AuthorizationCodeGrantRequest(
-            registration,
+                registration,
             exchange
         );
 
         var converter = new TwitchAuthorizationCodeGrantRequestEntityConverter();
         RequestEntity<?> requestEntity = converter.convert(grantRequest);
 
-        MultiValueMap<String, String> body = (MultiValueMap<String, String>) requestEntity.getBody();
-
-        assertThat(body.getFirst(OAuth2ParameterNames.CLIENT_ID)).isEqualTo("twitch-id");
-        assertThat(body.getFirst(OAuth2ParameterNames.CLIENT_SECRET)).isEqualTo("twitch-secret");
+        return (MultiValueMap<String, String>) requestEntity.getBody();
     }
 }

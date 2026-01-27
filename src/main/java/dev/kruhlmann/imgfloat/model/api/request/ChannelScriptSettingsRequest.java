@@ -6,8 +6,6 @@ public class ChannelScriptSettingsRequest {
     private boolean allowSevenTvEmotesForAssets = true;
     private boolean allowScriptChatAccess = true;
 
-    public ChannelScriptSettingsRequest() {}
-
     public ChannelScriptSettingsRequest(
         boolean allowChannelEmotesForAssets,
         boolean allowSevenTvEmotesForAssets,
@@ -22,23 +20,12 @@ public class ChannelScriptSettingsRequest {
         return allowChannelEmotesForAssets;
     }
 
-    public void setAllowChannelEmotesForAssets(boolean allowChannelEmotesForAssets) {
-        this.allowChannelEmotesForAssets = allowChannelEmotesForAssets;
-    }
-
     public boolean isAllowSevenTvEmotesForAssets() {
         return allowSevenTvEmotesForAssets;
-    }
-
-    public void setAllowSevenTvEmotesForAssets(boolean allowSevenTvEmotesForAssets) {
-        this.allowSevenTvEmotesForAssets = allowSevenTvEmotesForAssets;
     }
 
     public boolean isAllowScriptChatAccess() {
         return allowScriptChatAccess;
     }
 
-    public void setAllowScriptChatAccess(boolean allowScriptChatAccess) {
-        this.allowScriptChatAccess = allowScriptChatAccess;
-    }
 }

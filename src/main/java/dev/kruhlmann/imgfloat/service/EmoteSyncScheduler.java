@@ -50,9 +50,10 @@ public class EmoteSyncScheduler implements SchedulingConfigurer {
 
     private Trigger buildTrigger() {
         return (TriggerContext triggerContext) -> {
-            Instant lastCompletion = triggerContext.lastCompletionTime() == null
+            Instant lastCompletion = triggerContext.lastCompletion() == null
                 ? Instant.now()
-                : triggerContext.lastCompletionTime().toInstant();
+                : triggerContext.lastCompletion();
+            assert lastCompletion != null;
             return lastCompletion.plus(Duration.ofMinutes(resolveIntervalMinutes()));
         };
     }

@@ -27,9 +27,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 @Configuration
 @EnableJpaRepositories(
     basePackages = "dev.kruhlmann.imgfloat.repository",
-    excludeFilters = @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = AuditLogRepository.class),
-    entityManagerFactoryRef = "entityManagerFactory",
-    transactionManagerRef = "transactionManager"
+    excludeFilters = @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = AuditLogRepository.class)
 )
 public class PrimaryDataSourceConfig {
 
