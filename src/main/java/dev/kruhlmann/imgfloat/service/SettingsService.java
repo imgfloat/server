@@ -9,6 +9,7 @@ import dev.kruhlmann.imgfloat.repository.AudioAssetRepository;
 import dev.kruhlmann.imgfloat.repository.SettingsRepository;
 import dev.kruhlmann.imgfloat.repository.VisualAssetRepository;
 import jakarta.annotation.PostConstruct;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import org.slf4j.Logger;
@@ -57,6 +58,12 @@ public class SettingsService {
         Settings savedSettings = repo.save(settings);
         clampAssetsToSettings(savedSettings);
         return savedSettings;
+    }
+
+    public void updateLastEmoteSyncAt(Instant timestamp) {
+        Settings settings = get();
+        settings.setLastEmoteSyncAt(timestamp);
+        repo.save(settings);
     }
 
     public void logSettings(String msg, Settings settings) {

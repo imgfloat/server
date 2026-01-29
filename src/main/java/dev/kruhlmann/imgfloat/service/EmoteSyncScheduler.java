@@ -50,12 +50,20 @@ public class EmoteSyncScheduler implements SchedulingConfigurer {
 
     private Trigger buildTrigger() {
         return (TriggerContext triggerContext) -> {
-            Instant lastCompletion = triggerContext.lastCompletion() == null
-                ? Instant.now()
-                : triggerContext.lastCompletion();
-            assert lastCompletion != null;
-            return lastCompletion.plus(Duration.ofMinutes(resolveIntervalMinutes()));
+            int interval = resolveIntervalMinutes();
+            Instant lastCompletion = resolveLastCompletion(triggerContext, interval);
+            return lastCompletion.plus(Duration.ofMinutes(interval));
         };
+    }
+
+    private Instant resolveLastCompletion(TriggerContext triggerContext, int intervalMinutes) {
+        Instant lastCompletion = triggerContext.lastCompletion();
+        if (lastCompletion != null) {
+            return lastCompletion;
+        }
+        Settings settings = settingsService.get();
+        Instant persisted = settings.getLastEmoteSyncAt();
+        return persisted != null ? persisted : Instant.now().minus(Duration.ofMinutes(intervalMinutes));
     }
 
     private int resolveIntervalMinutes() {
@@ -67,15 +75,20 @@ public class EmoteSyncScheduler implements SchedulingConfigurer {
     private void syncEmotes() {
         int interval = resolveIntervalMinutes();
         LOG.info("Synchronizing emotes (interval {} minutes)", interval);
-
-        twitchEmoteService.refreshGlobalEmotes();
-        List<Channel> channels = channelRepository.findAll();
-        for (Channel channel : channels) {
-            String broadcaster = channel.getBroadcaster();
-            twitchEmoteService.refreshChannelEmotes(broadcaster);
-            sevenTvEmoteService.refreshChannelEmotes(broadcaster);
+        List<Channel> channels = List.of();
+        try {
+            channels = channelRepository.findAll();
+            twitchEmoteService.refreshGlobalEmotes();
+            for (Channel channel : channels) {
+                String broadcaster = channel.getBroadcaster();
+                twitchEmoteService.refreshChannelEmotes(broadcaster);
+                sevenTvEmoteService.refreshChannelEmotes(broadcaster);
+            }
+            LOG.info("Completed emote sync for {} channels", channels.size());
+        } catch (Exception ex) {
+            LOG.error("Emote sync failed", ex);
+        } finally {
+            settingsService.updateLastEmoteSyncAt(Instant.now());
         }
-
-        LOG.info("Completed emote sync for {} channels", channels.size());
     }
 }

@@ -43,6 +43,9 @@ public class Settings {
     @Column(nullable = false)
     private int emoteSyncIntervalMinutes;
 
+    @Column(name = "last_emote_sync_at")
+    private Instant lastEmoteSyncAt;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -62,6 +65,7 @@ public class Settings {
         s.setMaxCanvasSideLengthPixels(7680);
         s.setCanvasFramesPerSecond(60);
         s.setEmoteSyncIntervalMinutes(60);
+        s.setLastEmoteSyncAt(null);
         return s;
     }
 
@@ -143,6 +147,14 @@ public class Settings {
 
     public void setEmoteSyncIntervalMinutes(int emoteSyncIntervalMinutes) {
         this.emoteSyncIntervalMinutes = emoteSyncIntervalMinutes;
+    }
+
+    public Instant getLastEmoteSyncAt() {
+        return lastEmoteSyncAt;
+    }
+
+    public void setLastEmoteSyncAt(Instant lastEmoteSyncAt) {
+        this.lastEmoteSyncAt = lastEmoteSyncAt;
     }
 
     @PrePersist
