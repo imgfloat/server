@@ -12,7 +12,9 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -22,6 +24,8 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
@@ -41,6 +45,7 @@ public class TwitchEmoteService {
     private final Map<String, CachedEmote> emoteCache = new ConcurrentHashMap<>();
     private final Map<String, List<CachedEmote>> channelEmoteCache = new ConcurrentHashMap<>();
     private volatile List<CachedEmote> globalEmotes = List.of();
+    private final AtomicBoolean initialGlobalSyncScheduled = new AtomicBoolean();
 
     public TwitchEmoteService(
         RestTemplateBuilder builder,
@@ -61,12 +66,11 @@ public class TwitchEmoteService {
         } catch (IOException ex) {
             throw new IllegalStateException("Failed to create Twitch emote cache directory", ex);
         }
-        warmGlobalEmotes();
     }
 
     public List<EmoteDescriptor> getGlobalEmotes() {
         if (globalEmotes.isEmpty()) {
-            warmGlobalEmotes();
+            ensureInitialGlobalSyncScheduled();
         }
         return globalEmotes.stream().map(CachedEmote::descriptor).toList();
     }
@@ -125,6 +129,31 @@ public class TwitchEmoteService {
             .toList();
         globalEmotes = cached;
         LOG.info("Loaded {} global Twitch emotes", cached.size());
+    }
+
+    private void ensureInitialGlobalSyncScheduled() {
+        if (initialGlobalSyncScheduled.compareAndSet(false, true)) {
+            LOG.info("Scheduling initial global Twitch emote sync in the background");
+            CompletableFuture.runAsync(this::safeWarmGlobalEmotes);
+        }
+    }
+
+    private void safeWarmGlobalEmotes() {
+        LOG.info("Initial global Twitch emote sync started");
+        try {
+            warmGlobalEmotes();
+            LOG.info(
+                "Initial global Twitch emote sync completed (cached {} emotes)",
+                globalEmotes.size()
+            );
+        } catch (Exception ex) {
+            LOG.warn("Initial global Twitch emote sync failed", ex);
+        }
+    }
+
+    @EventListener(ApplicationReadyEvent.class)
+    public void startInitialGlobalEmoteSync() {
+        ensureInitialGlobalSyncScheduled();
     }
 
     private List<CachedEmote> fetchChannelEmotes(String channelLogin) {
