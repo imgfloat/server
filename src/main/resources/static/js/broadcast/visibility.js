@@ -10,22 +10,16 @@ export function getVisibilityState(state, asset) {
 }
 
 export function smoothState(state, asset) {
-    const previous = state.renderStates.get(asset.id) || { ...asset };
-    const factor = 0.15;
+    const previous = state.renderStates.get(asset.id) || {};
     const next = {
-        x: lerp(previous.x, asset.x, factor),
-        y: lerp(previous.y, asset.y, factor),
-        width: lerp(previous.width, asset.width, factor),
-        height: lerp(previous.height, asset.height, factor),
-        rotation: smoothAngle(previous.rotation, asset.rotation, factor),
+        x: Number.isFinite(asset.x) ? asset.x : previous.x ?? 0,
+        y: Number.isFinite(asset.y) ? asset.y : previous.y ?? 0,
+        width: Number.isFinite(asset.width) ? asset.width : previous.width ?? 0,
+        height: Number.isFinite(asset.height) ? asset.height : previous.height ?? 0,
+        rotation: Number.isFinite(asset.rotation) ? asset.rotation : previous.rotation ?? 0,
     };
     state.renderStates.set(asset.id, next);
     return next;
-}
-
-function smoothAngle(current, target, factor) {
-    const delta = ((target - current + 180) % 360) - 180;
-    return current + delta * factor;
 }
 
 function lerp(a, b, t) {

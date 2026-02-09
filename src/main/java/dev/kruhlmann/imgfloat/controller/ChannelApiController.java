@@ -9,6 +9,7 @@ import dev.kruhlmann.imgfloat.model.api.request.CanvasSettingsRequest;
 import dev.kruhlmann.imgfloat.model.api.request.ChannelScriptSettingsRequest;
 import dev.kruhlmann.imgfloat.model.api.request.CodeAssetRequest;
 import dev.kruhlmann.imgfloat.model.OauthSessionUser;
+import dev.kruhlmann.imgfloat.model.api.request.AssetOrderRequest;
 import dev.kruhlmann.imgfloat.model.api.request.PlaybackRequest;
 import dev.kruhlmann.imgfloat.model.api.response.ScriptAssetAttachmentView;
 import dev.kruhlmann.imgfloat.model.api.request.TransformRequest;
@@ -329,8 +330,26 @@ public class ChannelApiController {
                     logBroadcaster,
                     logSessionUsername
                 );
-                return createAsset404();
-            });
+            return createAsset404();
+        });
+    }
+
+    @PostMapping("/assets/order")
+    public ResponseEntity<Void> reorderAssets(
+        @PathVariable("broadcaster") String broadcaster,
+        @Valid @RequestBody AssetOrderRequest request,
+        OAuth2AuthenticationToken oauthToken
+    ) {
+        String sessionUsername = OauthSessionUser.from(oauthToken).login();
+        String logBroadcaster = LogSanitizer.sanitize(broadcaster);
+        String logSessionUsername = LogSanitizer.sanitize(sessionUsername);
+        authorizationService.userIsBroadcasterOrChannelAdminForBroadcasterOrThrowHttpError(
+            broadcaster,
+            sessionUsername
+        );
+        LOG.debug("Reordering assets for {} by {}", logBroadcaster, logSessionUsername);
+        channelDirectoryService.reorderAssets(broadcaster, request.getUpdates(), sessionUsername);
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/assets/{assetId}/play")

@@ -4,9 +4,11 @@ import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.PAYLOAD_TOO_LARGE;
 
 import dev.kruhlmann.imgfloat.model.AssetType;
+import dev.kruhlmann.imgfloat.model.api.request.AssetOrderRequest;
 import dev.kruhlmann.imgfloat.model.api.request.CanvasSettingsRequest;
 import dev.kruhlmann.imgfloat.model.api.request.ChannelScriptSettingsRequest;
 import dev.kruhlmann.imgfloat.model.api.request.CodeAssetRequest;
+import dev.kruhlmann.imgfloat.model.api.request.AssetOrderRequest;
 import dev.kruhlmann.imgfloat.model.api.request.PlaybackRequest;
 import dev.kruhlmann.imgfloat.model.api.request.TransformRequest;
 import dev.kruhlmann.imgfloat.model.api.request.VisibilityRequest;
@@ -1157,9 +1159,132 @@ public class ChannelDirectoryService {
                         formatVisualTransformDetails(asset.getId(), req)
                     );
                 }
-                publishOrderUpdates(broadcaster, asset.getId(), orderUpdates);
-                return view;
-            });
+            publishOrderUpdates(broadcaster, asset.getId(), orderUpdates);
+            return view;
+        });
+    }
+
+    @Transactional
+    public void reorderAssets(
+        String broadcaster,
+        List<AssetOrderRequest.AssetOrderUpdate> updates,
+        String actor
+    ) {
+        if (updates == null || updates.isEmpty()) {
+            return;
+        }
+        String normalized = normalize(broadcaster);
+        applyBulkOrderUpdates(
+            broadcaster,
+            normalized,
+            updates,
+            EnumSet.of(AssetType.SCRIPT),
+            actor,
+            true
+        );
+        applyBulkOrderUpdates(
+            broadcaster,
+            normalized,
+            updates,
+            EnumSet.of(AssetType.IMAGE, AssetType.VIDEO, AssetType.MODEL, AssetType.OTHER),
+            actor,
+            false
+        );
+    }
+
+    private void applyBulkOrderUpdates(
+        String broadcaster,
+        String normalized,
+        List<AssetOrderRequest.AssetOrderUpdate> updates,
+        EnumSet<AssetType> types,
+        String actor,
+        boolean script
+    ) {
+        if (updates == null || updates.isEmpty()) {
+            return;
+        }
+        List<Asset> bucket = assetRepository
+            .findByBroadcaster(normalized)
+            .stream()
+            .filter((asset) -> types.contains(asset.getAssetType()))
+            .sorted(
+                Comparator.comparingInt(this::displayOrderValue)
+                    .reversed()
+                    .thenComparing(Asset::getCreatedAt, Comparator.nullsFirst(Comparator.naturalOrder()))
+            )
+            .toList();
+        if (bucket.isEmpty()) {
+            return;
+        }
+        Map<String, Integer> desiredOrder = new HashMap<>();
+        Set<String> bucketIds = bucket.stream().map(Asset::getId).collect(Collectors.toSet());
+        for (AssetOrderRequest.AssetOrderUpdate update : updates) {
+            if (update == null) {
+                continue;
+            }
+            String assetId = update.assetId();
+            if (!bucketIds.contains(assetId)) {
+                continue;
+            }
+            Integer order = update.order();
+            if (order == null) {
+                continue;
+            }
+            if (order < 1) {
+                throw new ResponseStatusException(BAD_REQUEST, "Order must be >= 1");
+            }
+            desiredOrder.put(assetId, order);
+        }
+        if (desiredOrder.isEmpty()) {
+            return;
+        }
+        Map<String, Integer> originalIndex = new HashMap<>();
+        for (int index = 0; index < bucket.size(); index++) {
+            originalIndex.put(bucket.get(index).getId(), index);
+        }
+        List<Asset> ordered = new ArrayList<>(bucket);
+        ordered.sort((a, b) -> {
+            int orderA = desiredOrder.getOrDefault(a.getId(), a.getDisplayOrder() != null ? a.getDisplayOrder() : bucket.size() - originalIndex.getOrDefault(a.getId(), bucket.size()));
+            int orderB = desiredOrder.getOrDefault(b.getId(), b.getDisplayOrder() != null ? b.getDisplayOrder() : bucket.size() - originalIndex.getOrDefault(b.getId(), bucket.size()));
+            int cmp = Integer.compare(orderB, orderA);
+            if (cmp != 0) {
+                return cmp;
+            }
+            return Integer.compare(originalIndex.getOrDefault(a.getId(), Integer.MAX_VALUE), originalIndex.getOrDefault(b.getId(), Integer.MAX_VALUE));
+        });
+        List<Asset> changed = new ArrayList<>();
+        for (int index = 0; index < ordered.size(); index++) {
+            Asset asset = ordered.get(index);
+            int nextOrder = ordered.size() - index;
+            if (asset.getDisplayOrder() == null || asset.getDisplayOrder() != nextOrder) {
+                asset.setDisplayOrder(nextOrder);
+                changed.add(asset);
+            }
+        }
+        if (changed.isEmpty()) {
+            return;
+        }
+        assetRepository.saveAll(changed);
+        publishOrderUpdates(broadcaster, null, changed);
+        for (Asset asset : changed) {
+            if (script) {
+                auditLogService.recordEntry(
+                    asset.getBroadcaster(),
+                    actor,
+                    "SCRIPT_ORDER_UPDATED",
+                    formatScriptTransformDetails(asset.getId(), asset.getDisplayOrder())
+                );
+            } else {
+                TransformRequest logDetails = new TransformRequest();
+                logDetails.setOrder(asset.getDisplayOrder());
+                auditLogService.recordEntry(
+                    asset.getBroadcaster(),
+                    actor,
+                    "VISUAL_UPDATED",
+                    formatVisualTransformDetails(asset.getId(), logDetails)
+                );
+            }
+        }
     }
 
     private void validateVisualTransform(TransformRequest req) {
@@ -1171,13 +1296,13 @@ public class ChannelDirectoryService {
         int canvasMaxSizePixels = settings.getMaxCanvasSideLengthPixels();
 
         if (
-            req.getWidth() == null || req.getWidth() <= 0 || req.getWidth() > canvasMaxSizePixels
+            req.getWidth() != null && (req.getWidth() <= 0 || req.getWidth() > canvasMaxSizePixels)
         ) throw new ResponseStatusException(
             BAD_REQUEST,
             "Canvas width out of range [0 to " + canvasMaxSizePixels + "]"
         );
         if (
-            req.getHeight() == null || req.getHeight() <= 0 || req.getHeight() > canvasMaxSizePixels
+            req.getHeight() != null && (req.getHeight() <= 0 || req.getHeight() > canvasMaxSizePixels)
         ) throw new ResponseStatusException(
             BAD_REQUEST,
             "Canvas height out of range [0 to " + canvasMaxSizePixels + "]"

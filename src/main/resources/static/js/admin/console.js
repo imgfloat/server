@@ -26,6 +26,7 @@ export function createAdminConsole({
     const assets = new Map();
     const mediaCache = new Map();
     const renderStates = new Map();
+    const transformBaseline = new Map();
     const animatedCache = new Map();
     const audioControllers = new Map();
     const pendingAudioUnlock = new Set();
@@ -506,7 +507,7 @@ export function createAdminConsole({
             event.preventDefault();
             updateRenderState(asset);
             schedulePersistTransform(asset);
-            drawAndList();
+            drawAndList(false);
         }
     });
     function connect() {
@@ -621,6 +622,7 @@ export function createAdminConsole({
         if (!renderStates.has(asset.id)) {
             renderStates.set(asset.id, { ...merged });
         }
+        updateTransformBaseline(merged);
         resolvePendingUploadByName(asset.name);
     }
 
@@ -635,6 +637,35 @@ export function createAdminConsole({
         renderStates.set(asset.id, state);
     }
 
+    function updateTransformBaseline(asset) {
+        if (!asset?.id) {
+            return;
+        }
+        const snapshot = {};
+        snapshot.audioVolume = Number.isFinite(asset.audioVolume) ? asset.audioVolume : undefined;
+        if (isAudioAsset(asset)) {
+            snapshot.audioLoop = asset.audioLoop;
+            snapshot.audioDelayMillis = Number.isFinite(asset.audioDelayMillis)
+                ? asset.audioDelayMillis
+                : undefined;
+            snapshot.audioSpeed = Number.isFinite(asset.audioSpeed) ? asset.audioSpeed : undefined;
+            snapshot.audioPitch = Number.isFinite(asset.audioPitch) ? asset.audioPitch : undefined;
+        } else {
+            snapshot.x = Number.isFinite(asset.x) ? asset.x : undefined;
+            snapshot.y = Number.isFinite(asset.y) ? asset.y : undefined;
+            snapshot.width = Number.isFinite(asset.width) ? asset.width : undefined;
+            snapshot.height = Number.isFinite(asset.height) ? asset.height : undefined;
+            snapshot.rotation = Number.isFinite(asset.rotation) ? asset.rotation : undefined;
+            snapshot.speed = Number.isFinite(asset.speed) ? asset.speed : undefined;
+            snapshot.muted = asset.muted;
+            const order = isCodeAsset(asset) ? getScriptLayerValue(asset.id) : getLayerValue(asset.id);
+            if (Number.isFinite(order)) {
+                snapshot.order = order;
+            }
+        }
+        transformBaseline.set(asset.id, snapshot);
+    }
+
     function handleEvent(event) {
         if (event.type === "CANVAS" && event.payload) {
             applyCanvasSettings(event.payload);
@@ -647,6 +678,7 @@ export function createAdminConsole({
             scriptLayerOrder = scriptLayerOrder.filter((id) => id !== assetId);
             clearMedia(assetId);
             renderStates.delete(assetId);
+            transformBaseline.delete(assetId);
             loopPlaybackState.delete(assetId);
             cancelPendingTransform(assetId);
             if (selectedAssetId === assetId) {
@@ -666,7 +698,27 @@ export function createAdminConsole({
                 loopPlaybackState.delete(event.payload.id);
             }
         }
-        drawAndList();
+        drawAndList(shouldRenderAssetList(event));
+    }
+
+    function shouldRenderAssetList(event) {
+        if (!event) {
+            return true;
+        }
+        const { type, payload, patch } = event;
+        if (type === "DELETED" || type === "VISIBILITY") {
+            return true;
+        }
+        if (payload) {
+            return true;
+        }
+        if (patch) {
+            if (patch.hidden != null || patch.order != null) {
+                return true;
+            }
+            return false;
+        }
+        return true;
     }
 
     function applyPatch(assetId, patch) {
@@ -706,9 +758,11 @@ export function createAdminConsole({
         }
     }
 
-    function drawAndList() {
+    function drawAndList(renderList = true) {
         requestDraw();
-        renderAssetList();
+        if (renderList) {
+            renderAssetList();
+        }
     }
 
     function requestDraw() {
@@ -2055,7 +2109,7 @@ export function createAdminConsole({
         if (media) {
             applyMediaSettings(media, asset);
         }
-        drawAndList();
+        drawAndList(false);
     }
 
     function updateVolumeFromInput() {
@@ -2074,7 +2128,7 @@ export function createAdminConsole({
             applyAudioSettings(controller, asset);
         }
         schedulePersistTransform(asset);
-        drawAndList();
+        drawAndList(false);
     }
 
     function updateAudioSettingsFromInputs() {
@@ -2104,7 +2158,7 @@ export function createAdminConsole({
         const controller = ensureAudioController(asset);
         applyAudioSettings(controller, asset);
         schedulePersistTransform(asset);
-        drawAndList();
+        drawAndList(false);
     }
 
     function nudgeRotation(delta) {
@@ -2114,7 +2168,7 @@ export function createAdminConsole({
         asset.rotation = next;
         updateRenderState(asset);
         persistTransform(asset);
-        drawAndList();
+        drawAndList(false);
     }
 
     function recenterSelectedAsset() {
@@ -2126,7 +2180,7 @@ export function createAdminConsole({
         asset.y = centerY;
         updateRenderState(asset);
         persistTransform(asset);
-        drawAndList();
+        drawAndList(false);
     }
 
     function getLayeredAssets(asset) {
@@ -2195,20 +2249,90 @@ export function createAdminConsole({
     globalThis.sendToBack = sendToBack;
 
     function applyLayerOrder(ordered) {
+        if (!ordered || !ordered.length) {
+            return;
+        }
+        const previousOrder = [...layerOrder];
         const newOrder = ordered.map((item) => item.id).filter((id) => assets.has(id));
         layerOrder = newOrder;
         const changed = ordered.map((item) => assets.get(item.id)).filter(Boolean);
         changed.forEach((item) => updateRenderState(item));
-        changed.forEach((item) => schedulePersistTransform(item, true));
+        const orderUpdates = buildOrderUpdates(ordered, previousOrder);
+        sendOrderUpdates(orderUpdates, () => {
+            layerOrder = previousOrder;
+            drawAndList();
+        });
         drawAndList();
     }
 
     function applyScriptLayerOrder(ordered) {
+        if (!ordered || !ordered.length) {
+            return;
+        }
+        const previousOrder = [...scriptLayerOrder];
         const newOrder = ordered.map((item) => item.id).filter((id) => assets.has(id));
         scriptLayerOrder = newOrder;
-        const changed = ordered.map((item) => assets.get(item.id)).filter(Boolean);
-        changed.forEach((item) => schedulePersistTransform(item, true));
+        const orderUpdates = buildOrderUpdates(ordered, previousOrder);
+        sendOrderUpdates(orderUpdates, () => {
+            scriptLayerOrder = previousOrder;
+            drawAndList();
+        });
         drawAndList();
+    }
+
+    function buildOrderUpdates(ordered, previousOrderIds) {
+        if (!ordered || !ordered.length) {
+            return [];
+        }
+        const previousLength = previousOrderIds.length || ordered.length;
+        const previousOrderMap = new Map();
+        previousOrderIds.forEach((id, index) => {
+            previousOrderMap.set(id, previousLength - index);
+        });
+        const updates = [];
+        const newLength = ordered.length;
+        ordered.forEach((asset, index) => {
+            if (!asset) {
+                return;
+            }
+            const newOrderValue = newLength - index;
+            const previousValue = previousOrderMap.get(asset.id);
+            if (previousValue !== newOrderValue) {
+                updates.push({ assetId: asset.id, order: newOrderValue });
+            }
+        });
+        return updates;
+    }
+
+    function sendOrderUpdates(updates, onError) {
+        if (!updates || !updates.length) {
+            return;
+        }
+        fetch(`/api/channels/${broadcaster}/assets/order`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ updates }),
+        })
+            .then((response) => {
+                if (!response.ok) {
+                    return extractErrorMessage(response, "Unable to reorder assets right now.").then((message) => {
+                        throw new Error(message);
+                    });
+                }
+            })
+            .catch((error) => {
+                if (onError) {
+                    onError();
+                }
+                const assetDetails = updates
+                    .map((update) => {
+                        const asset = assets.get(update.assetId);
+                        return `${asset?.name ?? "unknown"} (${update.assetId})`;
+                    })
+                    .join(", ");
+                console.warn("Asset reorder failed for", assetDetails, error?.message || error);
+                showToast(error?.message || "Unable to reorder assets right now.", "error");
+            });
     }
 
     function getAssetAspectRatio(asset) {
@@ -2315,12 +2439,13 @@ export function createAdminConsole({
                         throw new Error(message);
                     });
                 }
-                clearMedia(asset.id);
-                assets.delete(asset.id);
-                renderStates.delete(asset.id);
-                layerOrder = layerOrder.filter((id) => id !== asset.id);
-                scriptLayerOrder = scriptLayerOrder.filter((id) => id !== asset.id);
-                cancelPendingTransform(asset.id);
+        clearMedia(asset.id);
+        assets.delete(asset.id);
+        renderStates.delete(asset.id);
+        transformBaseline.delete(asset.id);
+        layerOrder = layerOrder.filter((id) => id !== asset.id);
+        scriptLayerOrder = scriptLayerOrder.filter((id) => id !== asset.id);
+        cancelPendingTransform(asset.id);
                 if (selectedAssetId === asset.id) {
                     selectedAssetId = null;
                 }
@@ -2452,29 +2577,13 @@ export function createAdminConsole({
     }
 
     function persistTransform(asset, silent = false) {
+        if (!asset || !asset.id) {
+            return Promise.resolve();
+        }
         cancelPendingTransform(asset.id);
-        const payload = {
-            audioLoop: asset.audioLoop,
-            audioDelayMillis: asset.audioDelayMillis,
-            audioSpeed: asset.audioSpeed,
-            audioPitch: asset.audioPitch,
-            audioVolume: asset.audioVolume,
-        };
-        if (isCodeAsset(asset)) {
-            const order = getScriptLayerValue(asset.id);
-            payload.order = order;
-        } else if (!isAudioAsset(asset)) {
-            const order = getLayerValue(asset.id);
-            payload.x = asset.x;
-            payload.y = asset.y;
-            payload.width = asset.width;
-            payload.height = asset.height;
-            payload.rotation = asset.rotation;
-            payload.speed = asset.speed;
-            payload.order = order;
-            if (isVideoAsset(asset)) {
-                payload.muted = asset.muted;
-            }
+        const payload = buildTransformPayload(asset);
+        if (!Object.keys(payload).length) {
+            return Promise.resolve();
         }
         fetch(`/api/channels/${broadcaster}/assets/${asset.id}/transform`, {
             method: "PUT",
@@ -2493,7 +2602,7 @@ export function createAdminConsole({
                 storeAsset(updated);
                 updateRenderState(updated);
                 if (!silent) {
-                    drawAndList();
+                    drawAndList(false);
                 }
             })
             .catch((error) => {
@@ -2501,6 +2610,57 @@ export function createAdminConsole({
                     showToast(error?.message || "Unable to save changes. Please retry.", "error");
                 }
             });
+    }
+
+    function buildTransformPayload(asset) {
+        if (!asset?.id) {
+            return {};
+        }
+        const baseline = transformBaseline.get(asset.id) || {};
+        const payload = {};
+        const addNumber = (key, value) => {
+            if (!Number.isFinite(value)) {
+                return;
+            }
+            const previous = baseline[key];
+            if (Number.isFinite(previous) && previous === value) {
+                return;
+            }
+            payload[key] = value;
+        };
+        const addBoolean = (key, value) => {
+            if (value == null) {
+                return;
+            }
+            if (baseline[key] === value) {
+                return;
+            }
+            payload[key] = value;
+        };
+
+        addBoolean("audioLoop", asset.audioLoop);
+        addNumber("audioDelayMillis", asset.audioDelayMillis);
+        addNumber("audioSpeed", asset.audioSpeed);
+        addNumber("audioPitch", asset.audioPitch);
+        addNumber("audioVolume", asset.audioVolume);
+
+        if (!isAudioAsset(asset)) {
+            addNumber("x", asset.x);
+            addNumber("y", asset.y);
+            addNumber("width", asset.width);
+            addNumber("height", asset.height);
+            addNumber("rotation", asset.rotation);
+            addNumber("speed", asset.speed);
+            if (isVideoAsset(asset)) {
+                addBoolean("muted", asset.muted);
+            }
+            const order = isCodeAsset(asset) ? getScriptLayerValue(asset.id) : getLayerValue(asset.id);
+            if (Number.isFinite(order) && baseline.order !== order) {
+                payload.order = order;
+            }
+        }
+
+        return payload;
     }
 
     canvas.addEventListener("mousedown", (event) => {
