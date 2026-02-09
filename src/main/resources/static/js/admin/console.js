@@ -104,6 +104,7 @@ export function createAdminConsole({
     let selectedAssetId = null;
     let interactionState = null;
     let stompClient;
+    let listNeedsRender = true;
 
     function start() {
         applyCanvasSettings(canvasSettings);
@@ -599,6 +600,7 @@ export function createAdminConsole({
         layerOrder = [];
         scriptLayerOrder = [];
         list.forEach((item) => storeAsset(item, { placement: "append" }));
+        markListDirty();
         drawAndList();
     }
 
@@ -623,6 +625,7 @@ export function createAdminConsole({
             renderStates.set(asset.id, { ...merged });
         }
         updateTransformBaseline(merged);
+        markListDirty();
         resolvePendingUploadByName(asset.name);
     }
 
@@ -682,7 +685,7 @@ export function createAdminConsole({
             loopPlaybackState.delete(assetId);
             cancelPendingTransform(assetId);
             if (selectedAssetId === assetId) {
-                selectedAssetId = null;
+                setSelectedAssetId(null);
             }
         } else if (event.patch) {
             applyPatch(assetId, event.patch);
@@ -758,11 +761,29 @@ export function createAdminConsole({
         }
     }
 
-    function drawAndList(renderList = true) {
+    function markListDirty() {
+        listNeedsRender = true;
+    }
+
+    function markListDirty() {
+        listNeedsRender = true;
+    }
+
+    function drawAndList(renderList = false) {
         requestDraw();
-        if (renderList) {
+        if (renderList || listNeedsRender) {
             renderAssetList();
+            listNeedsRender = false;
         }
+    }
+
+    function setSelectedAssetId(id) {
+        if (selectedAssetId === id) {
+            return false;
+        }
+        selectedAssetId = id;
+        markListDirty();
+        return true;
     }
 
     function requestDraw() {
@@ -1524,7 +1545,7 @@ export function createAdminConsole({
             toggleBtn.title = asset.hidden ? "Show asset" : "Hide asset";
             toggleBtn.addEventListener("click", (e) => {
                 e.stopPropagation();
-                selectedAssetId = asset.id;
+                setSelectedAssetId(asset.id);
                 updateVisibility(asset, !asset.hidden);
             });
             actions.appendChild(toggleBtn);
@@ -1535,7 +1556,7 @@ export function createAdminConsole({
         row.appendChild(actions);
 
         li.addEventListener("click", () => {
-            selectedAssetId = asset.id;
+            setSelectedAssetId(asset.id);
             updateRenderState(asset);
             drawAndList();
         });
@@ -1558,7 +1579,7 @@ export function createAdminConsole({
         const hasPending = pendingUploads.length > 0;
 
         if (!hasAssets && !hasPending) {
-            selectedAssetId = null;
+            setSelectedAssetId(null);
             if (assetInspector) {
                 assetInspector.classList.add("hidden");
             }
@@ -2262,6 +2283,7 @@ export function createAdminConsole({
             layerOrder = previousOrder;
             drawAndList();
         });
+        markListDirty();
         drawAndList();
     }
 
@@ -2277,6 +2299,7 @@ export function createAdminConsole({
             scriptLayerOrder = previousOrder;
             drawAndList();
         });
+        markListDirty();
         drawAndList();
     }
 
@@ -2439,16 +2462,17 @@ export function createAdminConsole({
                         throw new Error(message);
                     });
                 }
-        clearMedia(asset.id);
-        assets.delete(asset.id);
-        renderStates.delete(asset.id);
-        transformBaseline.delete(asset.id);
-        layerOrder = layerOrder.filter((id) => id !== asset.id);
-        scriptLayerOrder = scriptLayerOrder.filter((id) => id !== asset.id);
-        cancelPendingTransform(asset.id);
+                clearMedia(asset.id);
+                assets.delete(asset.id);
+                renderStates.delete(asset.id);
+                transformBaseline.delete(asset.id);
+                layerOrder = layerOrder.filter((id) => id !== asset.id);
+                scriptLayerOrder = scriptLayerOrder.filter((id) => id !== asset.id);
+                cancelPendingTransform(asset.id);
                 if (selectedAssetId === asset.id) {
-                    selectedAssetId = null;
+                    setSelectedAssetId(null);
                 }
+                markListDirty();
                 drawAndList();
                 showToast("Asset deleted.", "info");
             })
@@ -2690,7 +2714,7 @@ export function createAdminConsole({
 
         const hit = findAssetAtPoint(point.x, point.y);
         if (hit) {
-            selectedAssetId = hit.id;
+            setSelectedAssetId(hit.id);
             updateRenderState(hit);
             interactionState = {
                 mode: "move",
@@ -2700,7 +2724,7 @@ export function createAdminConsole({
             };
             canvas.style.cursor = "grabbing";
         } else {
-            selectedAssetId = null;
+            setSelectedAssetId(null);
             interactionState = null;
             canvas.style.cursor = "default";
         }
@@ -2766,7 +2790,7 @@ export function createAdminConsole({
             }
             storeAsset(asset);
             updateRenderState(asset);
-            selectedAssetId = asset.id;
+            setSelectedAssetId(asset.id);
             updateSelectedAssetControls(asset);
             drawAndList();
         },
