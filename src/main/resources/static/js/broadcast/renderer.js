@@ -177,6 +177,11 @@ export class BroadcastRenderer {
             return;
         }
         const assetId = event.assetId || event?.patch?.id || event?.payload?.id;
+        if (event.type === "PREVIEW" && event.patch) {
+            this.applyPreviewPatch(assetId, event.patch);
+            this.draw();
+            return;
+        }
         if (event.type === "VISIBILITY") {
             this.handleVisibilityEvent(event);
             return;
@@ -276,15 +281,12 @@ export class BroadcastRenderer {
         if (!assetId || !patch) {
             return;
         }
-        const sanitizedPatch = Object.fromEntries(
-            Object.entries(patch).filter(([, value]) => value !== null && value !== undefined),
-        );
+        const sanitizedPatch = this.sanitizePatch(patch);
         const existing = this.state.assets.get(assetId);
         if (!existing) {
             return;
         }
         const merged = this.normalizePayload({ ...existing, ...sanitizedPatch });
-        console.log(merged);
         const isVisual = isVisualAsset(merged);
         const isScript = isCodeAsset(merged);
         if (sanitizedPatch.hidden) {
@@ -314,6 +316,54 @@ export class BroadcastRenderer {
             console.info(`Spawning JS worker for patched asset: ${merged.id}`);
             this.spawnUserJavaScriptWorker(merged);
         }
+    }
+
+    applyPreviewPatch(assetId, patch) {
+        if (!assetId || !patch) {
+            return;
+        }
+        const sanitizedPatch = this.sanitizePatch(patch);
+        if (!Object.keys(sanitizedPatch).length) {
+            return;
+        }
+        const existing = this.state.assets.get(assetId);
+        if (!existing) {
+            return;
+        }
+        const merged = this.normalizePayload({ ...existing, ...sanitizedPatch });
+        if (sanitizedPatch.hidden) {
+            this.hideAssetWithTransition(merged);
+            return;
+        }
+        const isVisual = isVisualAsset(merged);
+        const isScript = isCodeAsset(merged);
+        const targetOrder = Number.isFinite(sanitizedPatch.order) ? sanitizedPatch.order : null;
+        if (Number.isFinite(targetOrder)) {
+            if (isScript) {
+                const currentOrder = getScriptLayerOrder(this.state).filter((id) => id !== assetId);
+                const totalCount = currentOrder.length + 1;
+                const insertIndex = Math.max(0, Math.min(currentOrder.length, totalCount - Math.round(targetOrder)));
+                currentOrder.splice(insertIndex, 0, assetId);
+                this.state.scriptLayerOrder = currentOrder;
+                this.applyScriptCanvasOrder();
+            } else if (isVisual) {
+                const currentOrder = getLayerOrder(this.state).filter((id) => id !== assetId);
+                const totalCount = currentOrder.length + 1;
+                const insertIndex = Math.max(0, Math.min(currentOrder.length, totalCount - Math.round(targetOrder)));
+                currentOrder.splice(insertIndex, 0, assetId);
+                this.state.layerOrder = currentOrder;
+            }
+        }
+        this.state.assets.set(assetId, merged);
+    }
+
+    sanitizePatch(patch) {
+        if (!patch) {
+            return {};
+        }
+        return Object.fromEntries(
+            Object.entries(patch).filter(([, value]) => value !== null && value !== undefined),
+        );
     }
 
     draw() {

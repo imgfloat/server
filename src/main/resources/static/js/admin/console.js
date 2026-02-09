@@ -34,6 +34,9 @@ export function createAdminConsole({
     const previewCache = new Map();
     const previewImageCache = new Map();
     const pendingTransformSaves = new Map();
+    const livePreviewQueue = new Map();
+    const livePreviewLastSent = new Map();
+    let livePreviewFrameScheduled = false;
     const HANDLE_SIZE = 10;
     const ROTATE_HANDLE_OFFSET = 32;
     const VOLUME_SLIDER_MAX = SETTINGS.maxAssetVolumeFraction * 100;
@@ -179,6 +182,51 @@ export function createAdminConsole({
             clearTimeout(pending);
             pendingTransformSaves.delete(assetId);
         }
+    }
+
+    function requestLiveTransform(asset) {
+        if (!asset?.id || isAudioAsset(asset)) {
+            return;
+        }
+        const payload = buildTransformPayload(asset);
+        if (!payload || !Object.keys(payload).length) {
+            livePreviewQueue.delete(asset.id);
+            return;
+        }
+        const serialized = JSON.stringify(payload);
+        if (livePreviewLastSent.get(asset.id) === serialized) {
+            return;
+        }
+        livePreviewQueue.set(asset.id, { payload, serialized });
+        requestLivePreviewFrame();
+    }
+
+    function cancelLiveTransform(assetId) {
+        livePreviewQueue.delete(assetId);
+        livePreviewLastSent.delete(assetId);
+    }
+
+    function requestLivePreviewFrame() {
+        if (livePreviewFrameScheduled) {
+            return;
+        }
+        livePreviewFrameScheduled = true;
+        requestAnimationFrame(sendQueuedLiveTransforms);
+    }
+
+    function sendQueuedLiveTransforms() {
+        livePreviewFrameScheduled = false;
+        if (!livePreviewQueue.size) {
+            return;
+        }
+        if (!stompClient || (typeof stompClient.connected === "boolean" && !stompClient.connected)) {
+            return;
+        }
+        for (const [assetId, { payload, serialized }] of livePreviewQueue.entries()) {
+            stompClient.send(`/app/channel/${broadcaster}/assets/${assetId}/preview`, {}, JSON.stringify(payload));
+            livePreviewLastSent.set(assetId, serialized);
+        }
+        livePreviewQueue.clear();
     }
 
     function ensureLayerPosition(assetId, placement = "keep") {
@@ -522,6 +570,9 @@ export function createAdminConsole({
                     handleEvent(body);
                 });
                 fetchAssets();
+                if (livePreviewQueue.size) {
+                    requestLivePreviewFrame();
+                }
             },
             (error) => {
                 console.warn("WebSocket connection issue", error);
@@ -675,6 +726,11 @@ export function createAdminConsole({
             return;
         }
         const assetId = event.assetId || event?.patch?.id || event?.payload?.id;
+        if (event.type === "PREVIEW" && event.patch) {
+            applyPreviewPatch(assetId, event.patch);
+            drawAndList(false);
+            return;
+        }
         if (event.type === "DELETED") {
             assets.delete(assetId);
             layerOrder = layerOrder.filter((id) => id !== assetId);
@@ -684,6 +740,7 @@ export function createAdminConsole({
             transformBaseline.delete(assetId);
             loopPlaybackState.delete(assetId);
             cancelPendingTransform(assetId);
+            cancelLiveTransform(assetId);
             if (selectedAssetId === assetId) {
                 setSelectedAssetId(null);
             }
@@ -707,6 +764,9 @@ export function createAdminConsole({
     function shouldRenderAssetList(event) {
         if (!event) {
             return true;
+        }
+        if (event.type === "PREVIEW") {
+            return false;
         }
         const { type, payload, patch } = event;
         if (type === "DELETED" || type === "VISIBILITY") {
@@ -756,6 +816,43 @@ export function createAdminConsole({
             }
         }
         storeAsset(merged);
+        if (!isAudio) {
+            updateRenderState(merged);
+        }
+    }
+
+    function applyPreviewPatch(assetId, patch) {
+        if (!assetId || !patch) {
+            return;
+        }
+        const existing = assets.get(assetId);
+        if (!existing) {
+            return;
+        }
+        const merged = { ...existing, ...patch };
+        const isAudio = isAudioAsset(merged);
+        const isScript = isCodeAsset(merged);
+        if (patch.hidden) {
+            clearMedia(assetId);
+            loopPlaybackState.delete(assetId);
+        }
+        const targetOrder = Number.isFinite(patch.order) ? patch.order : null;
+        if (!isAudio && Number.isFinite(targetOrder)) {
+            if (isScript) {
+                const currentOrder = getScriptLayerOrder().filter((id) => id !== assetId);
+                const totalCount = currentOrder.length + 1;
+                const insertIndex = Math.max(0, Math.min(currentOrder.length, totalCount - Math.round(targetOrder)));
+                currentOrder.splice(insertIndex, 0, assetId);
+                scriptLayerOrder = currentOrder;
+            } else {
+                const currentOrder = getLayerOrder().filter((id) => id !== assetId);
+                const totalCount = currentOrder.length + 1;
+                const insertIndex = Math.max(0, Math.min(currentOrder.length, totalCount - Math.round(targetOrder)));
+                currentOrder.splice(insertIndex, 0, assetId);
+                layerOrder = currentOrder;
+            }
+        }
+        assets.set(assetId, merged);
         if (!isAudio) {
             updateRenderState(merged);
         }
@@ -1078,6 +1175,7 @@ export function createAdminConsole({
         asset.width = nextWidth;
         asset.height = nextHeight;
         updateRenderState(asset);
+        requestLiveTransform(asset);
         requestDraw();
     }
 
@@ -2469,6 +2567,7 @@ export function createAdminConsole({
                 layerOrder = layerOrder.filter((id) => id !== asset.id);
                 scriptLayerOrder = scriptLayerOrder.filter((id) => id !== asset.id);
                 cancelPendingTransform(asset.id);
+                cancelLiveTransform(asset.id);
                 if (selectedAssetId === asset.id) {
                     setSelectedAssetId(null);
                 }
@@ -2605,6 +2704,7 @@ export function createAdminConsole({
             return Promise.resolve();
         }
         cancelPendingTransform(asset.id);
+        cancelLiveTransform(asset.id);
         const payload = buildTransformPayload(asset);
         if (!Object.keys(payload).length) {
             return Promise.resolve();
@@ -2749,6 +2849,7 @@ export function createAdminConsole({
             asset.y = point.y - interactionState.offsetY;
             updateRenderState(asset);
             canvas.style.cursor = "grabbing";
+            requestLiveTransform(asset);
             requestDraw();
         } else if (interactionState.mode === "resize") {
             resizeFromHandle(interactionState, point);
@@ -2758,6 +2859,7 @@ export function createAdminConsole({
             asset.rotation = (interactionState.startRotation || 0) + (angle - interactionState.startAngle);
             updateRenderState(asset);
             canvas.style.cursor = "grabbing";
+            requestLiveTransform(asset);
             requestDraw();
         }
     });
@@ -2771,6 +2873,7 @@ export function createAdminConsole({
         canvas.style.cursor = "default";
         drawAndList();
         if (asset) {
+            cancelLiveTransform(asset.id);
             persistTransform(asset);
         }
     }

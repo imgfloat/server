@@ -10,6 +10,7 @@ public class AssetEvent {
         UPDATED,
         VISIBILITY,
         PLAY,
+        PREVIEW,
         DELETED,
     }
 
@@ -64,6 +65,15 @@ public class AssetEvent {
         event.patch = patch;
         event.assetId = patch.id();
         event.payload = asset;
+        return event;
+    }
+
+    public static AssetEvent preview(String channel, String assetId, AssetPatch patch) {
+        AssetEvent event = new AssetEvent();
+        event.type = Type.PREVIEW;
+        event.channel = channel;
+        event.patch = patch;
+        event.assetId = assetId;
         return event;
     }
 

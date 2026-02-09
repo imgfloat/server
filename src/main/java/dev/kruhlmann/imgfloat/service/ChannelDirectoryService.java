@@ -67,6 +67,12 @@ public class ChannelDirectoryService {
     private static final String DEFAULT_CODE_MEDIA_TYPE = "application/javascript";
     private static final int MAX_ALLOWED_SCRIPT_DOMAINS = 32;
     private static final Pattern ALLOWED_DOMAIN_PATTERN = Pattern.compile("^[a-z0-9.-]+(?::[0-9]{1,5})?$");
+    private static final EnumSet<AssetType> VISUAL_ASSET_TYPES = EnumSet.of(
+        AssetType.IMAGE,
+        AssetType.VIDEO,
+        AssetType.MODEL,
+        AssetType.OTHER
+    );
 
     private final ChannelRepository channelRepository;
     private final AssetRepository assetRepository;
@@ -1164,6 +1170,75 @@ public class ChannelDirectoryService {
         });
     }
 
+    public Optional<AssetPatch> previewTransform(String broadcaster, String assetId, TransformRequest request) {
+        String normalized = normalize(broadcaster);
+
+        Asset asset = assetRepository
+            .findById(assetId)
+            .filter((stored) -> normalized.equals(stored.getBroadcaster()))
+            .orElseThrow(() -> new ResponseStatusException(BAD_REQUEST, "Asset not found"));
+
+        if (!VISUAL_ASSET_TYPES.contains(asset.getAssetType())) {
+            throw new ResponseStatusException(BAD_REQUEST, "Asset is not visual");
+        }
+
+        VisualAsset visual = visualAssetRepository
+            .findById(asset.getId())
+            .orElseThrow(() -> new ResponseStatusException(BAD_REQUEST, "Asset is not visual"));
+
+        TransformRequest previewRequest = copyVisualTransformRequest(request);
+        validateVisualBounds(previewRequest);
+
+        AssetPatch.VisualSnapshot before = new AssetPatch.VisualSnapshot(
+            visual.getX(),
+            visual.getY(),
+            visual.getWidth(),
+            visual.getHeight(),
+            visual.getRotation(),
+            visual.getSpeed(),
+            visual.isMuted(),
+            displayOrderValue(asset),
+            visual.getAudioVolume()
+        );
+
+        VisualAsset previewState = new VisualAsset();
+        previewState.setId(visual.getId());
+        previewState.setName(visual.getName());
+        previewState.setX(visual.getX());
+        previewState.setY(visual.getY());
+        previewState.setWidth(visual.getWidth());
+        previewState.setHeight(visual.getHeight());
+        previewState.setRotation(visual.getRotation());
+        previewState.setSpeed(visual.getSpeed());
+        previewState.setMuted(visual.isMuted());
+        previewState.setAudioVolume(visual.getAudioVolume());
+
+        if (previewRequest.getX() != null) {
+            previewState.setX(previewRequest.getX());
+        }
+        if (previewRequest.getY() != null) {
+            previewState.setY(previewRequest.getY());
+        }
+        if (previewRequest.getWidth() != null) {
+            previewState.setWidth(previewRequest.getWidth());
+        }
+        if (previewRequest.getHeight() != null) {
+            previewState.setHeight(previewRequest.getHeight());
+        }
+        if (previewRequest.getRotation() != null) {
+            previewState.setRotation(previewRequest.getRotation());
+        }
+        if (previewRequest.getSpeed() != null) {
+            previewState.setSpeed(previewRequest.getSpeed());
+        }
+        if (previewRequest.getMuted() != null) {
+            previewState.setMuted(previewRequest.getMuted());
+        }
+
+        AssetPatch patch = AssetPatch.fromVisualTransform(before, previewState, previewRequest);
+        return hasPatchChanges(patch) ? Optional.of(patch) : Optional.empty();
+    }
+
     @Transactional
     public void reorderAssets(
         String broadcaster,
@@ -1288,6 +1363,16 @@ public class ChannelDirectoryService {
     }
 
     private void validateVisualTransform(TransformRequest req) {
+        validateVisualBounds(req);
+        if (req.getOrder() != null && req.getOrder() < 1) {
+            throw new ResponseStatusException(BAD_REQUEST, "Order must be >= 1");
+        }
+    }
+
+    private void validateVisualBounds(TransformRequest req) {
+        if (req == null) {
+            return;
+        }
         Settings settings = settingsService.get();
         double maxSpeed = settings.getMaxAssetPlaybackSpeedFraction();
         double minSpeed = settings.getMinAssetPlaybackSpeedFraction();
@@ -1297,29 +1382,48 @@ public class ChannelDirectoryService {
 
         if (
             req.getWidth() != null && (req.getWidth() <= 0 || req.getWidth() > canvasMaxSizePixels)
-        ) throw new ResponseStatusException(
-            BAD_REQUEST,
-            "Canvas width out of range [0 to " + canvasMaxSizePixels + "]"
-        );
+        ) {
+            throw new ResponseStatusException(
+                BAD_REQUEST,
+                "Canvas width out of range [0 to " + canvasMaxSizePixels + "]"
+            );
+        }
         if (
             req.getHeight() != null && (req.getHeight() <= 0 || req.getHeight() > canvasMaxSizePixels)
-        ) throw new ResponseStatusException(
-            BAD_REQUEST,
-            "Canvas height out of range [0 to " + canvasMaxSizePixels + "]"
-        );
+        ) {
+            throw new ResponseStatusException(
+                BAD_REQUEST,
+                "Canvas height out of range [0 to " + canvasMaxSizePixels + "]"
+            );
+        }
         if (
             req.getSpeed() != null && (req.getSpeed() < minSpeed || req.getSpeed() > maxSpeed)
-        ) throw new ResponseStatusException(BAD_REQUEST, "Speed out of range [" + minSpeed + " to " + maxSpeed + "]");
-        if (req.getOrder() != null && req.getOrder() < 1) throw new ResponseStatusException(
-            BAD_REQUEST,
-            "Order must be >= 1"
-        );
+        ) {
+            throw new ResponseStatusException(BAD_REQUEST, "Speed out of range [" + minSpeed + " to " + maxSpeed + "]");
+        }
         if (
             req.getAudioVolume() != null && (req.getAudioVolume() < minVolume || req.getAudioVolume() > maxVolume)
-        ) throw new ResponseStatusException(
-            BAD_REQUEST,
-            "Audio volume out of range [" + minVolume + " to " + maxVolume + "]"
-        );
+        ) {
+            throw new ResponseStatusException(
+                BAD_REQUEST,
+                "Audio volume out of range [" + minVolume + " to " + maxVolume + "]"
+            );
+        }
+    }
+
+    private TransformRequest copyVisualTransformRequest(TransformRequest source) {
+        TransformRequest copy = new TransformRequest();
+        if (source == null) {
+            return copy;
+        }
+        copy.setX(source.getX());
+        copy.setY(source.getY());
+        copy.setWidth(source.getWidth());
+        copy.setHeight(source.getHeight());
+        copy.setRotation(source.getRotation());
+        copy.setSpeed(source.getSpeed());
+        copy.setMuted(source.getMuted());
+        return copy;
     }
 
     private void validateAudioTransform(TransformRequest req) {
