@@ -30,6 +30,8 @@ import org.springframework.web.util.UriComponentsBuilder;
 @Service
 public class SevenTvEmoteService {
 
+    // TODO: Code smell Service handles transport, parsing, and storage concerns together instead of focused components.
+
     private static final Logger LOG = LoggerFactory.getLogger(SevenTvEmoteService.class);
     private static final String USERS_URL = "https://api.twitch.tv/helix/users";
     private static final String USER_EMOTE_URL = "https://7tv.io/v3/users/twitch/";

@@ -1,3 +1,4 @@
+// TODO: Code smell Monolithic admin console logic centralizes rendering, transport, and interaction handling in one file.
 import { isAudioAsset } from "../media/audio.js";
 import { isApngAsset, isCodeAsset, isGifAsset, isModelAsset, isVideoAsset, isVideoElement } from "../broadcast/assetKinds.js";
 import { createModelManager } from "../media/modelManager.js";

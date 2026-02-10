@@ -22,6 +22,8 @@ import org.springframework.stereotype.Component;
 @Component
 public class MarketplaceScriptSeedLoader {
 
+    // TODO: Code smell Large parser/loader with many branching paths; consider decomposing into smaller collaborators.
+
     private static final Logger logger = LoggerFactory.getLogger(MarketplaceScriptSeedLoader.class);
     private static final String METADATA_FILENAME = "metadata.json";
     private static final String SOURCE_FILENAME = "source.js";

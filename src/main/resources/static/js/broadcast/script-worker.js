@@ -330,6 +330,7 @@ function createScriptHandlers(source, context, state, sourceLabel = "") {
     return factory(context, state, module, exports);
 }
 
+// TODO: Code smell Worker command handling relies on a long conditional dispatcher that is hard to maintain.
 self.addEventListener("message", (event) => {
     const { type, payload } = event.data || {};
     if (type === "init") {

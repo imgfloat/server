@@ -12,6 +12,8 @@ import org.springframework.stereotype.Component;
 @Component
 public class SchemaMigration implements ApplicationRunner {
 
+    // TODO: Code smell Runtime schema migration logic duplicates Flyway responsibilities and is difficult to reason about/test.
+
     private static final Logger logger = LoggerFactory.getLogger(SchemaMigration.class);
 
     private final JdbcTemplate jdbcTemplate;

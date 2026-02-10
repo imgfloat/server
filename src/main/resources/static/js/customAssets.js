@@ -1,3 +1,4 @@
+// TODO: Code smell Large modal module with extensive mutable state and mixed UI/network responsibilities.
 export function createCustomAssetModal({
     broadcaster,
     adminChannels = [],

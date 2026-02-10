@@ -8,6 +8,7 @@ import { createMediaManager } from "./mediaManager.js";
 import { createModelManager } from "../media/modelManager.js";
 
 export class BroadcastRenderer {
+    // TODO: Code smell Renderer class accumulates networking, state management, media orchestration, and rendering responsibilities.
     constructor({ canvas, scriptLayer, broadcaster, showToast }) {
         this.canvas = canvas;
         this.ctx = canvas.getContext("2d");

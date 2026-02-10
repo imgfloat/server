@@ -1,3 +1,4 @@
+// TODO: Code smell Script performs global DOM lookups/state mutation at module load, increasing coupling and test difficulty.
 const formElement = document.getElementById("settings-form");
 const submitButtonElement = document.getElementById("settings-submit-button");
 const canvasFpsElement = document.getElementById("canvas-fps");

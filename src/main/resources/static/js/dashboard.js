@@ -1,3 +1,4 @@
+// TODO: Code smell Dashboard script uses broad shared state and imperative DOM updates instead of focused components.
 const elements = {
     adminList: document.getElementById("admin-list"),
     suggestionList: document.getElementById("admin-suggestions"),

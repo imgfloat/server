@@ -56,6 +56,8 @@ import org.springframework.web.server.ResponseStatusException;
 @SecurityRequirement(name = "twitchOAuth")
 public class ChannelApiController {
 
+    // TODO: Code smell Controller surface area is very large, suggesting too many endpoint responsibilities in one type.
+
     private static final Logger LOG = LoggerFactory.getLogger(ChannelApiController.class);
     private final ChannelDirectoryService channelDirectoryService;
     private final OAuth2AuthorizedClientService authorizedClientService;

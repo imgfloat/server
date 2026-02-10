@@ -34,6 +34,8 @@ import org.springframework.web.util.UriComponentsBuilder;
 @Service
 public class TwitchEmoteService {
 
+    // TODO: Code smell Service bundles API client calls, caching, disk persistence, and async scheduling in one class.
+
     private static final Logger LOG = LoggerFactory.getLogger(TwitchEmoteService.class);
     private static final String GLOBAL_EMOTE_URL = "https://api.twitch.tv/helix/chat/emotes/global";
     private static final String CHANNEL_EMOTE_URL = "https://api.twitch.tv/helix/chat/emotes";

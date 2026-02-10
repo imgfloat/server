@@ -60,6 +60,7 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
+// TODO: Code smell God class; this service mixes admin management, asset CRUD, media processing, websocket publishing, and marketplace concerns.
 public class ChannelDirectoryService {
 
     private static final Logger logger = LoggerFactory.getLogger(ChannelDirectoryService.class);
@@ -74,6 +75,7 @@ public class ChannelDirectoryService {
         AssetType.OTHER
     );
 
+    // TODO: Code smell Constructor has too many dependencies, indicating high coupling and too many responsibilities.
     private final ChannelRepository channelRepository;
     private final AssetRepository assetRepository;
     private final VisualAssetRepository visualAssetRepository;
