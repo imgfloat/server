@@ -22,7 +22,6 @@ export function createCustomAssetModal({
     const logoPreview = document.getElementById("custom-asset-logo-preview");
     const logoClearButton = document.getElementById("custom-asset-logo-clear");
     const userSourceTextArea = document.getElementById("custom-asset-code");
-    let codeEditor = null;
     const formErrorWrapper = document.getElementById("custom-asset-error");
     const jsErrorTitle = document.getElementById("js-error-title");
     const jsErrorDetails = document.getElementById("js-error-details");
@@ -34,7 +33,7 @@ export function createCustomAssetModal({
     const allowedDomainInput = document.getElementById("custom-asset-allowed-domain");
     const allowedDomainList = document.getElementById("custom-asset-allowed-domain-list");
     const allowedDomainAddButton = document.getElementById("custom-asset-allowed-domain-add");
-    const allowedDomainHint = document.getElementById("custom-asset-allowed-domain-hint");
+    let codeEditor = null;
     let currentAssetId = null;
     let pendingLogoFile = null;
     let logoRemoved = false;
@@ -75,8 +74,8 @@ export function createCustomAssetModal({
     const setAllowedDomainState = (domains) => {
         allowedDomainState = Array.isArray(domains)
             ? domains
-                  .map((domain) => normalizeAllowedDomain(domain))
-                  .filter((domain, index, list) => domain && list.indexOf(domain) === index)
+                .map((domain) => normalizeAllowedDomain(domain))
+                .filter((domain, index, list) => domain && list.indexOf(domain) === index)
             : [];
         renderAllowedDomains();
         if (allowedDomainInput) {
@@ -596,14 +595,14 @@ export function createCustomAssetModal({
                         renderAttachmentList();
                         showToast?.("Attachment added.", "success");
                     }
-            })
-            .catch((error) => {
-                console.error(error);
-                showToast?.(error?.message || "Unable to upload attachment. Please try again.", "error");
-            })
-            .finally(() => {
-                attachmentInput.value = "";
-            });
+                })
+                .catch((error) => {
+                    console.error(error);
+                    showToast?.(error?.message || "Unable to upload attachment. Please try again.", "error");
+                })
+                .finally(() => {
+                    attachmentInput.value = "";
+                });
         });
     }
     if (allowedDomainAddButton) {
@@ -923,16 +922,6 @@ export function createCustomAssetModal({
             content.appendChild(title);
             content.appendChild(description);
             content.appendChild(meta);
-            if (Array.isArray(entry.allowedDomains) && entry.allowedDomains.length) {
-                const domains = document.createElement("small");
-                domains.className = "marketplace-domains";
-                const summary =
-                    entry.allowedDomains.length > 3
-                        ? `${entry.allowedDomains.slice(0, 3).join(", ")}, …`
-                        : entry.allowedDomains.join(", ");
-                domains.textContent = `Allowed domains: ${summary}`;
-                content.appendChild(domains);
-            }
 
             const actions = document.createElement("div");
             actions.className = "marketplace-actions";
@@ -978,7 +967,7 @@ export function createCustomAssetModal({
         }
         const target = marketplaceChannelSelect?.value || broadcaster;
         const allowedDomains = Array.isArray(entry.allowedDomains) ? entry.allowedDomains.filter(Boolean) : [];
-        confirmDomainImport(allowedDomains, target)
+        confirmDomainImport(allowedDomains)
             .then((confirmed) => {
                 if (!confirmed) {
                     return null;
@@ -1176,7 +1165,7 @@ export function createCustomAssetModal({
         return undefined;
     }
 
-    function confirmDomainImport(domains, target) {
+    function confirmDomainImport(domains) {
         if (!Array.isArray(domains) || domains.length === 0) {
             return Promise.resolve(true);
         }
@@ -1187,14 +1176,14 @@ export function createCustomAssetModal({
             overlay.setAttribute("aria-modal", "true");
 
             const dialog = document.createElement("div");
-            dialog.className = "modal-card";
+            dialog.className = "modal-inner small";
 
             const title = document.createElement("h3");
             title.textContent = "Allow external domains?";
             dialog.appendChild(title);
 
             const copy = document.createElement("p");
-            copy.textContent = `This script requests network access to the following domains on ${target}:`;
+            copy.textContent = `This script requests network access to the following domains:`;
             dialog.appendChild(copy);
 
             const list = document.createElement("ul");
@@ -1207,7 +1196,7 @@ export function createCustomAssetModal({
             dialog.appendChild(list);
 
             const buttons = document.createElement("div");
-            buttons.className = "modal-actions";
+            buttons.className = "form-actions";
             const cancel = document.createElement("button");
             cancel.type = "button";
             cancel.className = "secondary";

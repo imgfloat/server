@@ -80,7 +80,7 @@
 
 ## Frontend Notes
 - Broadcast client code lives in `src/main/resources/static/js/broadcast/` (renderer, workers, runtime helpers). When editing overlay scripts, keep worker changes in `script-worker.js` and keep main page logic in `renderer.js`.
-- Admin/dashboard JS modules (`customAssets.js`, `settings.js`, `channels.js`, etc.) are plain ES modules bundled through Thymeleaf templates, so keep related CSS/HTML under `static/css` and `templates`.
+- Admin/dashboard JS modules (`customAssets.js`, `settings.js`, etc.) are plain ES modules bundled through Thymeleaf templates, so keep related CSS/HTML under `static/css` and `templates`.
 - Templates render dynamic data via controllers such as `ViewController`, which also injects `uploadLimitBytes`, version info (`VersionService`), and feature flags (staging banner, docs URL, commit chip wrapped in `GitInfoService`/`GithubReleaseService` values).
 
 ## Testing & Validation
