@@ -213,7 +213,11 @@ public class ChannelDirectoryService {
 
     public CanvasSettingsRequest getCanvasSettings(String broadcaster) {
         Channel channel = getOrCreateChannel(broadcaster);
-        return new CanvasSettingsRequest(channel.getCanvasWidth(), channel.getCanvasHeight());
+        return new CanvasSettingsRequest(
+            channel.getCanvasWidth(),
+            channel.getCanvasHeight(),
+            channel.getMaxVolumeDb()
+        );
     }
 
     public CanvasSettingsRequest updateCanvasSettings(String broadcaster, CanvasSettingsRequest req, String actor) {
@@ -221,24 +225,52 @@ public class ChannelDirectoryService {
         Channel channel = getOrCreateChannel(broadcaster);
         double beforeWidth = channel.getCanvasWidth();
         double beforeHeight = channel.getCanvasHeight();
+        Double beforeMaxVolumeDb = channel.getMaxVolumeDb();
         channel.setCanvasWidth(req.getWidth());
         channel.setCanvasHeight(req.getHeight());
+        if (req.getMaxVolumeDb() != null) {
+            channel.setMaxVolumeDb(req.getMaxVolumeDb());
+        }
         channelRepository.save(channel);
-        CanvasSettingsRequest response = new CanvasSettingsRequest(channel.getCanvasWidth(), channel.getCanvasHeight());
+        CanvasSettingsRequest response = new CanvasSettingsRequest(
+            channel.getCanvasWidth(),
+            channel.getCanvasHeight(),
+            channel.getMaxVolumeDb()
+        );
         messagingTemplate.convertAndSend(topicFor(broadcaster), CanvasEvent.updated(broadcaster, response));
-        if (beforeWidth != channel.getCanvasWidth() || beforeHeight != channel.getCanvasHeight()) {
+        if (
+            beforeWidth != channel.getCanvasWidth() ||
+            beforeHeight != channel.getCanvasHeight() ||
+            !Objects.equals(beforeMaxVolumeDb, channel.getMaxVolumeDb())
+        ) {
+            List<String> changes = new ArrayList<>();
+            if (beforeWidth != channel.getCanvasWidth() || beforeHeight != channel.getCanvasHeight()) {
+                changes.add(
+                    String.format(
+                        Locale.ROOT,
+                        "canvas %.0fx%.0f -> %.0fx%.0f",
+                        beforeWidth,
+                        beforeHeight,
+                        channel.getCanvasWidth(),
+                        channel.getCanvasHeight()
+                    )
+                );
+            }
+            if (!Objects.equals(beforeMaxVolumeDb, channel.getMaxVolumeDb())) {
+                changes.add(
+                    String.format(
+                        Locale.ROOT,
+                        "max volume %.0f dB -> %.0f dB",
+                        beforeMaxVolumeDb == null ? 0.0 : beforeMaxVolumeDb,
+                        channel.getMaxVolumeDb() == null ? 0.0 : channel.getMaxVolumeDb()
+                    )
+                );
+            }
             auditLogService.recordEntry(
                 channel.getBroadcaster(),
                 actor,
                 "CANVAS_UPDATED",
-                String.format(
-                    Locale.ROOT,
-                    "Canvas updated to %.0fx%.0f (was %.0fx%.0f)",
-                    channel.getCanvasWidth(),
-                    channel.getCanvasHeight(),
-                    beforeWidth,
-                    beforeHeight
-                )
+                "Canvas settings updated" + (changes.isEmpty() ? "" : " (" + String.join(", ", changes) + ")")
             );
         }
         return response;
@@ -266,6 +298,15 @@ public class ChannelDirectoryService {
             BAD_REQUEST,
             "Canvas height must be a whole number within [1 to " + canvasMaxSizePixels + "]"
         );
+        if (req.getMaxVolumeDb() != null) {
+            double maxVolumeDb = req.getMaxVolumeDb();
+            if (!Double.isFinite(maxVolumeDb) || maxVolumeDb < -60 || maxVolumeDb > 0) {
+                throw new ResponseStatusException(
+                    BAD_REQUEST,
+                    "Max volume must be within [-60 to 0] dB"
+                );
+            }
+        }
     }
 
     public ChannelScriptSettingsRequest getChannelScriptSettings(String broadcaster) {

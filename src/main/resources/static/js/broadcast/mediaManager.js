@@ -7,6 +7,7 @@ export function createMediaManager({ state, audioManager, draw, obsBrowser, supp
     function clearMedia(assetId) {
         const element = mediaCache.get(assetId);
         if (isVideoElement(element)) {
+            audioManager.releaseMediaElement(element);
             element.src = "";
             element.remove();
         }

@@ -6,6 +6,8 @@ const elements = {
     addAdminButton: document.getElementById("add-admin-btn"),
     canvasWidth: document.getElementById("canvas-width"),
     canvasHeight: document.getElementById("canvas-height"),
+    maxVolumeDb: document.getElementById("max-volume-db"),
+    maxVolumeLabel: document.getElementById("max-volume-label"),
     canvasStatus: document.getElementById("canvas-status"),
     canvasSaveButton: document.getElementById("save-canvas-btn"),
     allowChannelEmotes: document.getElementById("allow-channel-emotes"),
@@ -204,6 +206,12 @@ async function addAdmin(usernameFromAction) {
 function renderCanvasSettings(settings) {
     if (elements.canvasWidth) elements.canvasWidth.value = Math.round(settings.width);
     if (elements.canvasHeight) elements.canvasHeight.value = Math.round(settings.height);
+    if (elements.maxVolumeDb) {
+        const volumeDb = Number.isFinite(settings.maxVolumeDb) ? settings.maxVolumeDb : DEFAULT_MAX_VOLUME_DB;
+        const sliderValue = dbToSlider(volumeDb);
+        elements.maxVolumeDb.value = sliderValue;
+        setMaxVolumeLabel(volumeDb);
+    }
 }
 
 async function fetchCanvasSettings() {
@@ -211,7 +219,7 @@ async function fetchCanvasSettings() {
         const data = await fetchJson("/canvas", {}, "Failed to load canvas settings");
         renderCanvasSettings(data);
     } catch (error) {
-        renderCanvasSettings({ width: 1920, height: 1080 });
+        renderCanvasSettings({ width: 1920, height: 1080, maxVolumeDb: 0 });
         showToast("Using default canvas size. Unable to load saved settings.", "warning");
     }
 }
@@ -219,12 +227,17 @@ async function fetchCanvasSettings() {
 async function saveCanvasSettings() {
     const width = Number(elements.canvasWidth?.value);
     const height = Number(elements.canvasHeight?.value);
+    const maxVolumeDb = sliderToDb(Number(elements.maxVolumeDb?.value));
     if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
         showToast("Please enter a valid width and height.", "info");
         return;
     }
     if (!Number.isInteger(width) || !Number.isInteger(height)) {
         showToast("Please enter whole-number dimensions for the canvas size.", "info");
+        return;
+    }
+    if (!Number.isFinite(maxVolumeDb) || maxVolumeDb > MAX_VOLUME_DB || maxVolumeDb < MIN_VOLUME_DB) {
+        showToast(`Max volume must be between ${MIN_VOLUME_DB} and ${MAX_VOLUME_DB} dBFS.`, "info");
         return;
     }
     if (elements.canvasStatus) elements.canvasStatus.textContent = "Saving...";
@@ -235,7 +248,7 @@ async function saveCanvasSettings() {
             {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ width, height }),
+                body: JSON.stringify({ width, height, maxVolumeDb }),
             },
             "Failed to save canvas",
         );
@@ -251,6 +264,114 @@ async function saveCanvasSettings() {
     } finally {
         setButtonBusy(elements.canvasSaveButton, false, "Saving...");
     }
+}
+
+const MIN_VOLUME_DB = -60;
+const MAX_VOLUME_DB = 0;
+const DEFAULT_MAX_VOLUME_DB = 0;
+
+function clamp(value, min, max) {
+    if (!Number.isFinite(value)) return min;
+    return Math.min(max, Math.max(min, value));
+}
+
+function sliderToDb(value) {
+    const clamped = clamp(value, 0, 100);
+    return MIN_VOLUME_DB + (clamped / 100) * (MAX_VOLUME_DB - MIN_VOLUME_DB);
+}
+
+function dbToSlider(value) {
+    const clamped = clamp(value, MIN_VOLUME_DB, MAX_VOLUME_DB);
+    return Math.round(((clamped - MIN_VOLUME_DB) / (MAX_VOLUME_DB - MIN_VOLUME_DB)) * 100);
+}
+
+function setMaxVolumeLabel(dbValue) {
+    if (!elements.maxVolumeLabel) return;
+    const rounded = Math.round(dbValue * 10) / 10;
+    elements.maxVolumeLabel.textContent = `${rounded} dBFS`;
+}
+
+const demoAudioState = {
+    context: null,
+    oscillator: null,
+    gain: null,
+    compressor: null,
+    timeoutId: null,
+    isPlaying: false,
+    previewUnavailable: false,
+};
+
+function stopVolumeDemo() {
+    if (demoAudioState.timeoutId) {
+        clearTimeout(demoAudioState.timeoutId);
+        demoAudioState.timeoutId = null;
+    }
+    if (demoAudioState.oscillator) {
+        try {
+            demoAudioState.oscillator.stop();
+        } catch (_) {}
+        demoAudioState.oscillator.disconnect();
+        demoAudioState.oscillator = null;
+    }
+    if (demoAudioState.gain) {
+        demoAudioState.gain.disconnect();
+        demoAudioState.gain = null;
+    }
+    if (demoAudioState.compressor) {
+        demoAudioState.compressor.disconnect();
+        demoAudioState.compressor = null;
+    }
+    demoAudioState.isPlaying = false;
+}
+
+function startVolumeDemo(maxVolumeDb) {
+    const AudioContextImpl = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextImpl) {
+        if (!demoAudioState.previewUnavailable) {
+            showToast("Audio preview is not supported in this browser.", "info");
+            demoAudioState.previewUnavailable = true;
+        }
+        return;
+    }
+    const context = demoAudioState.context || new AudioContextImpl();
+    demoAudioState.context = context;
+    if (!demoAudioState.compressor) {
+        const compressor = context.createDynamicsCompressor();
+        compressor.knee.value = 0;
+        compressor.ratio.value = 20;
+        compressor.attack.value = 0.003;
+        compressor.release.value = 0.25;
+        compressor.connect(context.destination);
+        demoAudioState.compressor = compressor;
+    }
+    demoAudioState.compressor.threshold.value = maxVolumeDb;
+    if (!demoAudioState.gain) {
+        const gain = context.createGain();
+        gain.gain.value = 0.8;
+        gain.connect(demoAudioState.compressor);
+        demoAudioState.gain = gain;
+    }
+    if (!demoAudioState.oscillator) {
+        const oscillator = context.createOscillator();
+        oscillator.type = "sine";
+        oscillator.frequency.value = 440;
+        oscillator.connect(demoAudioState.gain);
+        oscillator.start();
+        demoAudioState.oscillator = oscillator;
+    }
+    demoAudioState.isPlaying = true;
+    context.resume().catch(() => {});
+    if (demoAudioState.timeoutId) {
+        clearTimeout(demoAudioState.timeoutId);
+    }
+    demoAudioState.timeoutId = setTimeout(stopVolumeDemo, 800);
+}
+
+function handleVolumeSliderInput() {
+    if (!elements.maxVolumeDb) return;
+    const nextDb = sliderToDb(Number(elements.maxVolumeDb.value));
+    setMaxVolumeLabel(nextDb);
+    startVolumeDemo(nextDb);
 }
 
 function renderScriptSettings(settings) {
@@ -355,4 +476,7 @@ fetchScriptSettings();
 
 if (elements.deleteAccountButton) {
     elements.deleteAccountButton.addEventListener("click", deleteAccount);
+}
+if (elements.maxVolumeDb) {
+    elements.maxVolumeDb.addEventListener("input", handleVolumeSliderInput);
 }

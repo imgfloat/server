@@ -1,6 +1,7 @@
 export function createBroadcastState() {
     return {
         canvasSettings: { width: 1920, height: 1080 },
+        audioSettings: { maxVolumeDb: 0 },
         assets: new Map(),
         mediaCache: new Map(),
         renderStates: new Map(),

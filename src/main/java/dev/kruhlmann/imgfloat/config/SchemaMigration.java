@@ -68,6 +68,7 @@ public class SchemaMigration implements ApplicationRunner {
 
         addColumnIfMissing("channels", columns, "canvas_width", "REAL", "1920");
         addColumnIfMissing("channels", columns, "canvas_height", "REAL", "1080");
+        addColumnIfMissing("channels", columns, "max_volume_db", "REAL", "0");
     }
 
     private void ensureAssetTables() {

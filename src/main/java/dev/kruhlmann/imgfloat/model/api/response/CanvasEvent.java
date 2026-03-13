@@ -19,4 +19,16 @@ public class CanvasEvent {
         return event;
     }
 
+    public Type getType() {
+        return type;
+    }
+
+    public String getChannel() {
+        return channel;
+    }
+
+    public CanvasSettingsRequest getPayload() {
+        return payload;
+    }
+
 }

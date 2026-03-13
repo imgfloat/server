@@ -1,13 +1,15 @@
 const audioUnlockEvents = ["pointerdown", "keydown", "touchstart"];
 
-export function createAudioManager({ assets, globalScope = globalThis }) {
+export function createAudioManager({ assets, globalScope = globalThis, maxVolumeDb = 0 }) {
     const audioControllers = new Map();
     const pendingAudioUnlock = new Set();
+    const limiter = createAudioLimiter({ globalScope, maxVolumeDb });
 
     audioUnlockEvents.forEach((eventName) => {
         globalScope.addEventListener(eventName, () => {
+            limiter.resume();
             if (!pendingAudioUnlock.size) return;
-            pendingAudioUnlock.forEach((controller) => safePlay(controller, pendingAudioUnlock));
+            pendingAudioUnlock.forEach((controller) => safePlay(controller, pendingAudioUnlock, limiter.resume));
             pendingAudioUnlock.clear();
         });
     });
@@ -41,6 +43,7 @@ export function createAudioManager({ assets, globalScope = globalThis }) {
         element.onended = () => handleAudioEnded(asset.id);
         audioControllers.set(asset.id, controller);
         applyAudioSettings(controller, asset, true);
+        limiter.connectElement(element);
         return controller;
     }
 
@@ -62,6 +65,8 @@ export function createAudioManager({ assets, globalScope = globalThis }) {
         element.playbackRate = speed * pitch;
         const volume = Math.max(0, Math.min(2, asset.audioVolume ?? 1));
         element.volume = Math.min(volume, 1);
+        limiter.connectElement(element);
+        limiter.resume();
     }
 
     function getAssetVolume(asset) {
@@ -72,6 +77,8 @@ export function createAudioManager({ assets, globalScope = globalThis }) {
         if (!element) return 1;
         const volume = getAssetVolume(asset);
         element.volume = Math.min(volume, 1);
+        limiter.connectElement(element);
+        limiter.resume();
         return volume;
     }
 
@@ -113,7 +120,7 @@ export function createAudioManager({ assets, globalScope = globalThis }) {
         controller.element.currentTime = 0;
         const originalDelay = controller.delayMs;
         controller.delayMs = 0;
-        safePlay(controller, pendingAudioUnlock);
+        safePlay(controller, pendingAudioUnlock, limiter.resume);
         controller.delayMs = controller.baseDelayMs ?? originalDelay ?? 0;
     }
 
@@ -123,11 +130,13 @@ export function createAudioManager({ assets, globalScope = globalThis }) {
         temp.preload = "auto";
         temp.controls = false;
         applyAudioElementSettings(temp, asset);
+        limiter.connectElement(temp);
         const controller = { element: temp };
         temp.onended = () => {
+            limiter.disconnectElement(temp);
             temp.remove();
         };
-        safePlay(controller, pendingAudioUnlock);
+        safePlay(controller, pendingAudioUnlock, limiter.resume);
     }
 
     function handleAudioPlay(asset, shouldPlay) {
@@ -139,7 +148,7 @@ export function createAudioManager({ assets, globalScope = globalThis }) {
         }
         if (asset.audioLoop) {
             controller.delayMs = controller.baseDelayMs;
-            safePlay(controller, pendingAudioUnlock);
+            safePlay(controller, pendingAudioUnlock, limiter.resume);
         } else {
             playOverlappingAudio(asset);
         }
@@ -160,7 +169,7 @@ export function createAudioManager({ assets, globalScope = globalThis }) {
             return;
         }
         controller.delayTimeout = setTimeout(() => {
-            safePlay(controller, pendingAudioUnlock);
+            safePlay(controller, pendingAudioUnlock, limiter.resume);
         }, controller.delayMs);
     }
 
@@ -187,6 +196,7 @@ export function createAudioManager({ assets, globalScope = globalThis }) {
         if (audio.delayTimeout) {
             clearTimeout(audio.delayTimeout);
         }
+        limiter.disconnectElement(audio.element);
         audio.element.pause();
         audio.element.currentTime = 0;
         audio.element.src = "";
@@ -202,15 +212,122 @@ export function createAudioManager({ assets, globalScope = globalThis }) {
         playAudioImmediately,
         autoStartAudio,
         clearAudio,
+        releaseMediaElement: limiter.disconnectElement,
+        setMaxVolumeDb: limiter.setMaxVolumeDb,
     };
 }
 
-function safePlay(controller, pendingUnlock) {
+function safePlay(controller, pendingUnlock, resumeAudio) {
     if (!controller?.element) return;
+    if (resumeAudio) {
+        resumeAudio();
+    }
     const playPromise = controller.element.play();
     if (playPromise?.catch) {
         playPromise.catch(() => {
             pendingUnlock.add(controller);
         });
     }
+}
+
+function createAudioLimiter({ globalScope, maxVolumeDb }) {
+    const AudioContextImpl = globalScope.AudioContext || globalScope.webkitAudioContext;
+    if (!AudioContextImpl) {
+        return {
+            connectElement: () => {},
+            disconnectElement: () => {},
+            setMaxVolumeDb: () => {},
+            resume: () => {},
+        };
+    }
+
+    let context = null;
+    let limiterNode = null;
+    let pendingMaxVolumeDb = maxVolumeDb;
+
+    const sourceNodes = new WeakMap();
+    const pendingElements = new Set();
+
+    function ensureContext() {
+        if (context) {
+            return context;
+        }
+        context = new AudioContextImpl();
+        limiterNode = context.createDynamicsCompressor();
+        limiterNode.knee.value = 0;
+        limiterNode.ratio.value = 20;
+        limiterNode.attack.value = 0.003;
+        limiterNode.release.value = 0.25;
+        limiterNode.connect(context.destination);
+        applyMaxVolumeDb(pendingMaxVolumeDb);
+        return context;
+    }
+
+    function applyMaxVolumeDb(value) {
+        const next = Number.isFinite(value) ? value : 0;
+        pendingMaxVolumeDb = next;
+        if (limiterNode) {
+            limiterNode.threshold.value = next;
+        }
+    }
+
+    function connectElement(element) {
+        if (!element) return;
+        if (sourceNodes.has(element)) {
+            return;
+        }
+        if (!context || context.state !== "running") {
+            pendingElements.add(element);
+            return;
+        }
+        try {
+            const source = context.createMediaElementSource(element);
+            source.connect(limiterNode);
+            sourceNodes.set(element, source);
+        } catch (error) {
+            // Ignore elements that cannot be connected to the audio graph.
+        }
+    }
+
+    function flushPending() {
+        if (!pendingElements.size) {
+            return;
+        }
+        const elements = Array.from(pendingElements);
+        pendingElements.clear();
+        elements.forEach(connectElement);
+    }
+
+    function disconnectElement(element) {
+        pendingElements.delete(element);
+        const source = sourceNodes.get(element);
+        if (source) {
+            source.disconnect();
+            sourceNodes.delete(element);
+        }
+    }
+
+    function setMaxVolumeDb(value) {
+        applyMaxVolumeDb(value);
+    }
+
+    function resume() {
+        const ctx = ensureContext();
+        if (ctx.state === "running") {
+            flushPending();
+            return;
+        }
+        ctx.resume()
+            .then(() => {
+                flushPending();
+            })
+            .catch(() => {});
+    }
+
+    return {
+        connectElement,
+        disconnectElement,
+        setMaxVolumeDb,
+        resume,
+    };
 }

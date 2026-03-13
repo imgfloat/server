@@ -32,6 +32,9 @@ public class Channel {
 
     private double canvasHeight = 1080;
 
+    @Column(name = "max_volume_db", nullable = false)
+    private Double maxVolumeDb = 0.0;
+
     @Column(name = "allow_channel_emotes_for_assets", nullable = false)
     private boolean allowChannelEmotesForAssets = true;
 
@@ -83,6 +86,14 @@ public class Channel {
 
     public void setCanvasHeight(double canvasHeight) {
         this.canvasHeight = canvasHeight;
+    }
+
+    public Double getMaxVolumeDb() {
+        return maxVolumeDb;
+    }
+
+    public void setMaxVolumeDb(Double maxVolumeDb) {
+        this.maxVolumeDb = maxVolumeDb;
     }
 
     public boolean isAllowChannelEmotesForAssets() {

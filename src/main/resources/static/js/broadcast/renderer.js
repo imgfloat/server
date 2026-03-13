@@ -43,7 +43,10 @@ export class BroadcastRenderer {
             typeof ImageDecoder !== "undefined" && typeof createImageBitmap === "function" && !this.obsBrowser;
         this.canPlayProbe = document.createElement("video");
 
-        this.audioManager = createAudioManager({ assets: this.state.assets });
+        this.audioManager = createAudioManager({
+            assets: this.state.assets,
+            maxVolumeDb: this.state.audioSettings.maxVolumeDb,
+        });
         this.mediaManager = createMediaManager({
             state: this.state,
             audioManager: this.audioManager,
@@ -152,7 +155,12 @@ export class BroadcastRenderer {
         }
         const width = Number.isFinite(settings.width) ? settings.width : this.state.canvasSettings.width;
         const height = Number.isFinite(settings.height) ? settings.height : this.state.canvasSettings.height;
+        const maxVolumeDb = Number.isFinite(settings.maxVolumeDb)
+            ? settings.maxVolumeDb
+            : this.state.audioSettings.maxVolumeDb;
         this.state.canvasSettings = { width, height };
+        this.state.audioSettings = { maxVolumeDb };
+        this.audioManager.setMaxVolumeDb(maxVolumeDb);
         this.resizeCanvas();
     }
 
