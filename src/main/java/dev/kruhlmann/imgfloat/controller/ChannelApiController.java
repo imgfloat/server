@@ -3,185 +3,64 @@ package dev.kruhlmann.imgfloat.controller;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 
-import dev.kruhlmann.imgfloat.model.api.request.AdminRequest;
-import dev.kruhlmann.imgfloat.model.api.response.AssetView;
+import dev.kruhlmann.imgfloat.model.api.request.AssetOrderRequest;
 import dev.kruhlmann.imgfloat.model.api.request.CanvasSettingsRequest;
 import dev.kruhlmann.imgfloat.model.api.request.ChannelScriptSettingsRequest;
 import dev.kruhlmann.imgfloat.model.api.request.CodeAssetRequest;
-import dev.kruhlmann.imgfloat.model.OauthSessionUser;
-import dev.kruhlmann.imgfloat.model.api.request.AssetOrderRequest;
 import dev.kruhlmann.imgfloat.model.api.request.PlaybackRequest;
-import dev.kruhlmann.imgfloat.model.api.response.ScriptAssetAttachmentView;
 import dev.kruhlmann.imgfloat.model.api.request.TransformRequest;
-import dev.kruhlmann.imgfloat.model.api.response.TwitchUserProfile;
 import dev.kruhlmann.imgfloat.model.api.request.VisibilityRequest;
+import dev.kruhlmann.imgfloat.model.api.response.AssetView;
+import dev.kruhlmann.imgfloat.model.api.response.ScriptAssetAttachmentView;
+import dev.kruhlmann.imgfloat.model.OauthSessionUser;
 import dev.kruhlmann.imgfloat.service.AuthorizationService;
 import dev.kruhlmann.imgfloat.service.ChannelDirectoryService;
 import dev.kruhlmann.imgfloat.service.ChannelSettingsService;
-import dev.kruhlmann.imgfloat.service.TwitchUserLookupService;
 import dev.kruhlmann.imgfloat.util.LogSanitizer;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.io.IOException;
 import java.util.Collection;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.lang.Nullable;
-import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
-import org.springframework.security.oauth2.client.OAuth2AuthorizedClientService;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
-import org.springframework.security.oauth2.client.registration.ClientRegistration;
-import org.springframework.security.oauth2.client.web.OAuth2AuthorizedClientRepository;
-import org.springframework.security.oauth2.core.AbstractOAuth2Token;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
+/**
+ * Manages assets, canvas settings, and script attachments for a specific broadcaster channel.
+ * Admin management has been extracted to {@link ChannelAdminApiController}.
+ */
 @RestController
 @RequestMapping("/api/channels/{broadcaster}")
 @SecurityRequirement(name = "twitchOAuth")
 public class ChannelApiController {
 
-    // TODO: Code smell Controller surface area is very large, suggesting too many endpoint responsibilities in one type.
-
     private static final Logger LOG = LoggerFactory.getLogger(ChannelApiController.class);
     private final ChannelDirectoryService channelDirectoryService;
     private final ChannelSettingsService channelSettingsService;
-    private final OAuth2AuthorizedClientService authorizedClientService;
-    private final OAuth2AuthorizedClientRepository authorizedClientRepository;
-    private final TwitchUserLookupService twitchUserLookupService;
     private final AuthorizationService authorizationService;
 
     public ChannelApiController(
         ChannelDirectoryService channelDirectoryService,
         ChannelSettingsService channelSettingsService,
-        OAuth2AuthorizedClientService authorizedClientService,
-        OAuth2AuthorizedClientRepository authorizedClientRepository,
-        TwitchUserLookupService twitchUserLookupService,
         AuthorizationService authorizationService
     ) {
         this.channelDirectoryService = channelDirectoryService;
         this.channelSettingsService = channelSettingsService;
-        this.authorizedClientService = authorizedClientService;
-        this.authorizedClientRepository = authorizedClientRepository;
-        this.twitchUserLookupService = twitchUserLookupService;
         this.authorizationService = authorizationService;
-    }
-
-    @PostMapping("/admins")
-    public ResponseEntity<Boolean> addAdmin(
-        @PathVariable("broadcaster") String broadcaster,
-        @Valid @RequestBody AdminRequest request,
-        OAuth2AuthenticationToken oauthToken
-    ) {
-        String sessionUsername = OauthSessionUser.from(oauthToken).login();
-        String logBroadcaster = LogSanitizer.sanitize(broadcaster);
-        String logSessionUsername = LogSanitizer.sanitize(sessionUsername);
-        String logRequestUsername = LogSanitizer.sanitize(request.username());
-        authorizationService.userMatchesSessionUsernameOrThrowHttpError(broadcaster, sessionUsername);
-        LOG.info("User {} adding admin {} to {}", logSessionUsername, logRequestUsername, logBroadcaster);
-        boolean added = channelDirectoryService.addAdmin(broadcaster, request.username(), sessionUsername);
-        if (!added) {
-            LOG.info("User {} already admin for {} or could not be added", logRequestUsername, logBroadcaster);
-        }
-        return ResponseEntity.ok(added);
-    }
-
-    @GetMapping("/admins")
-    public Collection<TwitchUserProfile> listAdmins(
-        @PathVariable("broadcaster") String broadcaster,
-        OAuth2AuthenticationToken oauthToken,
-        HttpServletRequest request
-    ) {
-        String sessionUsername = OauthSessionUser.from(oauthToken).login();
-        String logBroadcaster = LogSanitizer.sanitize(broadcaster);
-        String logSessionUsername = LogSanitizer.sanitize(sessionUsername);
-        authorizationService.userMatchesSessionUsernameOrThrowHttpError(broadcaster, sessionUsername);
-        LOG.debug("Listing admins for {} by {}", logBroadcaster, logSessionUsername);
-        var channel = channelDirectoryService.getOrCreateChannel(broadcaster);
-        List<String> admins = channel.getAdmins().stream().sorted(Comparator.naturalOrder()).toList();
-        OAuth2AuthorizedClient authorizedClient = resolveAuthorizedClient(oauthToken, request);
-        String accessToken = Optional.ofNullable(authorizedClient)
-            .map(OAuth2AuthorizedClient::getAccessToken)
-            .map(AbstractOAuth2Token::getTokenValue)
-            .orElse(null);
-        String clientId = Optional.ofNullable(authorizedClient)
-            .map(OAuth2AuthorizedClient::getClientRegistration)
-            .map(ClientRegistration::getClientId)
-            .orElse(null);
-        return twitchUserLookupService.fetchProfiles(admins, accessToken, clientId);
-    }
-
-    @GetMapping("/admins/suggestions")
-    public Collection<TwitchUserProfile> listAdminSuggestions(
-        @PathVariable("broadcaster") String broadcaster,
-        OAuth2AuthenticationToken oauthToken,
-        HttpServletRequest request
-    ) {
-        String sessionUsername = OauthSessionUser.from(oauthToken).login();
-        String logBroadcaster = LogSanitizer.sanitize(broadcaster);
-        String logSessionUsername = LogSanitizer.sanitize(sessionUsername);
-        authorizationService.userMatchesSessionUsernameOrThrowHttpError(broadcaster, sessionUsername);
-        LOG.debug("Listing admin suggestions for {} by {}", logBroadcaster, logSessionUsername);
-        var channel = channelDirectoryService.getOrCreateChannel(broadcaster);
-        OAuth2AuthorizedClient authorizedClient = resolveAuthorizedClient(oauthToken, request);
-
-        if (authorizedClient == null) {
-            LOG.warn(
-                "No authorized Twitch client found for {} while fetching admin suggestions for {}",
-                logSessionUsername,
-                logBroadcaster
-            );
-            return List.of();
-        }
-        String accessToken = Optional.of(authorizedClient)
-            .map(OAuth2AuthorizedClient::getAccessToken)
-            .map(AbstractOAuth2Token::getTokenValue)
-            .orElse(null);
-        String clientId = Optional.of(authorizedClient)
-            .map(OAuth2AuthorizedClient::getClientRegistration)
-            .map(ClientRegistration::getClientId)
-            .orElse(null);
-        if (accessToken == null || accessToken.isBlank() || clientId == null || clientId.isBlank()) {
-            LOG.warn(
-                "Missing Twitch credentials for {} while fetching admin suggestions for {}",
-                logSessionUsername,
-                logBroadcaster
-            );
-            return List.of();
-        }
-        return twitchUserLookupService.fetchModerators(broadcaster, channel.getAdmins(), accessToken, clientId);
-    }
-
-    @DeleteMapping("/admins/{username}")
-    public ResponseEntity<Boolean> removeAdmin(
-        @PathVariable("broadcaster") String broadcaster,
-        @PathVariable("username") String username,
-        OAuth2AuthenticationToken oauthToken
-    ) {
-        String sessionUsername = OauthSessionUser.from(oauthToken).login();
-        String logBroadcaster = LogSanitizer.sanitize(broadcaster);
-        String logSessionUsername = LogSanitizer.sanitize(sessionUsername);
-        String logUsername = LogSanitizer.sanitize(username);
-        authorizationService.userMatchesSessionUsernameOrThrowHttpError(broadcaster, sessionUsername);
-        LOG.info("User {} removing admin {} from {}", logSessionUsername, logUsername, logBroadcaster);
-        boolean removed = channelDirectoryService.removeAdmin(broadcaster, username, sessionUsername);
-        return ResponseEntity.ok(removed);
     }
 
     @GetMapping("/assets")
@@ -505,15 +384,6 @@ public class ChannelApiController {
             .orElseThrow(this::createAsset404);
     }
 
-    private String contentDispositionFor(String mediaType) {
-        if (
-                dev.kruhlmann.imgfloat.service.media.MediaDetectionService.isInlineDisplayType(mediaType)
-        ) {
-            return "inline";
-        }
-        return "attachment";
-    }
-
     @DeleteMapping("/assets/{assetId}")
     public ResponseEntity<Void> delete(
         @PathVariable("broadcaster") String broadcaster,
@@ -637,29 +507,14 @@ public class ChannelApiController {
         return ResponseEntity.ok().build();
     }
 
-    private ResponseStatusException createAsset404() {
-        return new ResponseStatusException(NOT_FOUND, "Asset not found");
+    private String contentDispositionFor(String mediaType) {
+        if (dev.kruhlmann.imgfloat.service.media.MediaDetectionService.isInlineDisplayType(mediaType)) {
+            return "inline";
+        }
+        return "attachment";
     }
 
-    private OAuth2AuthorizedClient resolveAuthorizedClient(
-        @Nullable OAuth2AuthenticationToken oauthToken,
-        HttpServletRequest request
-    ) {
-        if (oauthToken == null) {
-            LOG.error("Attempt to resolve authorized client without oauth token");
-            return null;
-        }
-        OAuth2AuthorizedClient sessionClient = authorizedClientRepository.loadAuthorizedClient(
-            oauthToken.getAuthorizedClientRegistrationId(),
-            oauthToken,
-            request
-        );
-        if (sessionClient != null) {
-            return sessionClient;
-        }
-        return authorizedClientService.loadAuthorizedClient(
-            oauthToken.getAuthorizedClientRegistrationId(),
-            oauthToken.getName()
-        );
+    private ResponseStatusException createAsset404() {
+        return new ResponseStatusException(NOT_FOUND, "Asset not found");
     }
 }

@@ -957,8 +957,8 @@ public class ChannelDirectoryService {
         }
         List<Asset> ordered = new ArrayList<>(bucket);
         ordered.sort((a, b) -> {
-            int orderA = desiredOrder.getOrDefault(a.getId(), a.getDisplayOrder() != null ? a.getDisplayOrder() : bucket.size() - originalIndex.getOrDefault(a.getId(), bucket.size()));
-            int orderB = desiredOrder.getOrDefault(b.getId(), b.getDisplayOrder() != null ? b.getDisplayOrder() : bucket.size() - originalIndex.getOrDefault(b.getId(), bucket.size()));
+            int orderA = resolveOrderForSort(a, desiredOrder, originalIndex, bucket.size());
+            int orderB = resolveOrderForSort(b, desiredOrder, originalIndex, bucket.size());
             int cmp = Integer.compare(orderB, orderA);
             if (cmp != 0) {
                 return cmp;
@@ -1559,6 +1559,27 @@ public class ChannelDirectoryService {
     private int displayOrderValue(Asset asset) {
         Integer value = asset == null ? null : asset.getDisplayOrder();
         return value == null ? Integer.MIN_VALUE : value;
+    }
+
+    /**
+     * Resolves the effective sort key for an asset during a bulk reorder operation.
+     * Assets with an explicit desired order use that value; others fall back to their
+     * current display order, or their inverse original-index position as a last resort.
+     */
+    private int resolveOrderForSort(
+        Asset asset,
+        Map<String, Integer> desiredOrder,
+        Map<String, Integer> originalIndex,
+        int bucketSize
+    ) {
+        String id = asset.getId();
+        if (desiredOrder.containsKey(id)) {
+            return desiredOrder.get(id);
+        }
+        if (asset.getDisplayOrder() != null) {
+            return asset.getDisplayOrder();
+        }
+        return bucketSize - originalIndex.getOrDefault(id, bucketSize);
     }
 
     private List<Asset> updateDisplayOrder(String broadcaster, Asset target, int desiredOrder, Set<AssetType> types) {
