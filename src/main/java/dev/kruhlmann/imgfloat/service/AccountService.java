@@ -7,8 +7,8 @@ import dev.kruhlmann.imgfloat.repository.ChannelRepository;
 import dev.kruhlmann.imgfloat.repository.MarketplaceScriptHeartRepository;
 import dev.kruhlmann.imgfloat.repository.ScriptAssetFileRepository;
 import dev.kruhlmann.imgfloat.repository.SystemAdministratorRepository;
+import dev.kruhlmann.imgfloat.util.StringNormalizer;
 import java.util.List;
-import java.util.Locale;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -96,6 +96,6 @@ public class AccountService {
     }
 
     private String normalize(String value) {
-        return value == null ? null : value.toLowerCase(Locale.ROOT);
+        return StringNormalizer.toLowerCaseRoot(value);
     }
 }
