@@ -76,7 +76,7 @@ public class SecurityConfig {
                     .permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/channels/*/canvas")
                     .permitAll()
-                    .requestMatchers(HttpMethod.GET, "/api/channels/gasolinebased/script-assets/*/attachments/*/content")
+                    .requestMatchers(HttpMethod.GET, "/api/channels/*/script-assets/*/attachments/*/content")
                     .permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/channels/*/assets/*/content")
                     .permitAll()

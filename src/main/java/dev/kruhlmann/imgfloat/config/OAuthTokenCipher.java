@@ -32,46 +32,28 @@ public class OAuthTokenCipher {
     }
 
     public static OAuthTokenCipher fromEnvironment() {
-        String base64Key = System.getenv(KEY_ENV);
-        if (base64Key == null || base64Key.isBlank()) {
-            throw new IllegalStateException(KEY_ENV + " is required to encrypt OAuth tokens");
-        }
-        SecretKey primaryKey = decodeKey(base64Key, KEY_ENV);
-        List<SecretKey> keys = new ArrayList<>();
-        keys.add(primaryKey);
-
-        String previousKeys = System.getenv(PREVIOUS_KEYS_ENV);
-        if (previousKeys != null && !previousKeys.isBlank()) {
-            for (String value : previousKeys.split(",")) {
-                String trimmed = value.trim();
-                if (!trimmed.isEmpty()) {
-                    keys.add(decodeKey(trimmed, PREVIOUS_KEYS_ENV));
-                }
-            }
-        }
-
-        return new OAuthTokenCipher(primaryKey, keys);
+        return buildFromKeys(System.getenv(KEY_ENV), System.getenv(PREVIOUS_KEYS_ENV));
     }
 
     public static OAuthTokenCipher fromEnvironment(Environment environment) {
-        String base64Key = environment.getProperty(KEY_ENV);
+        return buildFromKeys(environment.getProperty(KEY_ENV), environment.getProperty(PREVIOUS_KEYS_ENV));
+    }
+
+    private static OAuthTokenCipher buildFromKeys(String base64Key, String previousKeysRaw) {
         if (base64Key == null || base64Key.isBlank()) {
             throw new IllegalStateException(KEY_ENV + " is required to encrypt OAuth tokens");
         }
         SecretKey primaryKey = decodeKey(base64Key, KEY_ENV);
         List<SecretKey> keys = new ArrayList<>();
         keys.add(primaryKey);
-
-        String previousKeys = environment.getProperty(PREVIOUS_KEYS_ENV);
-        if (previousKeys != null && !previousKeys.isBlank()) {
-            for (String value : previousKeys.split(",")) {
+        if (previousKeysRaw != null && !previousKeysRaw.isBlank()) {
+            for (String value : previousKeysRaw.split(",")) {
                 String trimmed = value.trim();
                 if (!trimmed.isEmpty()) {
                     keys.add(decodeKey(trimmed, PREVIOUS_KEYS_ENV));
                 }
             }
         }
-
         return new OAuthTokenCipher(primaryKey, keys);
     }
 

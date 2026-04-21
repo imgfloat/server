@@ -37,6 +37,7 @@ import dev.kruhlmann.imgfloat.service.media.MediaOptimizationService;
 import dev.kruhlmann.imgfloat.service.media.OptimizedAsset;
 import dev.kruhlmann.imgfloat.service.media.MediaTypeRegistry;
 import dev.kruhlmann.imgfloat.util.AllowedDomainNormalizer;
+import dev.kruhlmann.imgfloat.util.StringNormalizer;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -198,16 +199,7 @@ public class ChannelDirectoryService {
     @Transactional(rollbackFor = IOException.class)
     public Optional<AssetView> createAsset(String broadcaster, MultipartFile file, String actor) throws IOException {
         long fileSize = file.getSize();
-        if (fileSize > uploadLimitBytes) {
-            throw new ResponseStatusException(
-                PAYLOAD_TOO_LARGE,
-                String.format(
-                    "Uploaded file is too large (%d bytes). Maximum allowed is %d bytes.",
-                    fileSize,
-                    uploadLimitBytes
-                )
-            );
-        }
+        enforceUploadLimit(fileSize);
         Channel channel = getOrCreateChannel(broadcaster);
         byte[] bytes = file.getBytes();
         String mediaType = mediaDetectionService
@@ -746,23 +738,7 @@ public class ChannelDirectoryService {
                             EnumSet.of(AssetType.SCRIPT)
                         );
                         if (!Objects.equals(beforeOrder, asset.getDisplayOrder())) {
-                            AssetPatch patch = new AssetPatch(
-                                asset.getId(),
-                                null,
-                                null,
-                                null,
-                                null,
-                                null,
-                                null,
-                                null,
-                                asset.getDisplayOrder(),
-                                null,
-                                null,
-                                null,
-                                null,
-                                null,
-                                null
-                            );
+                            AssetPatch patch = AssetPatch.forOrder(asset.getId(), asset.getDisplayOrder());
                             messagingTemplate.convertAndSend(topicFor(broadcaster), AssetEvent.updated(broadcaster, patch));
                             auditLogService.recordEntry(
                                 asset.getBroadcaster(),
@@ -1268,17 +1244,7 @@ public class ChannelDirectoryService {
         MultipartFile file,
         String actor
     ) throws IOException {
-        long fileSize = file.getSize();
-        if (fileSize > uploadLimitBytes) {
-            throw new ResponseStatusException(
-                PAYLOAD_TOO_LARGE,
-                String.format(
-                    "Uploaded file is too large (%d bytes). Maximum allowed is %d bytes.",
-                    fileSize,
-                    uploadLimitBytes
-                )
-            );
-        }
+        enforceUploadLimit(file.getSize());
 
         Asset asset = requireScriptAssetForBroadcaster(broadcaster, scriptAssetId);
         byte[] bytes = file.getBytes();
@@ -1434,7 +1400,7 @@ public class ChannelDirectoryService {
     }
 
     private String normalize(String value) {
-        return value == null ? null : value.toLowerCase(Locale.ROOT);
+        return StringNormalizer.toLowerCaseRoot(value);
     }
 
     private boolean isCodeMediaType(String mediaType) {
@@ -1640,23 +1606,7 @@ public class ChannelDirectoryService {
             .filter((asset) -> asset.getDisplayOrder() != null)
             .filter((asset) -> !asset.getId().equals(targetAssetId))
             .forEach((asset) -> {
-                AssetPatch patch = new AssetPatch(
-                    asset.getId(),
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    asset.getDisplayOrder(),
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null
-                );
+                AssetPatch patch = AssetPatch.forOrder(asset.getId(), asset.getDisplayOrder());
                 messagingTemplate.convertAndSend(topicFor(broadcaster), AssetEvent.updated(broadcaster, patch));
             });
     }

@@ -76,24 +76,15 @@ public record AssetPatch(
         );
     }
 
+    /**
+     * Produces a patch carrying only a display-order update.
+     */
+    public static AssetPatch forOrder(String assetId, int order) {
+        return new AssetPatch(assetId, null, null, null, null, null, null, null, order, null, null, null, null, null, null);
+    }
+
     public static AssetPatch fromVisibility(String assetId, boolean hidden) {
-        return new AssetPatch(
-            assetId,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            hidden,
-            null,
-            null,
-            null,
-            null,
-            null
-        );
+        return new AssetPatch(assetId, null, null, null, null, null, null, null, null, hidden, null, null, null, null, null);
     }
 
     private static Double changed(double before, double after) {

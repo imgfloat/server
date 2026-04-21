@@ -16,6 +16,8 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import dev.kruhlmann.imgfloat.util.StringNormalizer;
+
 /**
  * Manages per-channel canvas and script-overlay settings.
  * Extracted from {@link ChannelDirectoryService} to give it a focused responsibility.
@@ -198,6 +200,6 @@ public class ChannelSettingsService {
     }
 
     private String normalize(String value) {
-        return value == null ? null : value.toLowerCase(Locale.ROOT);
+        return StringNormalizer.toLowerCaseRoot(value);
     }
 }
