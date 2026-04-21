@@ -11,7 +11,6 @@ import static org.mockito.Mockito.when;
 
 import dev.kruhlmann.imgfloat.model.AssetType;
 import dev.kruhlmann.imgfloat.model.api.request.CodeAssetRequest;
-import dev.kruhlmann.imgfloat.model.api.request.CanvasSettingsRequest;
 import dev.kruhlmann.imgfloat.model.api.request.TransformRequest;
 import dev.kruhlmann.imgfloat.model.api.request.VisibilityRequest;
 import dev.kruhlmann.imgfloat.model.api.response.AssetView;
@@ -245,17 +244,6 @@ class ChannelDirectoryServiceTest {
         ScriptAsset script = scriptAssetRepository.findById(created.id()).orElseThrow();
         assertThat(script.getAllowedDomains()).isEmpty();
         assertThat(saved.allowedDomains()).isEmpty();
-    }
-
-    @Test
-    void updatesCanvasMaxVolumeDb() {
-        CanvasSettingsRequest request = new CanvasSettingsRequest(1920, 1080, -12.0);
-
-        CanvasSettingsRequest saved = service.updateCanvasSettings("caster", request, "caster");
-
-        assertThat(saved.getMaxVolumeDb()).isEqualTo(-12.0);
-        Channel channel = channelRepository.findById("caster").orElseThrow();
-        assertThat(channel.getMaxVolumeDb()).isEqualTo(-12.0);
     }
 
     private byte[] samplePng() throws IOException {

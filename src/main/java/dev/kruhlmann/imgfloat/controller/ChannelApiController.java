@@ -17,6 +17,7 @@ import dev.kruhlmann.imgfloat.model.api.response.TwitchUserProfile;
 import dev.kruhlmann.imgfloat.model.api.request.VisibilityRequest;
 import dev.kruhlmann.imgfloat.service.AuthorizationService;
 import dev.kruhlmann.imgfloat.service.ChannelDirectoryService;
+import dev.kruhlmann.imgfloat.service.ChannelSettingsService;
 import dev.kruhlmann.imgfloat.service.TwitchUserLookupService;
 import dev.kruhlmann.imgfloat.util.LogSanitizer;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -60,6 +61,7 @@ public class ChannelApiController {
 
     private static final Logger LOG = LoggerFactory.getLogger(ChannelApiController.class);
     private final ChannelDirectoryService channelDirectoryService;
+    private final ChannelSettingsService channelSettingsService;
     private final OAuth2AuthorizedClientService authorizedClientService;
     private final OAuth2AuthorizedClientRepository authorizedClientRepository;
     private final TwitchUserLookupService twitchUserLookupService;
@@ -67,12 +69,14 @@ public class ChannelApiController {
 
     public ChannelApiController(
         ChannelDirectoryService channelDirectoryService,
+        ChannelSettingsService channelSettingsService,
         OAuth2AuthorizedClientService authorizedClientService,
         OAuth2AuthorizedClientRepository authorizedClientRepository,
         TwitchUserLookupService twitchUserLookupService,
         AuthorizationService authorizationService
     ) {
         this.channelDirectoryService = channelDirectoryService;
+        this.channelSettingsService = channelSettingsService;
         this.authorizedClientService = authorizedClientService;
         this.authorizedClientRepository = authorizedClientRepository;
         this.twitchUserLookupService = twitchUserLookupService;
@@ -192,7 +196,7 @@ public class ChannelApiController {
 
     @GetMapping("/canvas")
     public CanvasSettingsRequest getCanvas(@PathVariable("broadcaster") String broadcaster) {
-        return channelDirectoryService.getCanvasSettings(broadcaster);
+        return channelSettingsService.getCanvasSettings(broadcaster);
     }
 
     @PutMapping("/canvas")
@@ -212,12 +216,12 @@ public class ChannelApiController {
             request.getWidth(),
             request.getHeight()
         );
-        return channelDirectoryService.updateCanvasSettings(broadcaster, request, sessionUsername);
+        return channelSettingsService.updateCanvasSettings(broadcaster, request, sessionUsername);
     }
 
     @GetMapping("/settings")
     public ChannelScriptSettingsRequest getScriptSettings(@PathVariable("broadcaster") String broadcaster) {
-        return channelDirectoryService.getChannelScriptSettings(broadcaster);
+        return channelSettingsService.getChannelScriptSettings(broadcaster);
     }
 
     @PutMapping("/settings")
@@ -231,7 +235,7 @@ public class ChannelApiController {
         String logSessionUsername = LogSanitizer.sanitize(sessionUsername);
         authorizationService.userMatchesSessionUsernameOrThrowHttpError(broadcaster, sessionUsername);
         LOG.info("Updating script settings for {} by {}", logBroadcaster, logSessionUsername);
-        return channelDirectoryService.updateChannelScriptSettings(broadcaster, request, sessionUsername);
+        return channelSettingsService.updateChannelScriptSettings(broadcaster, request, sessionUsername);
     }
 
     @PostMapping(value = "/assets", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

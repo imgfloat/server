@@ -5,8 +5,6 @@ import static org.springframework.http.HttpStatus.PAYLOAD_TOO_LARGE;
 
 import dev.kruhlmann.imgfloat.model.AssetType;
 import dev.kruhlmann.imgfloat.model.api.request.AssetOrderRequest;
-import dev.kruhlmann.imgfloat.model.api.request.CanvasSettingsRequest;
-import dev.kruhlmann.imgfloat.model.api.request.ChannelScriptSettingsRequest;
 import dev.kruhlmann.imgfloat.model.api.request.CodeAssetRequest;
 import dev.kruhlmann.imgfloat.model.api.request.PlaybackRequest;
 import dev.kruhlmann.imgfloat.model.api.request.TransformRequest;
@@ -14,7 +12,6 @@ import dev.kruhlmann.imgfloat.model.api.request.VisibilityRequest;
 import dev.kruhlmann.imgfloat.model.api.response.AssetEvent;
 import dev.kruhlmann.imgfloat.model.api.response.AssetPatch;
 import dev.kruhlmann.imgfloat.model.api.response.AssetView;
-import dev.kruhlmann.imgfloat.model.api.response.CanvasEvent;
 import dev.kruhlmann.imgfloat.model.api.response.ScriptAssetAttachmentView;
 import dev.kruhlmann.imgfloat.model.api.response.ScriptMarketplaceEntry;
 import dev.kruhlmann.imgfloat.model.db.imgfloat.Asset;
@@ -196,162 +193,6 @@ public class ChannelDirectoryService {
             .sorted(Comparator.comparingInt((Map.Entry<Asset, VisualAsset> entry) -> displayOrderValue(entry.getKey())).reversed())
             .map((entry) -> AssetView.fromVisual(normalized, entry.getKey(), entry.getValue()))
             .toList();
-    }
-
-    public CanvasSettingsRequest getCanvasSettings(String broadcaster) {
-        Channel channel = getOrCreateChannel(broadcaster);
-        return new CanvasSettingsRequest(
-            channel.getCanvasWidth(),
-            channel.getCanvasHeight(),
-            channel.getMaxVolumeDb()
-        );
-    }
-
-    public CanvasSettingsRequest updateCanvasSettings(String broadcaster, CanvasSettingsRequest req, String actor) {
-        validateCanvasSettings(req);
-        Channel channel = getOrCreateChannel(broadcaster);
-        double beforeWidth = channel.getCanvasWidth();
-        double beforeHeight = channel.getCanvasHeight();
-        Double beforeMaxVolumeDb = channel.getMaxVolumeDb();
-        channel.setCanvasWidth(req.getWidth());
-        channel.setCanvasHeight(req.getHeight());
-        if (req.getMaxVolumeDb() != null) {
-            channel.setMaxVolumeDb(req.getMaxVolumeDb());
-        }
-        channelRepository.save(channel);
-        CanvasSettingsRequest response = new CanvasSettingsRequest(
-            channel.getCanvasWidth(),
-            channel.getCanvasHeight(),
-            channel.getMaxVolumeDb()
-        );
-        messagingTemplate.convertAndSend(topicFor(broadcaster), CanvasEvent.updated(broadcaster, response));
-        if (
-            beforeWidth != channel.getCanvasWidth() ||
-            beforeHeight != channel.getCanvasHeight() ||
-            !Objects.equals(beforeMaxVolumeDb, channel.getMaxVolumeDb())
-        ) {
-            List<String> changes = new ArrayList<>();
-            if (beforeWidth != channel.getCanvasWidth() || beforeHeight != channel.getCanvasHeight()) {
-                changes.add(
-                    String.format(
-                        Locale.ROOT,
-                        "canvas %.0fx%.0f -> %.0fx%.0f",
-                        beforeWidth,
-                        beforeHeight,
-                        channel.getCanvasWidth(),
-                        channel.getCanvasHeight()
-                    )
-                );
-            }
-            if (!Objects.equals(beforeMaxVolumeDb, channel.getMaxVolumeDb())) {
-                changes.add(
-                    String.format(
-                        Locale.ROOT,
-                        "max volume %.0f dB -> %.0f dB",
-                        beforeMaxVolumeDb == null ? 0.0 : beforeMaxVolumeDb,
-                        channel.getMaxVolumeDb() == null ? 0.0 : channel.getMaxVolumeDb()
-                    )
-                );
-            }
-            auditLogService.recordEntry(
-                channel.getBroadcaster(),
-                actor,
-                "CANVAS_UPDATED",
-                "Canvas settings updated" + (changes.isEmpty() ? "" : " (" + String.join(", ", changes) + ")")
-            );
-        }
-        return response;
-    }
-
-    private void validateCanvasSettings(CanvasSettingsRequest req) {
-        Settings settings = settingsService.get();
-        int canvasMaxSizePixels = settings.getMaxCanvasSideLengthPixels();
-
-        if (
-            req.getWidth() <= 0 ||
-            req.getWidth() > canvasMaxSizePixels ||
-            !Double.isFinite(req.getWidth()) ||
-            req.getWidth() % 1 != 0
-        ) throw new ResponseStatusException(
-            BAD_REQUEST,
-            "Canvas width must be a whole number within [1 to " + canvasMaxSizePixels + "]"
-        );
-        if (
-            req.getHeight() <= 0 ||
-            req.getHeight() > canvasMaxSizePixels ||
-            !Double.isFinite(req.getHeight()) ||
-            req.getHeight() % 1 != 0
-        ) throw new ResponseStatusException(
-            BAD_REQUEST,
-            "Canvas height must be a whole number within [1 to " + canvasMaxSizePixels + "]"
-        );
-        if (req.getMaxVolumeDb() != null) {
-            double maxVolumeDb = req.getMaxVolumeDb();
-            if (!Double.isFinite(maxVolumeDb) || maxVolumeDb < -60 || maxVolumeDb > 0) {
-                throw new ResponseStatusException(
-                    BAD_REQUEST,
-                    "Max volume must be within [-60 to 0] dB"
-                );
-            }
-        }
-    }
-
-    public ChannelScriptSettingsRequest getChannelScriptSettings(String broadcaster) {
-        Channel channel = getOrCreateChannel(broadcaster);
-        return new ChannelScriptSettingsRequest(
-            channel.isAllowChannelEmotesForAssets(),
-            channel.isAllowSevenTvEmotesForAssets(),
-            channel.isAllowScriptChatAccess()
-        );
-    }
-
-    public ChannelScriptSettingsRequest updateChannelScriptSettings(
-        String broadcaster,
-        ChannelScriptSettingsRequest request,
-        String actor
-    ) {
-        Channel channel = getOrCreateChannel(broadcaster);
-        boolean beforeChannelEmotes = channel.isAllowChannelEmotesForAssets();
-        boolean beforeSevenTv = channel.isAllowSevenTvEmotesForAssets();
-        boolean beforeChatAccess = channel.isAllowScriptChatAccess();
-        channel.setAllowChannelEmotesForAssets(request.isAllowChannelEmotesForAssets());
-        channel.setAllowSevenTvEmotesForAssets(request.isAllowSevenTvEmotesForAssets());
-        channel.setAllowScriptChatAccess(request.isAllowScriptChatAccess());
-        channelRepository.save(channel);
-        if (
-            beforeChannelEmotes != channel.isAllowChannelEmotesForAssets() ||
-            beforeSevenTv != channel.isAllowSevenTvEmotesForAssets() ||
-            beforeChatAccess != channel.isAllowScriptChatAccess()
-        ) {
-            List<String> changes = new ArrayList<>();
-            if (beforeChannelEmotes != channel.isAllowChannelEmotesForAssets()) {
-                changes.add(
-                    "channelEmotes: " + beforeChannelEmotes + " -> " + channel.isAllowChannelEmotesForAssets()
-                );
-            }
-            if (beforeSevenTv != channel.isAllowSevenTvEmotesForAssets()) {
-                changes.add(
-                    "sevenTvEmotes: " + beforeSevenTv + " -> " + channel.isAllowSevenTvEmotesForAssets()
-                );
-            }
-            if (beforeChatAccess != channel.isAllowScriptChatAccess()) {
-                changes.add(
-                    "scriptChatAccess: " + beforeChatAccess + " -> " + channel.isAllowScriptChatAccess()
-                );
-            }
-            String detailSuffix = changes.isEmpty() ? "" : " (" + String.join(", ", changes) + ")";
-            auditLogService.recordEntry(
-                channel.getBroadcaster(),
-                actor,
-                "SCRIPT_SETTINGS_UPDATED",
-                "Script settings updated" + detailSuffix
-            );
-        }
-        return new ChannelScriptSettingsRequest(
-            channel.isAllowChannelEmotesForAssets(),
-            channel.isAllowSevenTvEmotesForAssets(),
-            channel.isAllowScriptChatAccess()
-        );
     }
 
     @Transactional(rollbackFor = IOException.class)
