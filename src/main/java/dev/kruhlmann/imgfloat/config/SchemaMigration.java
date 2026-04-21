@@ -12,7 +12,9 @@ import org.springframework.stereotype.Component;
 @Component
 public class SchemaMigration implements ApplicationRunner {
 
-    // TODO: Code smell Runtime schema migration logic duplicates Flyway responsibilities and is difficult to reason about/test.
+    // Legacy backward-compatibility runner for databases that predate the Flyway migration
+    // baseline. Each method is idempotent so it is harmless on up-to-date databases. New
+    // schema changes must go into a versioned Flyway script under db/migration, not here.
 
     private static final Logger LOG = LoggerFactory.getLogger(SchemaMigration.class);
 
@@ -24,32 +26,10 @@ public class SchemaMigration implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
-        ensureSessionAttributeUpsertTrigger();
         ensureChannelCanvasColumns();
         ensureAssetTables();
         ensureMarketplaceScriptHeartsTable();
         ensureAuthorizedClientTable();
-        normalizeAuthorizedClientTimestamps();
-    }
-
-    private void ensureSessionAttributeUpsertTrigger() {
-        try {
-            jdbcTemplate.execute(
-                """
-                CREATE TRIGGER IF NOT EXISTS SPRING_SESSION_ATTRIBUTES_UPSERT
-                BEFORE INSERT ON SPRING_SESSION_ATTRIBUTES
-                FOR EACH ROW
-                BEGIN
-                    DELETE FROM SPRING_SESSION_ATTRIBUTES
-                    WHERE SESSION_PRIMARY_ID = NEW.SESSION_PRIMARY_ID
-                      AND ATTRIBUTE_NAME = NEW.ATTRIBUTE_NAME;
-                END;
-                """
-            );
-            LOG.info("Ensured SPRING_SESSION_ATTRIBUTES upsert trigger exists");
-        } catch (DataAccessException ex) {
-            LOG.warn("Unable to ensure SPRING_SESSION_ATTRIBUTES upsert trigger", ex);
-        }
     }
 
     private void ensureChannelCanvasColumns() {
@@ -333,6 +313,7 @@ public class SchemaMigration implements ApplicationRunner {
     }
 
     private void ensureAuthorizedClientTable() {
+        // Retained for databases predating V13. V13 creates this table for new installations.
         try {
             jdbcTemplate.execute(
                 """
@@ -350,54 +331,8 @@ public class SchemaMigration implements ApplicationRunner {
                 )
                 """
             );
-            LOG.info("Ensured oauth2_authorized_client table exists");
         } catch (DataAccessException ex) {
             LOG.warn("Unable to ensure oauth2_authorized_client table", ex);
-        }
-    }
-
-    private void normalizeAuthorizedClientTimestamps() {
-        normalizeTimestampColumn("access_token_issued_at");
-        normalizeTimestampColumn("access_token_expires_at");
-        normalizeTimestampColumn("refresh_token_issued_at");
-    }
-
-    private void normalizeTimestampColumn(String column) {
-        try {
-            int updated = jdbcTemplate.update(
-                "UPDATE oauth2_authorized_client " +
-                    "SET " +
-                    column +
-                    " = CASE " +
-                    "WHEN " +
-                    column +
-                    " LIKE '%-%' THEN CAST(strftime('%s', " +
-                    column +
-                    ") AS INTEGER) * 1000 " +
-                    "WHEN typeof(" +
-                    column +
-                    ") = 'text' AND " +
-                    column +
-                    " GLOB '[0-9]*' THEN CAST(" +
-                    column +
-                    " AS INTEGER) " +
-                    "WHEN typeof(" +
-                    column +
-                    ") = 'integer' THEN " +
-                    column +
-                    " " +
-                    "ELSE " +
-                    column +
-                    " END " +
-                    "WHERE " +
-                    column +
-                    " IS NOT NULL"
-            );
-            if (updated > 0) {
-                LOG.info("Normalized {} rows in oauth2_authorized_client.{}", updated, column);
-            }
-        } catch (DataAccessException ex) {
-            LOG.warn("Unable to normalize oauth2_authorized_client.{} timestamps", column, ex);
         }
     }
 }
