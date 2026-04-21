@@ -58,6 +58,7 @@ import org.springframework.web.server.ResponseStatusException;
 class ChannelDirectoryServiceTest {
 
     private ChannelDirectoryService service;
+    private dev.kruhlmann.imgfloat.service.MarketplaceService marketplaceService;
     private SimpMessagingTemplate messagingTemplate;
     private ChannelRepository channelRepository;
     private AssetRepository assetRepository;
@@ -125,6 +126,14 @@ class ChannelDirectoryServiceTest {
             uploadLimitBytes,
                 marketplaceScriptSeedLoader,
                 auditLogService
+        );
+        marketplaceService = new dev.kruhlmann.imgfloat.service.MarketplaceService(
+            marketplaceScriptSeedLoader,
+            scriptAssetRepository,
+            assetRepository,
+            scriptAssetFileRepository,
+            assetStorageService,
+            marketplaceScriptHeartRepository
         );
     }
 
@@ -215,7 +224,7 @@ class ChannelDirectoryServiceTest {
     void includesDefaultMarketplaceScript() {
         when(scriptAssetRepository.findByIsPublicTrue()).thenReturn(List.of());
 
-        List<dev.kruhlmann.imgfloat.model.api.response.ScriptMarketplaceEntry> entries = service.listMarketplaceScripts(null, null);
+        List<dev.kruhlmann.imgfloat.model.api.response.ScriptMarketplaceEntry> entries = marketplaceService.listScripts(null, null);
 
         assertThat(entries)
             .anyMatch((entry) -> "rotating-logo".equals(entry.id()));

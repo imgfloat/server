@@ -9,6 +9,7 @@ import dev.kruhlmann.imgfloat.model.api.response.ScriptMarketplaceEntry;
 import dev.kruhlmann.imgfloat.model.api.request.ScriptMarketplaceImportRequest;
 import dev.kruhlmann.imgfloat.service.AuthorizationService;
 import dev.kruhlmann.imgfloat.service.ChannelDirectoryService;
+import dev.kruhlmann.imgfloat.service.MarketplaceService;
 import dev.kruhlmann.imgfloat.util.LogSanitizer;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
@@ -34,13 +35,16 @@ import org.springframework.web.server.ResponseStatusException;
 public class ScriptMarketplaceController {
 
     private static final Logger LOG = LoggerFactory.getLogger(ScriptMarketplaceController.class);
+    private final MarketplaceService marketplaceService;
     private final ChannelDirectoryService channelDirectoryService;
     private final AuthorizationService authorizationService;
 
     public ScriptMarketplaceController(
+        MarketplaceService marketplaceService,
         ChannelDirectoryService channelDirectoryService,
         AuthorizationService authorizationService
     ) {
+        this.marketplaceService = marketplaceService;
         this.channelDirectoryService = channelDirectoryService;
         this.authorizationService = authorizationService;
     }
@@ -51,15 +55,15 @@ public class ScriptMarketplaceController {
         OAuth2AuthenticationToken oauthToken
     ) {
         String sessionUsername = oauthToken == null ? null : OauthSessionUser.from(oauthToken).login();
-        return channelDirectoryService.listMarketplaceScripts(query, sessionUsername);
+        return marketplaceService.listScripts(query, sessionUsername);
     }
 
     @GetMapping("/scripts/{scriptId}/logo")
     public ResponseEntity<byte[]> getMarketplaceLogo(@PathVariable("scriptId") String scriptId) {
         String logScriptId = LogSanitizer.sanitize(scriptId);
         LOG.debug("Serving marketplace logo for script {}", logScriptId);
-        return channelDirectoryService
-            .getMarketplaceLogo(scriptId)
+        return marketplaceService
+            .getLogo(scriptId)
             .map((content) ->
                 ResponseEntity.ok()
                     .header("X-Content-Type-Options", "nosniff")
@@ -96,8 +100,8 @@ public class ScriptMarketplaceController {
         OAuth2AuthenticationToken oauthToken
     ) {
         String sessionUsername = OauthSessionUser.from(oauthToken).login();
-        return channelDirectoryService
-            .toggleMarketplaceHeart(scriptId, sessionUsername)
+        return marketplaceService
+            .toggleHeart(scriptId, sessionUsername)
             .map(ResponseEntity::ok)
             .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Marketplace script not found"));
     }
