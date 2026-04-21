@@ -2,8 +2,8 @@ package dev.kruhlmann.imgfloat.service;
 
 import dev.kruhlmann.imgfloat.model.api.response.ScriptMarketplaceEntry;
 import dev.kruhlmann.imgfloat.service.media.AssetContent;
+import dev.kruhlmann.imgfloat.util.AllowedDomainNormalizer;
 import java.io.IOException;
-import java.net.URI;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -289,43 +289,7 @@ public class MarketplaceScriptSeedLoader {
     }
 
     private List<String> normalizeAllowedDomains(List<String> requestedDomains) {
-        if (requestedDomains == null || requestedDomains.isEmpty()) {
-            return List.of();
-        }
-        List<String> normalized = new ArrayList<>();
-        for (String raw : requestedDomains) {
-            if (raw == null) {
-                continue;
-            }
-            String candidate = raw.trim();
-            if (candidate.isEmpty()) {
-                continue;
-            }
-            String withScheme = candidate.contains("://") ? candidate : "https://" + candidate;
-            try {
-                URI uri = URI.create(withScheme);
-                String host = uri.getHost();
-                if (host == null || host.isBlank()) {
-                    logger.warn("Skipping invalid allowed domain {}", candidate);
-                    continue;
-                }
-                String value = host.toLowerCase(Locale.ROOT);
-                if (uri.getPort() > 0) {
-                    value = value + ":" + uri.getPort();
-                }
-                if (normalized.contains(value)) {
-                    continue;
-                }
-                if (normalized.size() >= 32) {
-                    logger.warn("Trimming allowed domains for marketplace script {}, limit reached", candidate);
-                    break;
-                }
-                normalized.add(value);
-            } catch (IllegalArgumentException ex) {
-                logger.warn("Skipping invalid allowed domain {}", candidate, ex);
-            }
-        }
-        return new ArrayList<>(normalized);
+        return AllowedDomainNormalizer.normalizeLenient(requestedDomains);
     }
 
     private static Optional<byte[]> readBytes(Path filePath) {

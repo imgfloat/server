@@ -39,8 +39,8 @@ import dev.kruhlmann.imgfloat.service.media.MediaDetectionService;
 import dev.kruhlmann.imgfloat.service.media.MediaOptimizationService;
 import dev.kruhlmann.imgfloat.service.media.OptimizedAsset;
 import dev.kruhlmann.imgfloat.service.media.MediaTypeRegistry;
+import dev.kruhlmann.imgfloat.util.AllowedDomainNormalizer;
 import java.io.IOException;
-import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.charset.StandardCharsets;
@@ -51,7 +51,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -59,14 +58,11 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
-// TODO: Code smell God class; this service mixes admin management, asset CRUD, media processing, websocket publishing, and marketplace concerns.
 public class ChannelDirectoryService {
 
     private static final Logger logger = LoggerFactory.getLogger(ChannelDirectoryService.class);
     private static final Pattern SAFE_FILENAME = Pattern.compile("[^a-zA-Z0-9._ -]");
     private static final String DEFAULT_CODE_MEDIA_TYPE = "application/javascript";
-    private static final int MAX_ALLOWED_SCRIPT_DOMAINS = 32;
-    private static final Pattern ALLOWED_DOMAIN_PATTERN = Pattern.compile("^[a-z0-9.-]+(?::[0-9]{1,5})?$");
     private static final EnumSet<AssetType> VISUAL_ASSET_TYPES = EnumSet.of(
         AssetType.IMAGE,
         AssetType.VIDEO,
@@ -74,7 +70,6 @@ public class ChannelDirectoryService {
         AssetType.OTHER
     );
 
-    // TODO: Code smell Constructor has too many dependencies, indicating high coupling and too many responsibilities.
     private final ChannelRepository channelRepository;
     private final AssetRepository assetRepository;
     private final VisualAssetRepository visualAssetRepository;
@@ -92,7 +87,6 @@ public class ChannelDirectoryService {
     private final MarketplaceScriptSeedLoader marketplaceScriptSeedLoader;
     private final AuditLogService auditLogService;
 
-    @Autowired
     public ChannelDirectoryService(
         ChannelRepository channelRepository,
         AssetRepository assetRepository,
@@ -187,13 +181,7 @@ public class ChannelDirectoryService {
         List<Asset> assets = assetRepository.findByBroadcaster(normalized);
         List<String> visualIds = assets
             .stream()
-            .filter(
-                (asset) ->
-                    asset.getAssetType() == AssetType.IMAGE ||
-                    asset.getAssetType() == AssetType.VIDEO ||
-                    asset.getAssetType() == AssetType.MODEL ||
-                    asset.getAssetType() == AssetType.OTHER
-            )
+            .filter((asset) -> VISUAL_ASSET_TYPES.contains(asset.getAssetType()))
             .map(Asset::getId)
             .toList();
         Map<String, Asset> assetById = assets.stream().collect(Collectors.toMap(Asset::getId, (asset) -> asset));
@@ -1851,58 +1839,11 @@ public class ChannelDirectoryService {
     }
 
     private List<String> normalizeAllowedDomains(List<String> requestedDomains) {
-        if (requestedDomains == null || requestedDomains.isEmpty()) {
-            return List.of();
-        }
-        List<String> normalized = new ArrayList<>();
-        for (String raw : requestedDomains) {
-            if (raw == null) {
-                continue;
-            }
-            String candidate = raw.trim();
-            if (candidate.isEmpty()) {
-                continue;
-            }
-            String withScheme = candidate.contains("://") ? candidate : "https://" + candidate;
-            URI uri;
-            try {
-                uri = URI.create(withScheme);
-            } catch (IllegalArgumentException ex) {
-                throw new ResponseStatusException(BAD_REQUEST, "Invalid allowed domain: " + candidate, ex);
-            }
-            String host = uri.getHost();
-            if (host == null || host.isBlank()) {
-                throw new ResponseStatusException(BAD_REQUEST, "Invalid allowed domain: " + candidate);
-            }
-            String domain = host.toLowerCase(Locale.ROOT);
-            int port = uri.getPort();
-            if (port > 0) {
-                domain = domain + ":" + port;
-            }
-            if (!ALLOWED_DOMAIN_PATTERN.matcher(domain).matches()) {
-                throw new ResponseStatusException(BAD_REQUEST, "Invalid allowed domain: " + candidate);
-            }
-            if (normalized.contains(domain)) {
-                continue;
-            }
-            if (normalized.size() >= MAX_ALLOWED_SCRIPT_DOMAINS) {
-                throw new ResponseStatusException(
-                    BAD_REQUEST,
-                    "A maximum of 32 allowed domains are supported per script asset"
-                );
-            }
-            normalized.add(domain);
-        }
-        return new ArrayList<>(normalized);
+        return AllowedDomainNormalizer.normalize(requestedDomains);
     }
 
     private List<String> normalizeAllowedDomainsLenient(List<String> requestedDomains) {
-        try {
-            return normalizeAllowedDomains(requestedDomains);
-        } catch (ResponseStatusException ex) {
-            logger.warn("Ignoring invalid allowed domains: {}", ex.getReason());
-            return List.of();
-        }
+        return AllowedDomainNormalizer.normalizeLenient(requestedDomains);
     }
 
     private void removeScriptAssetFileIfOrphaned(String fileId) {
