@@ -8,7 +8,6 @@ import dev.kruhlmann.imgfloat.model.api.request.AssetOrderRequest;
 import dev.kruhlmann.imgfloat.model.api.request.CanvasSettingsRequest;
 import dev.kruhlmann.imgfloat.model.api.request.ChannelScriptSettingsRequest;
 import dev.kruhlmann.imgfloat.model.api.request.CodeAssetRequest;
-import dev.kruhlmann.imgfloat.model.api.request.AssetOrderRequest;
 import dev.kruhlmann.imgfloat.model.api.request.PlaybackRequest;
 import dev.kruhlmann.imgfloat.model.api.request.TransformRequest;
 import dev.kruhlmann.imgfloat.model.api.request.VisibilityRequest;
