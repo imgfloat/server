@@ -18,7 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class AssetCleanupService {
 
-    private static final Logger logger = LoggerFactory.getLogger(AssetCleanupService.class);
+    private static final Logger LOG = LoggerFactory.getLogger(AssetCleanupService.class);
 
     private final AssetRepository assetRepository;
     private final AssetStorageService assetStorageService;
@@ -41,7 +41,7 @@ public class AssetCleanupService {
     @EventListener(ApplicationReadyEvent.class)
     @Transactional(readOnly = true)
     public void cleanup() {
-        logger.info("Collecting referenced assets");
+        LOG.info("Collecting referenced assets");
 
         Set<String> referencedIds = assetRepository
             .findAll()

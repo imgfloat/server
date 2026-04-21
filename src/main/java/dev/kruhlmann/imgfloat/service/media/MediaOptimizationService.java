@@ -11,7 +11,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class MediaOptimizationService {
 
-    private static final Logger logger = LoggerFactory.getLogger(MediaOptimizationService.class);
+    private static final Logger LOG = LoggerFactory.getLogger(MediaOptimizationService.class);
     private static final FfmpegService.VideoDimensions DEFAULT_VIDEO_DIMENSIONS = new FfmpegService.VideoDimensions(
         640,
         360
@@ -87,7 +87,7 @@ public class MediaOptimizationService {
             .transcodeApngToGif(bytes)
             .map(this::transcodeGifToVideo)
             .orElseGet(() -> {
-                logger.warn("Unable to transcode APNG to GIF via ffmpeg");
+                LOG.warn("Unable to transcode APNG to GIF via ffmpeg");
                 return null;
             });
     }
@@ -103,7 +103,7 @@ public class MediaOptimizationService {
                 return new OptimizedAsset(videoBytes, "video/webm", dimensions.width(), dimensions.height(), preview);
             })
             .orElseGet(() -> {
-                logger.warn("Unable to transcode GIF to video via ffmpeg");
+                LOG.warn("Unable to transcode GIF to video via ffmpeg");
                 return null;
             });
     }

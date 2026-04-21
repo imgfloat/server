@@ -14,7 +14,7 @@ public class SchemaMigration implements ApplicationRunner {
 
     // TODO: Code smell Runtime schema migration logic duplicates Flyway responsibilities and is difficult to reason about/test.
 
-    private static final Logger logger = LoggerFactory.getLogger(SchemaMigration.class);
+    private static final Logger LOG = LoggerFactory.getLogger(SchemaMigration.class);
 
     private final JdbcTemplate jdbcTemplate;
 
@@ -46,9 +46,9 @@ public class SchemaMigration implements ApplicationRunner {
                 END;
                 """
             );
-            logger.info("Ensured SPRING_SESSION_ATTRIBUTES upsert trigger exists");
+            LOG.info("Ensured SPRING_SESSION_ATTRIBUTES upsert trigger exists");
         } catch (DataAccessException ex) {
-            logger.warn("Unable to ensure SPRING_SESSION_ATTRIBUTES upsert trigger", ex);
+            LOG.warn("Unable to ensure SPRING_SESSION_ATTRIBUTES upsert trigger", ex);
         }
     }
 
@@ -57,7 +57,7 @@ public class SchemaMigration implements ApplicationRunner {
         try {
             columns = jdbcTemplate.query("PRAGMA table_info(channels)", (rs, rowNum) -> rs.getString("name"));
         } catch (DataAccessException ex) {
-            logger.warn("Unable to inspect channels table for canvas columns", ex);
+            LOG.warn("Unable to inspect channels table for canvas columns", ex);
             return;
         }
 
@@ -76,7 +76,7 @@ public class SchemaMigration implements ApplicationRunner {
         try {
             columns = jdbcTemplate.query("PRAGMA table_info(assets)", (rs, rowNum) -> rs.getString("name"));
         } catch (DataAccessException ex) {
-            logger.warn("Unable to inspect assets table for asset columns", ex);
+            LOG.warn("Unable to inspect assets table for asset columns", ex);
             return;
         }
 
@@ -169,7 +169,7 @@ public class SchemaMigration implements ApplicationRunner {
             ensureScriptAssetColumns();
             backfillAssetTypes(assetColumns);
         } catch (DataAccessException ex) {
-            logger.warn("Unable to ensure asset type tables", ex);
+            LOG.warn("Unable to ensure asset type tables", ex);
         }
     }
 
@@ -185,7 +185,7 @@ public class SchemaMigration implements ApplicationRunner {
                 """
             );
         } catch (DataAccessException ex) {
-            logger.warn("Unable to ensure marketplace script hearts table", ex);
+            LOG.warn("Unable to ensure marketplace script hearts table", ex);
         }
     }
 
@@ -197,7 +197,7 @@ public class SchemaMigration implements ApplicationRunner {
             attachmentColumns =
                 jdbcTemplate.query("PRAGMA table_info(script_asset_attachments)", (rs, rowNum) -> rs.getString("name"));
         } catch (DataAccessException ex) {
-            logger.warn("Unable to inspect script asset tables", ex);
+            LOG.warn("Unable to inspect script asset tables", ex);
             return;
         }
 
@@ -236,7 +236,7 @@ public class SchemaMigration implements ApplicationRunner {
             );
             jdbcTemplate.execute("UPDATE script_asset_attachments SET file_id = id WHERE file_id IS NULL");
         } catch (DataAccessException ex) {
-            logger.warn("Unable to backfill script asset files", ex);
+            LOG.warn("Unable to backfill script asset files", ex);
         }
     }
 
@@ -295,7 +295,7 @@ public class SchemaMigration implements ApplicationRunner {
                 """
             );
         } catch (DataAccessException ex) {
-            logger.warn("Unable to backfill asset type tables", ex);
+            LOG.warn("Unable to backfill asset type tables", ex);
         }
     }
 
@@ -326,9 +326,9 @@ public class SchemaMigration implements ApplicationRunner {
                     columnName +
                     " IS NULL"
             );
-            logger.info("Added missing column '{}' to {} table", columnName, tableName);
+            LOG.info("Added missing column '{}' to {} table", columnName, tableName);
         } catch (DataAccessException ex) {
-            logger.warn("Failed to add column '{}' to {} table", columnName, tableName, ex);
+            LOG.warn("Failed to add column '{}' to {} table", columnName, tableName, ex);
         }
     }
 
@@ -350,9 +350,9 @@ public class SchemaMigration implements ApplicationRunner {
                 )
                 """
             );
-            logger.info("Ensured oauth2_authorized_client table exists");
+            LOG.info("Ensured oauth2_authorized_client table exists");
         } catch (DataAccessException ex) {
-            logger.warn("Unable to ensure oauth2_authorized_client table", ex);
+            LOG.warn("Unable to ensure oauth2_authorized_client table", ex);
         }
     }
 
@@ -394,10 +394,10 @@ public class SchemaMigration implements ApplicationRunner {
                     " IS NOT NULL"
             );
             if (updated > 0) {
-                logger.info("Normalized {} rows in oauth2_authorized_client.{}", updated, column);
+                LOG.info("Normalized {} rows in oauth2_authorized_client.{}", updated, column);
             }
         } catch (DataAccessException ex) {
-            logger.warn("Unable to normalize oauth2_authorized_client.{} timestamps", column, ex);
+            LOG.warn("Unable to normalize oauth2_authorized_client.{} timestamps", column, ex);
         }
     }
 }

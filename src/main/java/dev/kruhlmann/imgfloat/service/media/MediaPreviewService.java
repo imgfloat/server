@@ -7,7 +7,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class MediaPreviewService {
 
-    private static final Logger logger = LoggerFactory.getLogger(MediaPreviewService.class);
+    private static final Logger LOG = LoggerFactory.getLogger(MediaPreviewService.class);
 
     private final FfmpegService ffmpegService;
 
@@ -19,7 +19,7 @@ public class MediaPreviewService {
         return ffmpegService
             .extractVideoPreview(bytes)
             .orElseGet(() -> {
-                logger.warn("Unable to capture video preview frame for {}", mediaType);
+                LOG.warn("Unable to capture video preview frame for {}", mediaType);
                 return null;
             });
     }

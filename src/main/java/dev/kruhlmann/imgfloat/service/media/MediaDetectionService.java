@@ -13,7 +13,7 @@ import org.springframework.web.multipart.MultipartFile;
 @Service
 public class MediaDetectionService {
 
-    private static final Logger logger = LoggerFactory.getLogger(MediaDetectionService.class);
+    private static final Logger LOG = LoggerFactory.getLogger(MediaDetectionService.class);
 
     public Optional<String> detectAllowedMediaType(MultipartFile file, byte[] bytes) {
         Optional<String> detected = detectMediaType(bytes)
@@ -47,7 +47,7 @@ public class MediaDetectionService {
                 return Optional.of(guessed);
             }
         } catch (IOException e) {
-            logger.warn("Unable to detect content type from stream", e);
+            LOG.warn("Unable to detect content type from stream", e);
         }
 
         return Optional.empty();

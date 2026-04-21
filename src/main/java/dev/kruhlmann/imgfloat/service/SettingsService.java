@@ -19,7 +19,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class SettingsService {
 
-    private static final Logger logger = LoggerFactory.getLogger(SettingsService.class);
+    private static final Logger LOG = LoggerFactory.getLogger(SettingsService.class);
 
     private final SettingsRepository repo;
     private final VisualAssetRepository visualAssetRepository;
@@ -68,9 +68,9 @@ public class SettingsService {
 
     public void logSettings(String msg, Settings settings) {
         try {
-            logger.info("{}:\n{}", msg, objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(settings));
+            LOG.info("{}:\n{}", msg, objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(settings));
         } catch (JsonProcessingException e) {
-            logger.error("Failed to serialize settings", e);
+            LOG.error("Failed to serialize settings", e);
         }
     }
 
@@ -136,7 +136,7 @@ public class SettingsService {
         }
 
         if (!visualsToUpdate.isEmpty() || !audioToUpdate.isEmpty()) {
-            logger.info(
+            LOG.info(
                 "Normalized {} visual assets and {} audio assets to new settings ranges",
                 visualsToUpdate.size(),
                 audioToUpdate.size()

@@ -15,7 +15,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class AssetStorageService {
 
-    private static final Logger logger = LoggerFactory.getLogger(AssetStorageService.class);
+    private static final Logger LOG = LoggerFactory.getLogger(AssetStorageService.class);
     private static final String DEFAULT_PREVIEW_MEDIA_TYPE = "image/png";
 
     private final Path assetRoot;
@@ -57,7 +57,7 @@ public class AssetStorageService {
             StandardOpenOption.TRUNCATE_EXISTING,
             StandardOpenOption.WRITE
         );
-        logger.info("Wrote asset to {}", file);
+        LOG.info("Wrote asset to {}", file);
     }
 
     public void storePreview(String broadcaster, String assetId, byte[] previewBytes) throws IOException {
@@ -73,7 +73,7 @@ public class AssetStorageService {
             StandardOpenOption.TRUNCATE_EXISTING,
             StandardOpenOption.WRITE
         );
-        logger.info("Wrote asset preview to {}", file);
+        LOG.info("Wrote asset preview to {}", file);
     }
 
     public Optional<AssetContent> loadAssetFile(String broadcaster, String assetId, String mediaType) {
@@ -85,7 +85,7 @@ public class AssetStorageService {
             byte[] bytes = Files.readAllBytes(file);
             return Optional.of(new AssetContent(bytes, mediaType));
         } catch (Exception e) {
-            logger.warn("Failed to load asset {}", assetId, e);
+            LOG.warn("Failed to load asset {}", assetId, e);
             return Optional.empty();
         }
     }
@@ -98,7 +98,7 @@ public class AssetStorageService {
             byte[] bytes = Files.readAllBytes(file);
             return Optional.of(new AssetContent(bytes, DEFAULT_PREVIEW_MEDIA_TYPE));
         } catch (Exception e) {
-            logger.warn("Failed to load preview {}", assetId, e);
+            LOG.warn("Failed to load preview {}", assetId, e);
             return Optional.empty();
         }
     }
@@ -126,7 +126,7 @@ public class AssetStorageService {
                 Files.deleteIfExists(previewPath(broadcaster, assetId));
             }
         } catch (Exception e) {
-            logger.warn("Failed to delete asset {}", assetId, e);
+            LOG.warn("Failed to delete asset {}", assetId, e);
         }
     }
 
@@ -146,13 +146,13 @@ public class AssetStorageService {
                 .forEach((p) -> {
                     try {
                         Files.delete(p);
-                        logger.warn("Deleted orphan file {}", p);
+                        LOG.warn("Deleted orphan file {}", p);
                     } catch (IOException e) {
-                        logger.error("Failed to delete {}", p, e);
+                        LOG.error("Failed to delete {}", p, e);
                     }
                 });
         } catch (IOException e) {
-            logger.error("Failed to walk {}", root, e);
+            LOG.error("Failed to walk {}", root, e);
         }
     }
 

@@ -57,7 +57,7 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 public class ChannelDirectoryService {
 
-    private static final Logger logger = LoggerFactory.getLogger(ChannelDirectoryService.class);
+    private static final Logger LOG = LoggerFactory.getLogger(ChannelDirectoryService.class);
     private static final Pattern SAFE_FILENAME = Pattern.compile("[^a-zA-Z0-9._ -]");
     private static final String DEFAULT_CODE_MEDIA_TYPE = "application/javascript";
     private static final EnumSet<AssetType> VISUAL_ASSET_TYPES = EnumSet.of(
@@ -494,7 +494,7 @@ public class ChannelDirectoryService {
             try {
                 sourceScript = scriptAssetRepository.findById(scriptId).filter(ScriptAsset::isPublic).orElse(null);
             } catch (DataAccessException ex) {
-                logger.warn("Unable to import marketplace script {}", scriptId, ex);
+                LOG.warn("Unable to import marketplace script {}", scriptId, ex);
                 return Optional.empty();
             }
             Asset sourceAsset = sourceScript == null ? null : assetRepository.findById(scriptId).orElse(null);
@@ -660,7 +660,7 @@ public class ChannelDirectoryService {
         try {
             return Optional.of(Files.readAllBytes(path));
         } catch (IOException ex) {
-            logger.warn("Failed to read marketplace attachment {}", path, ex);
+            LOG.warn("Failed to read marketplace attachment {}", path, ex);
             return Optional.empty();
         }
     }

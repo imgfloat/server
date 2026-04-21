@@ -16,7 +16,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class FfmpegService {
 
-    private static final Logger logger = LoggerFactory.getLogger(FfmpegService.class);
+    private static final Logger LOG = LoggerFactory.getLogger(FfmpegService.class);
 
     public Optional<VideoDimensions> extractVideoDimensions(byte[] bytes) {
         return Optional.ofNullable(withTempFile(bytes, ".bin", (input) -> {
@@ -34,7 +34,7 @@ public class FfmpegService {
             );
             ProcessResult result = run(command);
             if (result.exitCode() != 0) {
-                logger.warn("ffprobe failed: {}", result.output());
+                LOG.warn("ffprobe failed: {}", result.output());
                 return null;
             }
             String output = result.output().trim();
@@ -47,7 +47,7 @@ public class FfmpegService {
                 int height = Integer.parseInt(parts[1].trim());
                 return new VideoDimensions(width, height);
             } catch (NumberFormatException e) {
-                logger.warn("Unable to parse ffprobe output: {}", output, e);
+                LOG.warn("Unable to parse ffprobe output: {}", output, e);
                 return null;
             }
         }));
@@ -75,7 +75,7 @@ public class FfmpegService {
                 );
                 ProcessResult result = run(command);
                 if (result.exitCode() != 0) {
-                    logger.warn("ffmpeg preview failed: {}", result.output());
+                    LOG.warn("ffmpeg preview failed: {}", result.output());
                     return null;
                 }
                 return Files.readAllBytes(output);
@@ -111,7 +111,7 @@ public class FfmpegService {
                 );
                 ProcessResult result = run(command);
                 if (result.exitCode() != 0) {
-                    logger.warn("ffmpeg transcode failed: {}", result.output());
+                    LOG.warn("ffmpeg transcode failed: {}", result.output());
                     return null;
                 }
                 return Files.readAllBytes(output);
@@ -139,7 +139,7 @@ public class FfmpegService {
                 );
                 ProcessResult result = run(command);
                 if (result.exitCode() != 0) {
-                    logger.warn("ffmpeg APNG transcode failed: {}", result.output());
+                    LOG.warn("ffmpeg APNG transcode failed: {}", result.output());
                     return null;
                 }
                 return Files.readAllBytes(output);
@@ -156,14 +156,14 @@ public class FfmpegService {
             Files.write(input, bytes);
             return handler.handle(input);
         } catch (IOException e) {
-            logger.warn("Unable to create temporary media file", e);
+            LOG.warn("Unable to create temporary media file", e);
             return null;
         } finally {
             if (input != null) {
                 try {
                     Files.deleteIfExists(input);
                 } catch (IOException e) {
-                    logger.warn("Unable to delete temporary file {}", input, e);
+                    LOG.warn("Unable to delete temporary file {}", input, e);
                 }
             }
         }

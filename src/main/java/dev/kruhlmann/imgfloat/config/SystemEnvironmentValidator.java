@@ -12,7 +12,7 @@ import org.springframework.util.unit.DataSize;
 @Component
 public class SystemEnvironmentValidator {
 
-    private static final Logger log = LoggerFactory.getLogger(SystemEnvironmentValidator.class);
+    private static final Logger LOG = LoggerFactory.getLogger(SystemEnvironmentValidator.class);
 
     private final Environment environment;
 
@@ -63,7 +63,7 @@ public class SystemEnvironmentValidator {
                 environment.getProperty("org.springframework.boot.test.context.SpringBootTestContextBootstrapper")
             )
         ) {
-            log.info("Skipping environment validation in test context");
+            LOG.info("Skipping environment validation in test context");
             return;
         }
 
@@ -88,19 +88,19 @@ public class SystemEnvironmentValidator {
             throw new IllegalStateException("Missing or invalid environment variables:\n" + missing);
         }
 
-        log.info("Environment validation successful:");
-        log.info(" - TWITCH_CLIENT_ID: {}", redact(twitchClientId));
-        log.info(" - TWITCH_CLIENT_SECRET: {}", redact(twitchClientSecret));
-        log.info(" - SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE: {} ({} bytes)", springMaxFileSize, maxUploadBytes);
-        log.info(" - SPRING_SERVLET_MULTIPART_MAX_REQUEST_SIZE: {} ({} bytes)", springMaxRequestSize, maxRequestBytes);
-        log.info(" - IMGFLOAT_DB_PATH: {}", dbPath);
-        log.info(" - IMGFLOAT_AUDIT_DB_PATH: {}", auditDbPath);
-        log.info(" - IMGFLOAT_INITIAL_TWITCH_USERNAME_SYSADMIN: {}", initialSysadmin);
-        log.info(" - IMGFLOAT_ASSETS_PATH: {}", assetsPath);
-        log.info(" - IMGFLOAT_PREVIEWS_PATH: {}", previewsPath);
-        log.info(" - IMGFLOAT_GITHUB_CLIENT_OWNER: {}", githubClientOwner);
-        log.info(" - IMGFLOAT_GITHUB_CLIENT_REPO: {}", githubClientRepo);
-        log.info(" - IMGFLOAT_GITHUB_CLIENT_VERSION: {}", githubClientVersion);
+        LOG.info("Environment validation successful:");
+        LOG.info(" - TWITCH_CLIENT_ID: {}", redact(twitchClientId));
+        LOG.info(" - TWITCH_CLIENT_SECRET: {}", redact(twitchClientSecret));
+        LOG.info(" - SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE: {} ({} bytes)", springMaxFileSize, maxUploadBytes);
+        LOG.info(" - SPRING_SERVLET_MULTIPART_MAX_REQUEST_SIZE: {} ({} bytes)", springMaxRequestSize, maxRequestBytes);
+        LOG.info(" - IMGFLOAT_DB_PATH: {}", dbPath);
+        LOG.info(" - IMGFLOAT_AUDIT_DB_PATH: {}", auditDbPath);
+        LOG.info(" - IMGFLOAT_INITIAL_TWITCH_USERNAME_SYSADMIN: {}", initialSysadmin);
+        LOG.info(" - IMGFLOAT_ASSETS_PATH: {}", assetsPath);
+        LOG.info(" - IMGFLOAT_PREVIEWS_PATH: {}", previewsPath);
+        LOG.info(" - IMGFLOAT_GITHUB_CLIENT_OWNER: {}", githubClientOwner);
+        LOG.info(" - IMGFLOAT_GITHUB_CLIENT_REPO: {}", githubClientRepo);
+        LOG.info(" - IMGFLOAT_GITHUB_CLIENT_VERSION: {}", githubClientVersion);
     }
 
     private void checkString(String value, String name, StringBuilder missing) {

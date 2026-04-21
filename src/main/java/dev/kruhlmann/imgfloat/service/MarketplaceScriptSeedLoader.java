@@ -24,7 +24,7 @@ public class MarketplaceScriptSeedLoader {
 
     // TODO: Code smell Large parser/loader with many branching paths; consider decomposing into smaller collaborators.
 
-    private static final Logger logger = LoggerFactory.getLogger(MarketplaceScriptSeedLoader.class);
+    private static final Logger LOG = LoggerFactory.getLogger(MarketplaceScriptSeedLoader.class);
     private static final String METADATA_FILENAME = "metadata.json";
     private static final String SOURCE_FILENAME = "source.js";
     private static final String LOGO_FILENAME = "logo.png";
@@ -127,7 +127,7 @@ public class MarketplaceScriptSeedLoader {
             return List.of();
         }
         if (!Files.isDirectory(rootPath)) {
-            logger.warn("Marketplace script path {} is not a directory", rootPath);
+            LOG.warn("Marketplace script path {} is not a directory", rootPath);
             return List.of();
         }
         List<SeedScript> loaded = new ArrayList<>();
@@ -139,7 +139,7 @@ public class MarketplaceScriptSeedLoader {
                 loadScriptDirectory(scriptDir).ifPresent(loaded::add);
             }
         } catch (IOException ex) {
-            logger.warn("Failed to read marketplace script directory {}", rootPath, ex);
+            LOG.warn("Failed to read marketplace script directory {}", rootPath, ex);
         }
         return List.copyOf(loaded);
     }
@@ -147,11 +147,11 @@ public class MarketplaceScriptSeedLoader {
     private Optional<SeedScript> loadScriptDirectory(Path scriptDir) {
         ScriptSeedMetadata metadata = ScriptSeedMetadata.read(scriptDir.resolve(METADATA_FILENAME));
         if (metadata == null) {
-            logger.warn("Skipping marketplace script {}, missing {}", scriptDir, METADATA_FILENAME);
+            LOG.warn("Skipping marketplace script {}, missing {}", scriptDir, METADATA_FILENAME);
             return Optional.empty();
         }
         if (metadata.name() == null || metadata.name().isBlank()) {
-            logger.warn("Skipping marketplace script {}, missing name", scriptDir);
+            LOG.warn("Skipping marketplace script {}, missing name", scriptDir);
             return Optional.empty();
         }
         String sourceMediaType = detectMediaType(scriptDir.resolve(SOURCE_FILENAME), DEFAULT_SOURCE_MEDIA_TYPE);
@@ -161,7 +161,7 @@ public class MarketplaceScriptSeedLoader {
         Path sourcePath = resolveOptionalFile(scriptDir.resolve(SOURCE_FILENAME));
         Path logoPath = resolveOptionalFile(scriptDir.resolve(LOGO_FILENAME));
         if (sourcePath == null) {
-            logger.warn("Skipping marketplace script {}, missing {}", scriptDir, SOURCE_FILENAME);
+            LOG.warn("Skipping marketplace script {}, missing {}", scriptDir, SOURCE_FILENAME);
             return Optional.empty();
         }
         List<SeedAttachment> attachments = loadAttachments(scriptDir.resolve(ATTACHMENTS_DIR)).orElse(null);
@@ -199,7 +199,7 @@ public class MarketplaceScriptSeedLoader {
                 if (Files.isRegularFile(attachment)) {
                     String name = attachment.getFileName().toString();
                     if (!seenNames.add(name)) {
-                        logger.warn("Duplicate marketplace attachment name {}", name);
+                        LOG.warn("Duplicate marketplace attachment name {}", name);
                         return Optional.empty();
                     }
                     String mediaType = detectAttachmentMediaType(attachment);
@@ -214,7 +214,7 @@ public class MarketplaceScriptSeedLoader {
                 }
             }
         } catch (IOException ex) {
-            logger.warn("Failed to read marketplace attachments in {}", attachmentsDir, ex);
+            LOG.warn("Failed to read marketplace attachments in {}", attachmentsDir, ex);
         }
         return Optional.of(List.copyOf(attachments));
     }
@@ -242,7 +242,7 @@ public class MarketplaceScriptSeedLoader {
                 return mediaType;
             }
         } catch (IOException ex) {
-            logger.warn("Failed to detect media type for {}", attachment, ex);
+            LOG.warn("Failed to detect media type for {}", attachment, ex);
         }
         String filename = attachment.getFileName().toString().toLowerCase(Locale.ROOT);
         int dot = filename.lastIndexOf('.');
@@ -299,7 +299,7 @@ public class MarketplaceScriptSeedLoader {
         try {
             return Optional.of(Files.readAllBytes(filePath));
         } catch (IOException ex) {
-            logger.warn("Failed to read marketplace script asset {}", filePath, ex);
+            LOG.warn("Failed to read marketplace script asset {}", filePath, ex);
             return Optional.empty();
         }
     }
@@ -313,7 +313,7 @@ public class MarketplaceScriptSeedLoader {
                 String content = Files.readString(path);
                 return JsonSupport.read(content);
             } catch (IOException ex) {
-                logger.warn("Failed to read marketplace metadata {}", path, ex);
+                LOG.warn("Failed to read marketplace metadata {}", path, ex);
                 return null;
             }
         }
@@ -347,7 +347,7 @@ public class MarketplaceScriptSeedLoader {
             String mediaType = Files.probeContentType(path);
             return mediaType == null ? fallback : mediaType;
         } catch (IOException ex) {
-            logger.warn("Failed to detect media type for {}", path, ex);
+            LOG.warn("Failed to detect media type for {}", path, ex);
             return fallback;
         }
     }

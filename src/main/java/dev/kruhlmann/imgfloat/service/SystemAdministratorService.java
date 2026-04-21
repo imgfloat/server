@@ -16,7 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class SystemAdministratorService {
 
-    private static final Logger logger = LoggerFactory.getLogger(SystemAdministratorService.class);
+    private static final Logger LOG = LoggerFactory.getLogger(SystemAdministratorService.class);
 
     private final SystemAdministratorRepository repo;
     private final Environment environment;
@@ -41,7 +41,7 @@ public class SystemAdministratorService {
                 environment.getProperty("org.springframework.boot.test.context.SpringBootTestContextBootstrapper")
             )
         ) {
-            logger.info("Skipping system administrator bootstrap in test context");
+            LOG.info("Skipping system administrator bootstrap in test context");
             return;
         }
 
@@ -49,7 +49,7 @@ public class SystemAdministratorService {
         if (initialSysadmin != null) {
             long deleted = repo.deleteByTwitchUsername(initialSysadmin);
             if (deleted > 0) {
-                logger.info("Removed persisted initial system administrator '{}' to use environment value", initialSysadmin);
+                LOG.info("Removed persisted initial system administrator '{}' to use environment value", initialSysadmin);
             }
         }
 
@@ -63,7 +63,7 @@ public class SystemAdministratorService {
             );
         }
 
-        logger.info("Using initial system administrator '{}' from environment", initialSysadmin);
+        LOG.info("Using initial system administrator '{}' from environment", initialSysadmin);
     }
 
     public void addSysadmin(String twitchUsername) {
