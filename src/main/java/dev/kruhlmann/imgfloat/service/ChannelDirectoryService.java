@@ -839,17 +839,7 @@ public class ChannelDirectoryService {
             visual.getAudioVolume()
         );
 
-        VisualAsset previewState = new VisualAsset();
-        previewState.setId(visual.getId());
-        previewState.setName(visual.getName());
-        previewState.setX(visual.getX());
-        previewState.setY(visual.getY());
-        previewState.setWidth(visual.getWidth());
-        previewState.setHeight(visual.getHeight());
-        previewState.setRotation(visual.getRotation());
-        previewState.setSpeed(visual.getSpeed());
-        previewState.setMuted(visual.isMuted());
-        previewState.setAudioVolume(visual.getAudioVolume());
+        VisualAsset previewState = visual.shallowCopy();
 
         if (previewRequest.getX() != null) {
             previewState.setX(previewRequest.getX());

@@ -64,6 +64,29 @@ public class VisualAsset {
         }
     }
 
+    /**
+     * Returns a detached, unmanaged copy of this entity suitable for preview/simulation use.
+     * The copy shares the same field values but is not associated with any JPA persistence context.
+     */
+    public VisualAsset shallowCopy() {
+        VisualAsset copy = new VisualAsset();
+        copy.id = this.id;
+        copy.name = this.name;
+        copy.preview = this.preview;
+        copy.x = this.x;
+        copy.y = this.y;
+        copy.width = this.width;
+        copy.height = this.height;
+        copy.rotation = this.rotation;
+        copy.speed = this.speed;
+        copy.muted = this.muted;
+        copy.mediaType = this.mediaType;
+        copy.originalMediaType = this.originalMediaType;
+        copy.audioVolume = this.audioVolume;
+        copy.hidden = this.hidden;
+        return copy;
+    }
+
     public String getId() {
         return id;
     }
