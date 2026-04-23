@@ -27,10 +27,14 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
+/**
+ * Fetches, caches, and persists 7TV global and channel emote data.
+ * Emote JSON files are written to disk so they survive restarts without requiring
+ * an immediate API call. The cache is refreshed by {@link EmoteSyncScheduler} on
+ * a configurable interval.
+ */
 @Service
 public class SevenTvEmoteService {
-
-    // TODO: Code smell Service handles transport, parsing, and storage concerns together instead of focused components.
 
     private static final Logger LOG = LoggerFactory.getLogger(SevenTvEmoteService.class);
     private static final String USERS_URL = "https://api.twitch.tv/helix/users";

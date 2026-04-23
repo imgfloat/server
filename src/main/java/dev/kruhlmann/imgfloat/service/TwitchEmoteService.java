@@ -31,10 +31,14 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
+/**
+ * Fetches, caches, and persists Twitch global and channel emote data.
+ * Emote JSON files are written to disk so they survive restarts without requiring
+ * an immediate API call. The cache is refreshed by {@link EmoteSyncScheduler} on
+ * a configurable interval.
+ */
 @Service
 public class TwitchEmoteService {
-
-    // TODO: Code smell Service bundles API client calls, caching, disk persistence, and async scheduling in one class.
 
     private static final Logger LOG = LoggerFactory.getLogger(TwitchEmoteService.class);
     private static final String GLOBAL_EMOTE_URL = "https://api.twitch.tv/helix/chat/emotes/global";

@@ -1476,7 +1476,7 @@ public class ChannelDirectoryService {
     }
 
     private String topicFor(String broadcaster) {
-        return "/topic/channel/" + broadcaster.toLowerCase(Locale.ROOT);
+        return "/topic/channel/" + normalize(broadcaster);
     }
 
     private List<AssetView> sortAndMapAssets(String broadcaster, Collection<Asset> assets) {

@@ -22,8 +22,6 @@ import org.springframework.stereotype.Component;
 @Component
 public class MarketplaceScriptSeedLoader {
 
-    // TODO: Code smell Large parser/loader with many branching paths; consider decomposing into smaller collaborators.
-
     private static final Logger LOG = LoggerFactory.getLogger(MarketplaceScriptSeedLoader.class);
     private static final String METADATA_FILENAME = "metadata.json";
     private static final String SOURCE_FILENAME = "source.js";
@@ -311,7 +309,7 @@ public class MarketplaceScriptSeedLoader {
             }
             try {
                 String content = Files.readString(path);
-                return JsonSupport.read(content);
+                return readMetadata(content);
             } catch (IOException ex) {
                 LOG.warn("Failed to read marketplace metadata {}", path, ex);
                 return null;
@@ -319,24 +317,11 @@ public class MarketplaceScriptSeedLoader {
         }
     }
 
-    private static final class JsonSupport {
-        private static final AtomicReference<com.fasterxml.jackson.databind.ObjectMapper> OBJECT_MAPPER =
-            new AtomicReference<>();
+    private static final com.fasterxml.jackson.databind.ObjectMapper OBJECT_MAPPER =
+        new com.fasterxml.jackson.databind.ObjectMapper();
 
-        private JsonSupport() {}
-
-        static <T> T read(String payload) throws IOException {
-            return mapper().readValue(payload, (Class<T>) ScriptSeedMetadata.class);
-        }
-
-        private static com.fasterxml.jackson.databind.ObjectMapper mapper() {
-            com.fasterxml.jackson.databind.ObjectMapper mapper = OBJECT_MAPPER.get();
-            if (mapper == null) {
-                mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-                OBJECT_MAPPER.set(mapper);
-            }
-            return mapper;
-        }
+    private static ScriptSeedMetadata readMetadata(String content) throws IOException {
+        return OBJECT_MAPPER.readValue(content, ScriptSeedMetadata.class);
     }
 
     private String detectMediaType(Path path, String fallback) {
