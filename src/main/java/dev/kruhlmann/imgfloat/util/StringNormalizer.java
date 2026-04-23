@@ -16,4 +16,13 @@ public final class StringNormalizer {
     public static String toLowerCaseRoot(String value) {
         return value == null ? null : value.toLowerCase(Locale.ROOT);
     }
+
+    /**
+     * Returns {@code value.trim().toLowerCase(Locale.ROOT)}.
+     * Useful for normalizing user-supplied identifiers such as Twitch usernames.
+     * Returns {@code null} if {@code value} is {@code null}.
+     */
+    public static String normalize(String value) {
+        return value == null ? null : value.trim().toLowerCase(Locale.ROOT);
+    }
 }

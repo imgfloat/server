@@ -2,8 +2,8 @@ package dev.kruhlmann.imgfloat.service;
 
 import dev.kruhlmann.imgfloat.model.db.imgfloat.SystemAdministrator;
 import dev.kruhlmann.imgfloat.repository.SystemAdministratorRepository;
+import dev.kruhlmann.imgfloat.util.StringNormalizer;
 import java.util.List;
-import java.util.Locale;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -137,6 +137,6 @@ public class SystemAdministratorService {
     }
 
     private String normalize(String username) {
-        return username.trim().toLowerCase(Locale.ROOT);
+        return StringNormalizer.normalize(username);
     }
 }

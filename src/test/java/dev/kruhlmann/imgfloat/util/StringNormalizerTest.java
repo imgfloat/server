@@ -33,4 +33,15 @@ class StringNormalizerTest {
         // Turkish locale would uppercase 'i' to 'İ' but ROOT locale must not
         assertThat(StringNormalizer.toLowerCaseRoot("TITLE")).isEqualTo("title");
     }
+
+    @Test
+    void normalizeTrimsAndLowercases() {
+        assertThat(StringNormalizer.normalize("  Hello  ")).isEqualTo("hello");
+        assertThat(StringNormalizer.normalize("USER")).isEqualTo("user");
+    }
+
+    @Test
+    void normalizeReturnsNullForNull() {
+        assertThat(StringNormalizer.normalize(null)).isNull();
+    }
 }
