@@ -190,16 +190,13 @@ public class ChannelSettingsService {
     }
 
     private Channel getOrCreateChannel(String broadcaster) {
-        String normalized = normalize(broadcaster);
+        String normalized = StringNormalizer.toLowerCaseRoot(broadcaster);
         return channelRepository.findById(normalized)
             .orElseGet(() -> channelRepository.save(new Channel(normalized)));
     }
 
     private String topicFor(String broadcaster) {
-        return "/topic/channel/" + normalize(broadcaster);
+        return "/topic/channel/" + StringNormalizer.toLowerCaseRoot(broadcaster);
     }
 
-    private String normalize(String value) {
-        return StringNormalizer.toLowerCaseRoot(value);
-    }
 }

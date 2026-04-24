@@ -3,7 +3,7 @@ package dev.kruhlmann.imgfloat.service;
 import dev.kruhlmann.imgfloat.model.db.audit.AuditLogEntry;
 import dev.kruhlmann.imgfloat.repository.audit.AuditLogRepository;
 import dev.kruhlmann.imgfloat.util.LogSanitizer;
-import java.util.Locale;
+import dev.kruhlmann.imgfloat.util.StringNormalizer;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -25,11 +25,11 @@ public class AuditLogService {
     }
 
     public void recordEntry(String broadcaster, String actor, String action, String details) {
-        String normalizedBroadcaster = normalize(broadcaster);
+        String normalizedBroadcaster = StringNormalizer.toLowerCaseRoot(broadcaster);
         if (normalizedBroadcaster == null || normalizedBroadcaster.isBlank()) {
             return;
         }
-        String normalizedActor = normalize(actor);
+        String normalizedActor = StringNormalizer.toLowerCaseRoot(actor);
         if (normalizedActor == null || normalizedActor.isBlank()) {
             normalizedActor = DEFAULT_ACTOR;
         }
@@ -60,7 +60,7 @@ public class AuditLogService {
         int page,
         int size
     ) {
-        String normalizedBroadcaster = normalize(broadcaster);
+        String normalizedBroadcaster = StringNormalizer.toLowerCaseRoot(broadcaster);
         if (normalizedBroadcaster == null || normalizedBroadcaster.isBlank()) {
             return Page.empty();
         }
@@ -80,19 +80,15 @@ public class AuditLogService {
     }
 
     public void deleteEntriesForBroadcaster(String broadcaster) {
-        String normalizedBroadcaster = normalize(broadcaster);
+        String normalizedBroadcaster = StringNormalizer.toLowerCaseRoot(broadcaster);
         if (normalizedBroadcaster == null || normalizedBroadcaster.isBlank()) {
             return;
         }
         auditLogRepository.deleteByBroadcaster(normalizedBroadcaster);
     }
 
-    private String normalize(String value) {
-        return value == null ? null : value.toLowerCase(Locale.ROOT);
-    }
-
     private String normalizeFilter(String value) {
-        String normalized = normalize(value);
+        String normalized = StringNormalizer.toLowerCaseRoot(value);
         return normalized == null || normalized.isBlank() ? null : normalized;
     }
 }

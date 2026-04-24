@@ -122,12 +122,12 @@ public class ChannelDirectoryService {
     }
 
     public Channel getOrCreateChannel(String broadcaster) {
-        String normalized = normalize(broadcaster);
+        String normalized = StringNormalizer.toLowerCaseRoot(broadcaster);
         return channelRepository.findById(normalized).orElseGet(() -> channelRepository.save(new Channel(normalized)));
     }
 
     public List<String> searchBroadcasters(String query) {
-        String q = normalize(query);
+        String q = StringNormalizer.toLowerCaseRoot(query);
         return channelRepository
             .findTop50ByBroadcasterContainingIgnoreCaseOrderByBroadcasterAsc(q == null ? "" : q)
             .stream()
@@ -137,7 +137,7 @@ public class ChannelDirectoryService {
 
     public boolean addAdmin(String broadcaster, String username, String actor) {
         Channel channel = getOrCreateChannel(broadcaster);
-        String normalizedUsername = normalize(username);
+        String normalizedUsername = StringNormalizer.toLowerCaseRoot(username);
         boolean added = channel.addAdmin(normalizedUsername);
         if (added) {
             channelRepository.saveAndFlush(channel);
@@ -154,7 +154,7 @@ public class ChannelDirectoryService {
 
     public boolean removeAdmin(String broadcaster, String username, String actor) {
         Channel channel = getOrCreateChannel(broadcaster);
-        String normalizedUsername = normalize(username);
+        String normalizedUsername = StringNormalizer.toLowerCaseRoot(username);
         boolean removed = channel.removeAdmin(normalizedUsername);
         if (removed) {
             channelRepository.saveAndFlush(channel);
@@ -170,12 +170,12 @@ public class ChannelDirectoryService {
     }
 
     public Collection<AssetView> getAssetsForAdmin(String broadcaster) {
-        String normalized = normalize(broadcaster);
+        String normalized = StringNormalizer.toLowerCaseRoot(broadcaster);
         return sortAndMapAssets(normalized, assetRepository.findByBroadcaster(normalized));
     }
 
     public Collection<AssetView> getVisibleAssets(String broadcaster) {
-        String normalized = normalize(broadcaster);
+        String normalized = StringNormalizer.toLowerCaseRoot(broadcaster);
         List<Asset> assets = assetRepository.findByBroadcaster(normalized);
         List<String> visualIds = assets
             .stream()
@@ -335,7 +335,7 @@ public class ChannelDirectoryService {
     @Transactional
     public Optional<AssetView> updateCodeAsset(String broadcaster, String assetId, CodeAssetRequest request, String actor) {
         validateCodeAssetSource(request.getSource());
-        String normalized = normalize(broadcaster);
+        String normalized = StringNormalizer.toLowerCaseRoot(broadcaster);
         byte[] bytes = request.getSource().getBytes(StandardCharsets.UTF_8);
         enforceUploadLimit(bytes.length);
         List<String> allowedDomains = normalizeAllowedDomains(request.getAllowedDomains());
@@ -683,7 +683,7 @@ public class ChannelDirectoryService {
 
     @Transactional
     public Optional<AssetView> updateTransform(String broadcaster, String assetId, TransformRequest req, String actor) {
-        String normalized = normalize(broadcaster);
+        String normalized = StringNormalizer.toLowerCaseRoot(broadcaster);
 
         return assetRepository
             .findById(assetId)
@@ -809,7 +809,7 @@ public class ChannelDirectoryService {
     }
 
     public Optional<AssetPatch> previewTransform(String broadcaster, String assetId, TransformRequest request) {
-        String normalized = normalize(broadcaster);
+        String normalized = StringNormalizer.toLowerCaseRoot(broadcaster);
 
         Asset asset = assetRepository
             .findById(assetId)
@@ -876,7 +876,7 @@ public class ChannelDirectoryService {
         if (updates == null || updates.isEmpty()) {
             return;
         }
-        String normalized = normalize(broadcaster);
+        String normalized = StringNormalizer.toLowerCaseRoot(broadcaster);
         applyBulkOrderUpdates(
             broadcaster,
             normalized,
@@ -1082,7 +1082,7 @@ public class ChannelDirectoryService {
     }
 
     public Optional<AssetView> triggerPlayback(String broadcaster, String assetId, PlaybackRequest req, String actor) {
-        String normalized = normalize(broadcaster);
+        String normalized = StringNormalizer.toLowerCaseRoot(broadcaster);
         return assetRepository
             .findById(assetId)
             .filter((a) -> normalized.equals(a.getBroadcaster()))
@@ -1110,7 +1110,7 @@ public class ChannelDirectoryService {
         VisibilityRequest request,
         String actor
     ) {
-        String normalized = normalize(broadcaster);
+        String normalized = StringNormalizer.toLowerCaseRoot(broadcaster);
         return assetRepository
             .findById(assetId)
             .filter((a) -> normalized.equals(a.getBroadcaster()))
@@ -1224,7 +1224,7 @@ public class ChannelDirectoryService {
 
     public List<ScriptAssetAttachmentView> listScriptAttachments(String broadcaster, String scriptAssetId) {
         Asset asset = requireScriptAssetForBroadcaster(broadcaster, scriptAssetId);
-        return loadScriptAttachments(normalize(broadcaster), asset.getId(), null);
+        return loadScriptAttachments(StringNormalizer.toLowerCaseRoot(broadcaster), asset.getId(), null);
     }
 
     @Transactional(rollbackFor = IOException.class)
@@ -1343,7 +1343,7 @@ public class ChannelDirectoryService {
     ) {
         Asset asset = assetRepository
             .findById(scriptAssetId)
-            .filter((stored) -> normalize(broadcaster).equals(stored.getBroadcaster()))
+            .filter((stored) -> StringNormalizer.toLowerCaseRoot(broadcaster).equals(stored.getBroadcaster()))
             .filter((stored) -> stored.getAssetType() == AssetType.SCRIPT)
             .orElse(null);
         if (asset == null) {
@@ -1372,9 +1372,9 @@ public class ChannelDirectoryService {
 
     public boolean isAdmin(String broadcaster, String username) {
         return channelRepository
-            .findById(normalize(broadcaster))
+            .findById(StringNormalizer.toLowerCaseRoot(broadcaster))
             .map(Channel::getAdmins)
-            .map((admins) -> admins.contains(normalize(username)))
+            .map((admins) -> admins.contains(StringNormalizer.toLowerCaseRoot(username)))
             .orElse(false);
     }
 
@@ -1387,10 +1387,6 @@ public class ChannelDirectoryService {
             .filter((c) -> c.getAdmins().contains(login))
             .map(Channel::getBroadcaster)
             .toList();
-    }
-
-    private String normalize(String value) {
-        return StringNormalizer.toLowerCaseRoot(value);
     }
 
     private boolean isCodeMediaType(String mediaType) {
@@ -1466,7 +1462,7 @@ public class ChannelDirectoryService {
     }
 
     private String topicFor(String broadcaster) {
-        return "/topic/channel/" + normalize(broadcaster);
+        return "/topic/channel/" + StringNormalizer.toLowerCaseRoot(broadcaster);
     }
 
     private List<AssetView> sortAndMapAssets(String broadcaster, Collection<Asset> assets) {
@@ -1534,7 +1530,7 @@ public class ChannelDirectoryService {
     private int nextDisplayOrder(String broadcaster, AssetType... types) {
         return (
             assetRepository
-                .findByBroadcaster(normalize(broadcaster))
+                .findByBroadcaster(StringNormalizer.toLowerCaseRoot(broadcaster))
                 .stream()
                 .filter((asset) -> Arrays.asList(types).contains(asset.getAssetType()))
                 .map(Asset::getDisplayOrder)
@@ -1577,7 +1573,7 @@ public class ChannelDirectoryService {
             return List.of();
         }
         List<Asset> ordered = assetRepository
-            .findByBroadcaster(normalize(broadcaster))
+            .findByBroadcaster(StringNormalizer.toLowerCaseRoot(broadcaster))
             .stream()
             .filter((asset) -> types.contains(asset.getAssetType()))
             .sorted(
@@ -1744,7 +1740,7 @@ public class ChannelDirectoryService {
     }
 
     private Asset requireScriptAssetForBroadcaster(String broadcaster, String scriptAssetId) {
-        String normalized = normalize(broadcaster);
+        String normalized = StringNormalizer.toLowerCaseRoot(broadcaster);
         return assetRepository
             .findById(scriptAssetId)
             .filter((asset) -> normalized.equals(asset.getBroadcaster()))

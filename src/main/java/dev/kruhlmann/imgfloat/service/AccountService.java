@@ -54,7 +54,7 @@ public class AccountService {
 
     @Transactional
     public void deleteAccount(String username) {
-        String normalized = normalize(username);
+        String normalized = StringNormalizer.toLowerCaseRoot(username);
         if (normalized == null || normalized.isBlank()) {
             return;
         }
@@ -95,7 +95,4 @@ public class AccountService {
         jdbcTemplate.update("DELETE FROM SPRING_SESSION WHERE PRINCIPAL_NAME = ?", username);
     }
 
-    private String normalize(String value) {
-        return StringNormalizer.toLowerCaseRoot(value);
-    }
 }
