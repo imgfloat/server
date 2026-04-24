@@ -255,6 +255,78 @@ class ChannelDirectoryServiceTest {
         assertThat(saved.allowedDomains()).isEmpty();
     }
 
+    @Test
+    void deleteAssetReturnsTrueAndBroadcastsEvent() throws Exception {
+        String channel = "caster";
+        String id = createSampleAsset(channel);
+
+        boolean removed = service.deleteAsset(id, "caster");
+
+        assertThat(removed).isTrue();
+        ArgumentCaptor<Object> captor = ArgumentCaptor.forClass(Object.class);
+        verify(messagingTemplate, org.mockito.Mockito.atLeastOnce()).convertAndSend(
+            org.mockito.ArgumentMatchers.contains("/topic/channel/caster"),
+            captor.capture()
+        );
+    }
+
+    @Test
+    void deleteAssetReturnsFalseForUnknownId() {
+        boolean removed = service.deleteAsset("nonexistent-id", "caster");
+        assertThat(removed).isFalse();
+    }
+
+    @Test
+    void reorderAssetsAppliesNewOrder() throws Exception {
+        String channel = "caster";
+        String id1 = createSampleAsset(channel);
+        String id2 = createSampleAsset(channel);
+
+        List<dev.kruhlmann.imgfloat.model.api.request.AssetOrderRequest.AssetOrderUpdate> updates = List.of(
+            new dev.kruhlmann.imgfloat.model.api.request.AssetOrderRequest.AssetOrderUpdate(id1, 2),
+            new dev.kruhlmann.imgfloat.model.api.request.AssetOrderRequest.AssetOrderUpdate(id2, 1)
+        );
+
+        service.reorderAssets(channel, updates, "caster");
+
+        assertThat(assetRepository.findById(id1).orElseThrow().getDisplayOrder()).isEqualTo(2);
+        assertThat(assetRepository.findById(id2).orElseThrow().getDisplayOrder()).isEqualTo(1);
+    }
+
+    @Test
+    void triggerPlaybackBroadcastsEventAndReturnsView() throws Exception {
+        String channel = "caster";
+        String id = createSampleAsset(channel);
+
+        Optional<AssetView> result = service.triggerPlayback(channel, id, null, "caster");
+
+        assertThat(result).isPresent();
+        ArgumentCaptor<Object> captor = ArgumentCaptor.forClass(Object.class);
+        verify(messagingTemplate, org.mockito.Mockito.atLeastOnce()).convertAndSend(
+            org.mockito.ArgumentMatchers.contains("/topic/channel/caster"),
+            captor.capture()
+        );
+    }
+
+    @Test
+    void triggerPlaybackReturnsEmptyForUnknownAsset() {
+        Optional<AssetView> result = service.triggerPlayback("caster", "no-such-asset", null, "caster");
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    void importMarketplaceScriptCreatesCodeAsset() {
+        Optional<AssetView> result = service.importMarketplaceScript("caster", "rotating-logo", "caster");
+        assertThat(result).isPresent();
+        assertThat(result.orElseThrow().name()).isEqualTo("Rotating logo");
+    }
+
+    @Test
+    void importMarketplaceScriptReturnsEmptyForUnknownScript() {
+        Optional<AssetView> result = service.importMarketplaceScript("caster", "unknown-script-id", "caster");
+        assertThat(result).isEmpty();
+    }
+
     private byte[] samplePng() throws IOException {
         BufferedImage image = new BufferedImage(2, 2, BufferedImage.TYPE_INT_ARGB);
         ByteArrayOutputStream out = new ByteArrayOutputStream();
