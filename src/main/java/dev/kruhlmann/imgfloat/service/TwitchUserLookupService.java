@@ -3,6 +3,7 @@ package dev.kruhlmann.imgfloat.service;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import dev.kruhlmann.imgfloat.model.api.response.TwitchUserProfile;
+import dev.kruhlmann.imgfloat.util.StringNormalizer;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -10,7 +11,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -50,7 +50,7 @@ public class TwitchUserLookupService {
         List<String> normalizedLogins = logins
             .stream()
             .filter(Objects::nonNull)
-            .map((login) -> login.toLowerCase(Locale.ROOT))
+            .map(StringNormalizer::toLowerCaseRoot)
             .distinct()
             .toList();
 
@@ -78,7 +78,7 @@ public class TwitchUserLookupService {
             return List.of();
         }
 
-        String normalizedBroadcaster = broadcasterLogin.toLowerCase(Locale.ROOT);
+        String normalizedBroadcaster = StringNormalizer.toLowerCaseRoot(broadcasterLogin);
         Map<String, TwitchUserData> broadcasterData = fetchUsers(List.of(normalizedBroadcaster), accessToken, clientId);
         String broadcasterId = Optional.ofNullable(broadcasterData.get(normalizedBroadcaster))
             .map(TwitchUserData::id)
@@ -94,7 +94,7 @@ public class TwitchUserLookupService {
             existingAdmins
                 .stream()
                 .filter(Objects::nonNull)
-                .map((login) -> login.toLowerCase(Locale.ROOT))
+                .map(StringNormalizer::toLowerCaseRoot)
                 .forEach(skipLogins::add);
         }
         skipLogins.add(normalizedBroadcaster);
@@ -136,9 +136,9 @@ public class TwitchUserLookupService {
                         .data()
                         .stream()
                         .filter(Objects::nonNull)
-                        .map(ModeratorData::userLogin)
-                        .filter(Objects::nonNull)
-                        .map((login) -> login.toLowerCase(Locale.ROOT))
+                         .map(ModeratorData::userLogin)
+                         .filter(Objects::nonNull)
+                         .map(StringNormalizer::toLowerCaseRoot)
                         .filter((login) -> !skipLogins.contains(login))
                         .forEach(moderatorLogins::add);
                 }
@@ -173,7 +173,7 @@ public class TwitchUserLookupService {
         List<String> normalizedLogins = logins
             .stream()
             .filter(Objects::nonNull)
-            .map((login) -> login.toLowerCase(Locale.ROOT))
+            .map(StringNormalizer::toLowerCaseRoot)
             .distinct()
             .toList();
 
@@ -206,7 +206,7 @@ public class TwitchUserLookupService {
                       .filter(Objects::nonNull)
                       .collect(
                           Collectors.toMap(
-                              (user) -> user.login().toLowerCase(Locale.ROOT),
+                               (user) -> StringNormalizer.toLowerCaseRoot(user.login()),
                               Function.identity(),
                               (a, b) -> a,
                               HashMap::new
