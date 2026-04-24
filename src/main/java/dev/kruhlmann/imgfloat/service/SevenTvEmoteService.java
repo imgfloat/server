@@ -9,7 +9,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.List;
-import java.util.Locale;
+import dev.kruhlmann.imgfloat.util.StringNormalizer;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -71,7 +71,7 @@ public class SevenTvEmoteService {
         if (channelLogin == null || channelLogin.isBlank()) {
             return List.of();
         }
-        String normalized = channelLogin.toLowerCase(Locale.ROOT);
+        String normalized = StringNormalizer.toLowerCaseRoot(channelLogin);
         List<CachedEmote> emotes = channelEmoteCache.computeIfAbsent(normalized, this::fetchChannelEmotes);
         return emotes.stream().map(CachedEmote::descriptor).toList();
     }
@@ -80,7 +80,7 @@ public class SevenTvEmoteService {
         if (channelLogin == null || channelLogin.isBlank()) {
             return;
         }
-        String normalized = channelLogin.toLowerCase(Locale.ROOT);
+        String normalized = StringNormalizer.toLowerCaseRoot(channelLogin);
         channelEmoteCache.put(normalized, fetchChannelEmotes(normalized));
     }
 
@@ -260,7 +260,7 @@ public class SevenTvEmoteService {
         if (path == null) {
             return null;
         }
-        String name = path.getFileName().toString().toLowerCase(Locale.ROOT);
+        String name = StringNormalizer.toLowerCaseRoot(path.getFileName().toString());
         if (name.endsWith(".gif")) {
             return MediaType.IMAGE_GIF;
         }

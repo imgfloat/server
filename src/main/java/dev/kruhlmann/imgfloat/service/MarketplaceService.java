@@ -11,12 +11,12 @@ import dev.kruhlmann.imgfloat.repository.ScriptAssetFileRepository;
 import dev.kruhlmann.imgfloat.repository.ScriptAssetRepository;
 import dev.kruhlmann.imgfloat.service.media.AssetContent;
 import dev.kruhlmann.imgfloat.util.AllowedDomainNormalizer;
+import dev.kruhlmann.imgfloat.util.StringNormalizer;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -64,7 +64,7 @@ public class MarketplaceService {
     }
 
     public List<ScriptMarketplaceEntry> listScripts(String query, String sessionUsername) {
-        String normalized = query == null ? null : query.strip().toLowerCase(Locale.ROOT);
+        String normalized = query == null ? null : StringNormalizer.normalize(query);
         if (normalized != null && normalized.isBlank()) {
             normalized = null;
         }
@@ -85,8 +85,8 @@ public class MarketplaceService {
                 .filter(script -> {
                     String name = Optional.ofNullable(script.getName()).orElse("");
                     String desc = Optional.ofNullable(script.getDescription()).orElse("");
-                    return name.toLowerCase(Locale.ROOT).contains(queryFilter)
-                        || desc.toLowerCase(Locale.ROOT).contains(queryFilter);
+                    return StringNormalizer.toLowerCaseRoot(name).contains(queryFilter)
+                        || StringNormalizer.toLowerCaseRoot(desc).contains(queryFilter);
                 })
                 .toList();
         }

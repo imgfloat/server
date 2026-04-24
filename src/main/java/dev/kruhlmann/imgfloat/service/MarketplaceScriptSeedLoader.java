@@ -3,6 +3,7 @@ package dev.kruhlmann.imgfloat.service;
 import dev.kruhlmann.imgfloat.model.api.response.ScriptMarketplaceEntry;
 import dev.kruhlmann.imgfloat.service.media.AssetContent;
 import dev.kruhlmann.imgfloat.util.AllowedDomainNormalizer;
+import dev.kruhlmann.imgfloat.util.StringNormalizer;
 import java.io.IOException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
@@ -10,7 +11,6 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
@@ -61,7 +61,7 @@ public class MarketplaceScriptSeedLoader {
         if (scripts.isEmpty()) {
             return List.of();
         }
-        String normalized = query == null ? null : query.toLowerCase(Locale.ROOT);
+        String normalized = query == null ? null : StringNormalizer.toLowerCaseRoot(query);
         return scripts
             .stream()
             .filter((script) -> script.matchesQuery(normalized))
@@ -104,8 +104,8 @@ public class MarketplaceScriptSeedLoader {
             if (normalized == null || normalized.isBlank()) {
                 return true;
             }
-            String entryName = Optional.ofNullable(name).orElse("").toLowerCase(Locale.ROOT);
-            String entryDescription = Optional.ofNullable(description).orElse("").toLowerCase(Locale.ROOT);
+            String entryName = StringNormalizer.toLowerCaseRoot(Optional.ofNullable(name).orElse(""));
+            String entryDescription = StringNormalizer.toLowerCaseRoot(Optional.ofNullable(description).orElse(""));
             return entryName.contains(normalized) || entryDescription.contains(normalized);
         }
 
@@ -242,7 +242,7 @@ public class MarketplaceScriptSeedLoader {
         } catch (IOException ex) {
             LOG.warn("Failed to detect media type for {}", attachment, ex);
         }
-        String filename = attachment.getFileName().toString().toLowerCase(Locale.ROOT);
+        String filename = StringNormalizer.toLowerCaseRoot(attachment.getFileName().toString());
         int dot = filename.lastIndexOf('.');
         if (dot > -1 && dot < filename.length() - 1) {
             String extension = filename.substring(dot + 1);
