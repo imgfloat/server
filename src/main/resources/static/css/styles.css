@@ -1043,7 +1043,7 @@ button:disabled:hover {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 20px;
-    align-items: start;
+    align-items: stretch;
 }
 
 .dashboard-span-full {
@@ -1303,6 +1303,8 @@ button:disabled:hover {
     border: 1px solid var(--color-border);
     border-radius: 14px;
     padding: 18px;
+    display: flex;
+    flex-direction: column;
 }
 
 .card-header {
@@ -2184,6 +2186,14 @@ button:disabled:hover {
     margin-top: 12px;
 }
 
+.control-grid .span-full {
+    grid-column: 1 / -1;
+}
+
+.control-grid .span-full input[type="range"] {
+    width: 100%;
+}
+
 .control-grid.condensed {
     gap: 10px;
     margin-top: 8px;
@@ -2255,7 +2265,8 @@ button:disabled:hover {
 .control-actions {
     display: flex;
     gap: 8px;
-    margin-top: 12px;
+    margin-top: auto;
+    padding-top: 16px;
     flex-wrap: wrap;
     width: 100%;
 }
