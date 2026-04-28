@@ -107,6 +107,14 @@ public class ViewController {
         return "cookies";
     }
 
+    @org.springframework.web.bind.annotation.GetMapping("/report")
+    public String reportView(Model model) {
+        LOG.info("Rendering copyright report page");
+        addStagingAttribute(model);
+        addVersionAttributes(model);
+        return "report";
+    }
+
     @org.springframework.web.bind.annotation.GetMapping("/settings")
     public String settingsView(OAuth2AuthenticationToken oauthToken, Model model) {
         String sessionUsername = OauthSessionUser.from(oauthToken).login();

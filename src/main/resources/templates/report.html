@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="_csrf" th:content="${_csrf.token}" />
+        <meta name="_csrf_header" th:content="${_csrf.headerName}" />
+        <title>Report Copyright Infringement - Imgfloat</title>
+        <link rel="icon" href="/favicon.ico" />
+        <link rel="stylesheet" href="/css/styles.css" />
+    </head>
+    <body class="landing-body" th:classappend="${isStaging} ? ' has-staging-banner' : ''">
+        <div th:insert="~{fragments/staging :: banner}"></div>
+        <div class="landing">
+            <header class="landing-header">
+                <div class="brand">
+                    <a href="/" class="brand">
+                        <img class="brand-mark" alt="brand" src="/img/brand.png" />
+                        <div>
+                            <div class="brand-title">Imgfloat</div>
+                            <div class="brand-subtitle">Twitch overlay manager</div>
+                        </div>
+                    </a>
+                </div>
+            </header>
+
+            <main class="report-page">
+                <div class="report-container">
+                    <div class="report-header">
+                        <h1>Report Copyright Infringement</h1>
+                        <p class="muted">
+                            Use this form to report an asset that infringes your copyright. You will need to identify
+                            the broadcaster who uploaded it and select the specific asset, then complete a
+                            DMCA-style declaration.
+                        </p>
+                    </div>
+
+                    <!-- Step 1: Find broadcaster -->
+                    <section class="report-step" id="step-broadcaster">
+                        <div class="step-header">
+                            <span class="step-number">1</span>
+                            <h2>Find the broadcaster</h2>
+                        </div>
+                        <p class="muted tiny">Enter the Twitch username of the broadcaster who uploaded the infringing content.</p>
+                        <div class="inline-form">
+                            <input
+                                id="broadcaster-search-input"
+                                type="text"
+                                class="text-input"
+                                placeholder="Twitch username"
+                                autocomplete="off"
+                                spellcheck="false"
+                            />
+                            <button id="broadcaster-search-btn" class="button" type="button">Search</button>
+                        </div>
+                        <p class="form-error hidden" id="broadcaster-error"></p>
+                    </section>
+
+                    <!-- Step 2: Select asset -->
+                    <section class="report-step hidden" id="step-asset">
+                        <div class="step-header">
+                            <span class="step-number">2</span>
+                            <h2>Select the infringing asset</h2>
+                        </div>
+                        <p class="muted tiny">Choose the specific asset you believe infringes your copyright.</p>
+                        <div id="asset-grid" class="report-asset-grid"></div>
+                        <p class="form-error hidden" id="asset-error"></p>
+                    </section>
+
+                    <!-- Step 3: DMCA form -->
+                    <section class="report-step hidden" id="step-form">
+                        <div class="step-header">
+                            <span class="step-number">3</span>
+                            <h2>Submit your claim</h2>
+                        </div>
+                        <p class="muted tiny">
+                            Complete all fields below. By submitting this form you confirm the declaration under penalty of
+                            perjury that the information is accurate.
+                        </p>
+
+                        <div class="selected-asset-preview" id="selected-asset-preview"></div>
+
+                        <form id="dmca-form" novalidate class="report-form">
+                            <div class="form-group">
+                                <label for="claimant-name">Your full legal name <span class="required">*</span></label>
+                                <input id="claimant-name" type="text" class="text-input" maxlength="255" required />
+                            </div>
+                            <div class="form-group">
+                                <label for="claimant-email">Your email address <span class="required">*</span></label>
+                                <input id="claimant-email" type="email" class="text-input" maxlength="255" required />
+                            </div>
+                            <div class="form-group">
+                                <label for="original-work">Describe the original work you own <span class="required">*</span></label>
+                                <textarea
+                                    id="original-work"
+                                    class="text-input"
+                                    rows="4"
+                                    maxlength="4000"
+                                    placeholder="Describe the work — e.g. my original illustration published at https://…"
+                                    required
+                                ></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label for="infringing-description">How is this asset infringing? <span class="required">*</span></label>
+                                <textarea
+                                    id="infringing-description"
+                                    class="text-input"
+                                    rows="4"
+                                    maxlength="4000"
+                                    placeholder="Explain how this asset reproduces your copyrighted work without authorisation"
+                                    required
+                                ></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label class="checkbox-label">
+                                    <input id="good-faith" type="checkbox" required />
+                                    I declare in good faith that the use of the material described above is not authorised
+                                    by the copyright owner, its agent, or the law, and that the information in this
+                                    notification is accurate. <span class="required">*</span>
+                                </label>
+                            </div>
+                            <p class="form-error hidden" id="form-error"></p>
+                            <div class="form-actions">
+                                <button type="button" class="secondary" id="back-to-asset-btn">Back</button>
+                                <button type="submit" class="primary" id="submit-btn">Submit report</button>
+                            </div>
+                        </form>
+                    </section>
+
+                    <!-- Step 4: Confirmation -->
+                    <section class="report-step hidden" id="step-done">
+                        <div class="step-header">
+                            <span class="step-number">&#10003;</span>
+                            <h2>Report submitted</h2>
+                        </div>
+                        <p>
+                            Your copyright report has been received and will be reviewed by our team. We will contact
+                            you at the email address you provided if we need further information.
+                        </p>
+                        <div class="form-actions">
+                            <a href="/" class="button">Back to home</a>
+                        </div>
+                    </section>
+                </div>
+            </main>
+
+            <footer class="landing-meta">
+                <div class="build-chip">
+                    <span class="muted">Legal</span>
+                    <a class="version-badge version-link" href="/terms">Terms</a>
+                    <a class="version-badge version-link" href="/privacy">Privacy</a>
+                    <a class="version-badge version-link" href="/cookies">Cookies</a>
+                </div>
+            </footer>
+        </div>
+        <script src="/js/report-page.js"></script>
+    </body>
+</html>

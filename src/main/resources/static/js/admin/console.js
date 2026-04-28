@@ -77,6 +77,7 @@ export function createAdminConsole({
     const selectedEditBtn = document.getElementById("selected-asset-edit");
     const selectedVisibilityBtn = document.getElementById("selected-asset-visibility");
     const selectedDeleteBtn = document.getElementById("selected-asset-delete");
+    const selectedReportBtn = document.getElementById("selected-asset-report");
     const assetActionRow = document.getElementById("asset-actions");
     const assetActionButtons = Array.from(assetActionRow?.querySelectorAll("button") ?? []);
     const canvasResolutionLabel = document.getElementById("canvas-resolution");
@@ -2184,6 +2185,9 @@ export function createAdminConsole({
         if (selectedDeleteBtn) {
             selectedDeleteBtn.disabled = !asset;
             selectedDeleteBtn.title = asset ? "Delete asset" : "Delete asset";
+        }
+        if (selectedReportBtn) {
+            selectedReportBtn.disabled = !asset;
         }
     }
 

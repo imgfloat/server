@@ -1,5 +1,6 @@
 import { createAdminConsole } from "./admin/console.js";
 import { createCustomAssetModal } from "./customAssets.js";
+import "./report.js";
 
 let adminConsole;
 const customAssetModal = createCustomAssetModal({

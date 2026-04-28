@@ -331,16 +331,27 @@
                                             <i class="fa-solid fa-eye-slash"></i>
                                         </button>
                                         <button
-                                            id="selected-asset-delete"
-                                            class="secondary danger"
-                                            type="button"
-                                            title="Delete asset"
-                                            disabled
-                                            data-audio-enabled="true"
-                                            data-code-enabled="true"
-                                        >
-                                            <i class="fa-solid fa-trash"></i>
-                                        </button>
+                                             id="selected-asset-delete"
+                                             class="secondary danger"
+                                             type="button"
+                                             title="Delete asset"
+                                             disabled
+                                             data-audio-enabled="true"
+                                             data-code-enabled="true"
+                                         >
+                                             <i class="fa-solid fa-trash"></i>
+                                         </button>
+                                         <button
+                                             id="selected-asset-report"
+                                             class="secondary"
+                                             type="button"
+                                             title="Report copyright infringement"
+                                             disabled
+                                             data-audio-enabled="true"
+                                             data-code-enabled="true"
+                                         >
+                                             <i class="fa-solid fa-flag"></i>
+                                         </button>
                                     </div>
                                 </div>
                             </div>
@@ -534,6 +545,48 @@
                     <div class="form-actions">
                         <button type="button" class="secondary" id="custom-asset-cancel">Cancel</button>
                         <button type="submit" class="primary">Test and save</button>
+                    </div>
+                </form>
+            </section>
+        </div>
+        <div id="copyright-report-modal" class="modal hidden">
+            <section class="modal-inner">
+                <div class="modal-header-row">
+                    <div>
+                        <h1>Report copyright infringement</h1>
+                        <p>Use this form to submit a DMCA-style report. All fields are required.</p>
+                    </div>
+                    <button type="button" class="ghost icon-button" id="copyright-report-close" aria-label="Close">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                <form id="copyright-report-form" novalidate>
+                    <div class="form-group">
+                        <label for="copyright-claimant-name">Your full name</label>
+                        <input id="copyright-claimant-name" type="text" class="text-input" placeholder="Jane Smith" maxlength="255" required />
+                    </div>
+                    <div class="form-group">
+                        <label for="copyright-claimant-email">Your email address</label>
+                        <input id="copyright-claimant-email" type="email" class="text-input" placeholder="jane@example.com" maxlength="255" required />
+                    </div>
+                    <div class="form-group">
+                        <label for="copyright-original-work">Describe the original work you own</label>
+                        <textarea id="copyright-original-work" class="text-input" rows="4" maxlength="4000" placeholder="Describe the copyrighted work (e.g. my original illustration published at …)" required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="copyright-infringing">How is this asset infringing?</label>
+                        <textarea id="copyright-infringing" class="text-input" rows="4" maxlength="4000" placeholder="Explain how the asset infringes your copyright" required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input id="copyright-good-faith" type="checkbox" required />
+                            I declare in good faith that the use of the material is not authorized by the copyright owner, its agent, or the law.
+                        </label>
+                    </div>
+                    <div class="form-error hidden" id="copyright-report-error"></div>
+                    <div class="form-actions">
+                        <button type="button" class="secondary" id="copyright-report-cancel">Cancel</button>
+                        <button type="submit" class="primary">Submit report</button>
                     </div>
                 </form>
             </section>
