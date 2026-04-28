@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.*;
 
+import dev.kruhlmann.imgfloat.repository.ChannelRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.server.ResponseStatusException;
@@ -12,6 +13,7 @@ class AuthorizationServiceTest {
 
     private ChannelDirectoryService channelDirectoryService;
     private SystemAdministratorService sysadminService;
+    private ChannelRepository channelRepository;
     private AuthorizationService authorizationService;
     private AuthorizationService authorizationServiceSysadminDisabled;
 
@@ -19,8 +21,9 @@ class AuthorizationServiceTest {
     void setup() {
         channelDirectoryService = mock(ChannelDirectoryService.class);
         sysadminService = mock(SystemAdministratorService.class);
-        authorizationService = new AuthorizationService(channelDirectoryService, sysadminService, true);
-        authorizationServiceSysadminDisabled = new AuthorizationService(channelDirectoryService, sysadminService, false);
+        channelRepository = mock(ChannelRepository.class);
+        authorizationService = new AuthorizationService(channelDirectoryService, sysadminService, channelRepository, true);
+        authorizationServiceSysadminDisabled = new AuthorizationService(channelDirectoryService, sysadminService, channelRepository, false);
     }
 
     // --- userMatchesSessionUsernameOrThrowHttpError ---

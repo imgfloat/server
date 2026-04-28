@@ -4,6 +4,7 @@ import static org.springframework.http.HttpStatus.FORBIDDEN;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 
+import dev.kruhlmann.imgfloat.repository.ChannelRepository;
 import dev.kruhlmann.imgfloat.util.LogSanitizer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,15 +19,18 @@ public class AuthorizationService {
 
     private final ChannelDirectoryService channelDirectoryService;
     private final SystemAdministratorService systemAdministratorService;
+    private final ChannelRepository channelRepository;
     private final boolean sysadminChannelAccessEnabled;
 
     public AuthorizationService(
         ChannelDirectoryService channelDirectoryService,
         SystemAdministratorService systemAdministratorService,
+        ChannelRepository channelRepository,
         @Value("${IMGFLOAT_SYSADMIN_CHANNEL_ACCESS_ENABLED:true}") boolean sysadminChannelAccessEnabled
     ) {
         this.channelDirectoryService = channelDirectoryService;
         this.systemAdministratorService = systemAdministratorService;
+        this.channelRepository = channelRepository;
         this.sysadminChannelAccessEnabled = sysadminChannelAccessEnabled;
     }
 
@@ -114,5 +118,18 @@ public class AuthorizationService {
             return false;
         }
         return systemAdministratorService.isSysadmin(sessionUsername);
+    }
+
+    public void channelIsNotBannedOrThrowHttpError(String broadcaster) {
+        if (broadcaster == null) {
+            return;
+        }
+        String normalized = broadcaster.toLowerCase(java.util.Locale.ROOT);
+        channelRepository.findById(normalized).ifPresent(channel -> {
+            if (channel.isBanned()) {
+                LOG.warn("Access denied for banned channel: {}", LogSanitizer.sanitize(normalized));
+                throw new ResponseStatusException(FORBIDDEN, "This channel has been suspended");
+            }
+        });
     }
 }

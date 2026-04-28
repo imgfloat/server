@@ -63,7 +63,8 @@ public class SecurityConfig {
                         "/channels",
                         "/terms",
                         "/privacy",
-                        "/cookies"
+                        "/cookies",
+                        "/report"
                     )
                     .permitAll()
                     .requestMatchers(HttpMethod.GET, "/view/*/broadcast")
@@ -85,6 +86,8 @@ public class SecurityConfig {
                     .requestMatchers(HttpMethod.GET, "/api/twitch/emotes/**")
                     .permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/7tv/emotes/**")
+                    .permitAll()
+                    .requestMatchers(HttpMethod.POST, "/api/assets/*/copyright-reports")
                     .permitAll()
                     .requestMatchers("/ws/**")
                     .permitAll()

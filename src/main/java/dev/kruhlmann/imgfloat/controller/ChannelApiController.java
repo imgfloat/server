@@ -129,6 +129,7 @@ public class ChannelApiController {
             broadcaster,
             sessionUsername
         );
+        authorizationService.channelIsNotBannedOrThrowHttpError(broadcaster);
         if (file == null || file.isEmpty()) {
             LOG.warn("User {} attempted to upload empty file to {}", logSessionUsername, logBroadcaster);
             throw new ResponseStatusException(BAD_REQUEST, "Asset file is required");
