@@ -44,6 +44,9 @@ public class Channel {
     @Column(name = "allow_script_chat_access", nullable = false)
     private boolean allowScriptChatAccess = true;
 
+    @Column(name = "banned", nullable = false)
+    private boolean banned = false;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -118,6 +121,14 @@ public class Channel {
 
     public void setAllowScriptChatAccess(boolean allowScriptChatAccess) {
         this.allowScriptChatAccess = allowScriptChatAccess;
+    }
+
+    public boolean isBanned() {
+        return banned;
+    }
+
+    public void setBanned(boolean banned) {
+        this.banned = banned;
     }
 
     public Instant getCreatedAt() {
