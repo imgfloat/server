@@ -75,7 +75,6 @@ public class ViewController {
             model.addAttribute("adminChannels", channelDirectoryService.adminChannelsFor(sessionUsername));
             model.addAttribute("isSystemAdmin", authorizationService.userIsSystemAdministrator(sessionUsername));
             addStagingAttribute(model);
-            addVersionAttributes(model);
             return "dashboard";
         }
         addStagingAttribute(model);

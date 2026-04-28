@@ -1,4 +1,3 @@
-// TODO: Code smell Dashboard script uses broad shared state and imperative DOM updates instead of focused components.
 const elements = {
     adminList: document.getElementById("admin-list"),
     suggestionList: document.getElementById("admin-suggestions"),
@@ -16,6 +15,9 @@ const elements = {
     scriptSettingsStatus: document.getElementById("script-settings-status"),
     scriptSettingsSaveButton: document.getElementById("save-script-settings-btn"),
     deleteAccountButton: document.getElementById("delete-account-btn"),
+    deleteConfirmStep: document.getElementById("delete-confirm-step"),
+    deleteConfirmButton: document.getElementById("delete-account-confirm-btn"),
+    deleteCancelButton: document.getElementById("delete-account-cancel-btn"),
 };
 
 const apiBase = `/api/channels/${encodeURIComponent(broadcaster)}`;
@@ -50,68 +52,52 @@ function buildIdentity(admin) {
     return identity;
 }
 
-function renderAdmins(list) {
-    if (!elements.adminList) return;
-    elements.adminList.innerHTML = "";
+function renderAdminList(listEl, list, { actionLabel, actionClass, onAction, emptyMessage }) {
+    if (!listEl) return;
+    listEl.innerHTML = "";
     if (!list || list.length === 0) {
         const empty = document.createElement("li");
         empty.className = "stacked-list-item empty";
-        empty.textContent = "No channel admins yet.";
-        elements.adminList.appendChild(empty);
+        empty.textContent = emptyMessage;
+        listEl.appendChild(empty);
         return;
     }
 
     list.forEach((admin) => {
         const li = document.createElement("li");
         li.className = "stacked-list-item";
-
         li.appendChild(buildIdentity(admin));
 
         const actions = document.createElement("div");
         actions.className = "actions";
 
-        const removeBtn = document.createElement("button");
-        removeBtn.type = "button";
-        removeBtn.className = "secondary";
-        removeBtn.textContent = "Remove";
-        removeBtn.addEventListener("click", () => removeAdmin(admin.login));
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = actionClass;
+        btn.textContent = actionLabel;
+        btn.addEventListener("click", () => onAction(admin.login));
 
-        actions.appendChild(removeBtn);
+        actions.appendChild(btn);
         li.appendChild(actions);
-        elements.adminList.appendChild(li);
+        listEl.appendChild(li);
+    });
+}
+
+function renderAdmins(list) {
+    renderAdminList(elements.adminList, list, {
+        actionLabel: "Remove",
+        actionClass: "secondary",
+        onAction: removeAdmin,
+        emptyMessage: "No channel admins yet.",
     });
 }
 
 function renderSuggestedAdmins(list) {
-    if (!elements.suggestionList) return;
-
-    elements.suggestionList.innerHTML = "";
-    if (!list || list.length === 0) {
-        const empty = document.createElement("li");
-        empty.className = "stacked-list-item empty";
-        empty.textContent = "No moderator suggestions right now.";
-        elements.suggestionList.appendChild(empty);
-        return;
-    }
-
-    list.forEach((admin) => {
-        const li = document.createElement("li");
-        li.className = "stacked-list-item";
-
-        li.appendChild(buildIdentity(admin));
-
-        const actions = document.createElement("div");
-        actions.className = "actions";
-
-        const addBtn = document.createElement("button");
-        addBtn.type = "button";
-        addBtn.className = "ghost";
-        addBtn.textContent = "Add channel admin";
-        addBtn.addEventListener("click", () => addAdmin(admin.login));
-
-        actions.appendChild(addBtn);
-        li.appendChild(actions);
-        elements.suggestionList.appendChild(li);
+    renderAdminList(elements.suggestionList, list, {
+        actionLabel: "Add channel admin",
+        actionClass: "ghost",
+        onAction: addAdmin,
+        emptyMessage: "No moderator suggestions right now.",
     });
 }
 
@@ -401,7 +387,6 @@ async function fetchScriptSettings() {
 }
 
 async function saveScriptSettings() {
-    saveCanvasSettings()
     const allowChannelEmotesForAssets = elements.allowChannelEmotes?.checked ?? true;
     const allowSevenTvEmotesForAssets = elements.allowSevenTvEmotes?.checked ?? true;
     const allowScriptChatAccess = elements.allowScriptChat?.checked ?? true;
@@ -423,30 +408,30 @@ async function saveScriptSettings() {
         );
         renderScriptSettings(settings);
         if (elements.scriptSettingsStatus) elements.scriptSettingsStatus.textContent = "Saved.";
-        showToast("Script settings saved successfully.", "success");
+        showToast("Integration settings saved successfully.", "success");
         setTimeout(() => {
             if (elements.scriptSettingsStatus) elements.scriptSettingsStatus.textContent = "";
         }, 2000);
     } catch (error) {
         if (elements.scriptSettingsStatus) elements.scriptSettingsStatus.textContent = "Unable to save right now.";
-        showToast("Unable to save script settings. Please retry.", "error");
+        showToast("Unable to save integration settings. Please retry.", "error");
     } finally {
         setButtonBusy(elements.scriptSettingsSaveButton, false, "Saving...");
     }
 }
 
-async function deleteAccount() {
-    const confirmation = window.prompt(
-        "Type DELETE to permanently remove your account, assets, and session.",
-    );
-    if (confirmation !== "DELETE") {
-        if (confirmation !== null) {
-            showToast("Account deletion cancelled.", "info");
-        }
-        return;
-    }
+function showDeleteConfirm() {
+    if (elements.deleteAccountButton) elements.deleteAccountButton.classList.add("hidden");
+    if (elements.deleteConfirmStep) elements.deleteConfirmStep.classList.remove("hidden");
+}
 
-    setButtonBusy(elements.deleteAccountButton, true, "Deleting...");
+function hideDeleteConfirm() {
+    if (elements.deleteAccountButton) elements.deleteAccountButton.classList.remove("hidden");
+    if (elements.deleteConfirmStep) elements.deleteConfirmStep.classList.add("hidden");
+}
+
+async function deleteAccount() {
+    setButtonBusy(elements.deleteConfirmButton, true, "Deleting...");
     try {
         const response = await fetch("/api/account", { method: "DELETE" });
         if (!response.ok) {
@@ -456,7 +441,8 @@ async function deleteAccount() {
         window.location.href = "/";
     } catch (error) {
         showToast("Unable to delete account right now. Please retry.", "error");
-        setButtonBusy(elements.deleteAccountButton, false, "Deleting...");
+        setButtonBusy(elements.deleteConfirmButton, false, "Deleting...");
+        hideDeleteConfirm();
     }
 }
 
@@ -469,14 +455,20 @@ if (elements.adminInput) {
     });
 }
 
-fetchAdmins();
-fetchSuggestedAdmins();
-fetchCanvasSettings();
-fetchScriptSettings();
-
 if (elements.deleteAccountButton) {
-    elements.deleteAccountButton.addEventListener("click", deleteAccount);
+    elements.deleteAccountButton.addEventListener("click", showDeleteConfirm);
+}
+if (elements.deleteCancelButton) {
+    elements.deleteCancelButton.addEventListener("click", hideDeleteConfirm);
+}
+if (elements.deleteConfirmButton) {
+    elements.deleteConfirmButton.addEventListener("click", deleteAccount);
 }
 if (elements.maxVolumeDb) {
     elements.maxVolumeDb.addEventListener("input", handleVolumeSliderInput);
 }
+
+fetchAdmins();
+fetchSuggestedAdmins();
+fetchCanvasSettings();
+fetchScriptSettings();
