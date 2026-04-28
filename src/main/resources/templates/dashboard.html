@@ -161,13 +161,8 @@
                 <!-- Channel admins -->
                 <section class="card-grid two-col dashboard-span-full">
                     <div class="card">
-                        <div class="card-header">
-                            <div>
-                                <p class="eyebrow">Collaboration</p>
-                                <h3>Channel admins</h3>
-                                <p class="muted">Invite moderators to help manage assets.</p>
-                            </div>
-                        </div>
+                        <h3>Channel admins</h3>
+                        <p class="muted">Invite moderators to help manage assets.</p>
                         <div class="inline-form">
                             <div class="field-stack">
                                 <input id="new-admin" placeholder="Twitch username" autocomplete="off" />
@@ -194,13 +189,8 @@
 
                 <!-- Channels you administer -->
                 <section th:if="${adminChannels != null}" class="card dashboard-span-full">
-                    <div class="card-header">
-                        <div>
-                            <p class="eyebrow">Your access</p>
-                            <h3>Channels you administer</h3>
-                            <p class="muted">Jump into a teammate's overlay console.</p>
-                        </div>
-                    </div>
+                    <h3>Channels you administer</h3>
+                    <p class="muted">Jump into a teammate's overlay console.</p>
                     <p th:if="${#lists.isEmpty(adminChannels)}">No admin invitations yet.</p>
                     <ul th:if="${!#lists.isEmpty(adminChannels)}" class="stacked-list">
                         <li th:each="channelName : ${adminChannels}" class="stacked-list-item">
@@ -225,7 +215,6 @@
                         <div class="danger-zone-body">
                             <div class="danger-zone-item">
                                 <div>
-                                    <p class="eyebrow">Account</p>
                                     <h4>Delete account</h4>
                                     <p class="muted">Permanently remove your account, assets, and session. This cannot be undone.</p>
                                 </div>
