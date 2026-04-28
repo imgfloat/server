@@ -14,6 +14,8 @@
             crossorigin="anonymous"
             referrerpolicy="no-referrer"
         />
+        <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
     </head>
     <body class="dashboard-body" th:classappend="${isStaging} ? ' has-staging-banner' : ''">
         <div th:insert="~{fragments/staging :: banner}"></div>
@@ -36,6 +38,21 @@
                     </form>
                 </div>
             </header>
+
+            <!-- Copyright notices — only rendered by JS when notices exist -->
+            <section id="copyright-notices-panel" class="copyright-notices-panel hidden">
+                <div class="copyright-notices-header">
+                    <div class="copyright-notices-title">
+                        <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+                        <h2>Copyright notices</h2>
+                    </div>
+                    <p class="muted">
+                        The following assets have been flagged for potential copyright infringement.
+                        Review each notice and remove the asset if necessary, then dismiss the notice.
+                    </p>
+                </div>
+                <ul id="copyright-notices-list" class="copyright-notices-list"></ul>
+            </section>
 
             <section class="large-dashboard-tiles">
                 <a th:href="@{'/view/' + ${channel} + '/broadcast'}">
@@ -192,5 +209,6 @@
             const broadcaster = /*[[${channel}]]*/ "";
         </script>
         <script src="/js/dashboard.js"></script>
+        <script src="/js/copyright-notices.js"></script>
     </body>
 </html>
