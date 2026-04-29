@@ -47,6 +47,9 @@ public class Channel {
     @Column(name = "banned", nullable = false)
     private boolean banned = false;
 
+    @Column(name = "active_playlist_id")
+    private String activePlaylistId;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -129,6 +132,14 @@ public class Channel {
 
     public void setBanned(boolean banned) {
         this.banned = banned;
+    }
+
+    public String getActivePlaylistId() {
+        return activePlaylistId;
+    }
+
+    public void setActivePlaylistId(String activePlaylistId) {
+        this.activePlaylistId = activePlaylistId;
     }
 
     public Instant getCreatedAt() {
