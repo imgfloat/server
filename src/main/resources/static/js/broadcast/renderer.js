@@ -38,6 +38,20 @@ export class BroadcastRenderer {
         this.allowSevenTvEmotesForAssets = true;
         this.allowScriptChatAccess = true;
 
+        // Playlist state — updated by PlaylistEvents from the server
+        this.playlistState = {
+            active: false,
+            paused: false,
+            playlistId: null,
+            playlistName: null,
+            trackId: null,
+            trackName: null,
+            trackIndex: null,
+            trackCount: null,
+            tracks: [],          // full ordered track list from last PLAYLIST_SELECTED/UPDATED
+        };
+        this.playlistCurrentElement = null; // the currently playing Audio element
+
         this.obsBrowser = !!globalThis.obsstudio;
         this.supportsAnimatedDecode =
             typeof ImageDecoder !== "undefined" && typeof createImageBitmap === "function" && !this.obsBrowser;
@@ -88,6 +102,18 @@ export class BroadcastRenderer {
                 })
                 .then((assets) => this.renderAssets(assets))
                 .catch(() => this.showToast("Unable to load overlay assets. Retrying may help.", "error"));
+            fetch(`/api/channels/${this.broadcaster}/playlists/active`)
+                .then((r) => r.ok ? r.json() : null)
+                .then((playlist) => {
+                    if (playlist) {
+                        this.playlistState.playlistId = playlist.id;
+                        this.playlistState.playlistName = playlist.name;
+                        this.playlistState.tracks = Array.isArray(playlist.tracks) ? playlist.tracks : [];
+                        this.playlistState.trackCount = this.playlistState.tracks.length;
+                        this.updateScriptWorkerPlaylist();
+                    }
+                })
+                .catch(() => {});
         });
     }
 
@@ -183,6 +209,10 @@ export class BroadcastRenderer {
     handleEvent(event) {
         if (event.type === "CANVAS" && event.payload) {
             this.applyCanvasSettings(event.payload);
+            return;
+        }
+        if (event.type && event.type.startsWith("PLAYLIST_")) {
+            this.handlePlaylistEvent(event);
             return;
         }
         const assetId = event.assetId || event?.patch?.id || event?.payload?.id;
@@ -496,6 +526,7 @@ export class BroadcastRenderer {
         this.scriptWorkerReady = true;
         this.updateScriptWorkerChatMessages();
         this.updateScriptWorkerEmoteCatalog();
+        this.updateScriptWorkerPlaylist();
     }
 
     setScriptSettings(settings) {
@@ -711,6 +742,163 @@ export class BroadcastRenderer {
         const line = match[1];
         const column = match[2];
         return column ? `line ${line}, col ${column}` : `line ${line}`;
+    }
+
+    // ── Playlist playback ─────────────────────────────────────────────────
+
+    handlePlaylistEvent(event) {
+        const { type, playlistId, trackId, payload } = event;
+
+        switch (type) {
+            case "PLAYLIST_SELECTED": {
+                if (!payload) {
+                    // Deselected
+                    this._stopPlaylistAudio();
+                    this.playlistState = {
+                        active: false, paused: false, playlistId: null, playlistName: null,
+                        trackId: null, trackName: null, trackIndex: null, trackCount: null, tracks: [],
+                    };
+                } else {
+                    this.playlistState.playlistId = payload.id;
+                    this.playlistState.playlistName = payload.name;
+                    this.playlistState.tracks = Array.isArray(payload.tracks) ? payload.tracks : [];
+                    this.playlistState.trackCount = this.playlistState.tracks.length;
+                    this.playlistState.active = false;
+                    this.playlistState.paused = false;
+                    this.playlistState.trackId = null;
+                    this.playlistState.trackName = null;
+                    this.playlistState.trackIndex = null;
+                    this._stopPlaylistAudio();
+                }
+                this.updateScriptWorkerPlaylist();
+                break;
+            }
+            case "PLAYLIST_UPDATED": {
+                if (payload && payload.id === this.playlistState.playlistId) {
+                    this.playlistState.playlistName = payload.name;
+                    this.playlistState.tracks = Array.isArray(payload.tracks) ? payload.tracks : [];
+                    this.playlistState.trackCount = this.playlistState.tracks.length;
+                    // Re-sync trackIndex in case order changed
+                    if (this.playlistState.trackId) {
+                        const idx = this.playlistState.tracks.findIndex(t => t.id === this.playlistState.trackId);
+                        this.playlistState.trackIndex = idx >= 0 ? idx : null;
+                        this.playlistState.trackName = idx >= 0 ? this.playlistState.tracks[idx].assetName : null;
+                    }
+                    this.updateScriptWorkerPlaylist();
+                }
+                break;
+            }
+            case "PLAYLIST_PLAY": {
+                if (playlistId !== this.playlistState.playlistId) break;
+                const resolvedTrackId = trackId || (this.playlistState.tracks[0]?.id ?? null);
+                this._playTrack(resolvedTrackId);
+                this.playlistState.active = true;
+                this.playlistState.paused = false;
+                this.updateScriptWorkerPlaylist();
+                break;
+            }
+            case "PLAYLIST_PAUSE": {
+                if (playlistId !== this.playlistState.playlistId) break;
+                if (this.playlistCurrentElement) {
+                    this.playlistCurrentElement.pause();
+                }
+                this.playlistState.paused = true;
+                this.updateScriptWorkerPlaylist();
+                break;
+            }
+            case "PLAYLIST_NEXT":
+            case "PLAYLIST_PREV": {
+                if (playlistId !== this.playlistState.playlistId) break;
+                if (trackId) {
+                    this._playTrack(trackId);
+                } else {
+                    // PREV with no trackId means restart current track
+                    if (this.playlistCurrentElement) {
+                        this.playlistCurrentElement.currentTime = 0;
+                        this.playlistCurrentElement.play().catch(() => {});
+                    }
+                }
+                this.playlistState.paused = false;
+                this.updateScriptWorkerPlaylist();
+                break;
+            }
+            case "PLAYLIST_ENDED": {
+                if (playlistId !== this.playlistState.playlistId) break;
+                this._stopPlaylistAudio();
+                this.playlistState.active = false;
+                this.playlistState.paused = false;
+                this.playlistState.trackId = null;
+                this.playlistState.trackName = null;
+                this.playlistState.trackIndex = null;
+                this.updateScriptWorkerPlaylist();
+                break;
+            }
+        }
+    }
+
+    _playTrack(trackId) {
+        this._stopPlaylistAudio();
+        if (!trackId) return;
+
+        const track = this.playlistState.tracks.find(t => t.id === trackId);
+        if (!track) return;
+
+        const asset = this.state.assets.get(track.audioAssetId);
+        if (!asset) return;
+
+        const idx = this.playlistState.tracks.indexOf(track);
+        this.playlistState.trackId = trackId;
+        this.playlistState.trackName = track.assetName;
+        this.playlistState.trackIndex = idx;
+
+        const el = new Audio(asset.url);
+        el.preload = "auto";
+        el.controls = false;
+        this.audioManager.releaseMediaElement && this.audioManager.releaseMediaElement(el);
+        // Wire through the channel limiter
+        this.audioManager.ensureAudioController(asset); // ensures limiter is set up
+        // Use a fresh Audio element independent of the per-asset loop controller
+        el.volume = Math.min(1, Math.max(0, asset.audioVolume ?? 1));
+        el.playbackRate = Math.max(0.25, (asset.audioSpeed ?? 1) * (asset.audioPitch ?? 1));
+        el.onended = () => {
+            if (this.playlistCurrentElement === el) {
+                this.playlistCurrentElement = null;
+                this._onPlaylistTrackEnded();
+            }
+        };
+        this.playlistCurrentElement = el;
+        el.play().catch(() => {});
+    }
+
+    _stopPlaylistAudio() {
+        if (this.playlistCurrentElement) {
+            this.playlistCurrentElement.onended = null;
+            this.playlistCurrentElement.pause();
+            this.playlistCurrentElement.src = "";
+            this.playlistCurrentElement = null;
+        }
+    }
+
+    _onPlaylistTrackEnded() {
+        if (!this.playlistState.playlistId || !this.playlistState.trackId) return;
+        // POST to server so it emits the appropriate NEXT or ENDED event
+        fetch(
+            `/api/channels/${encodeURIComponent(this.broadcaster)}/playlists/${encodeURIComponent(this.playlistState.playlistId)}/track-ended`,
+            {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ trackId: this.playlistState.trackId }),
+            }
+        ).catch(() => {});
+    }
+
+    updateScriptWorkerPlaylist() {
+        if (!this.scriptWorker || !this.scriptWorkerReady) return;
+        const { active, paused, playlistName, trackName, trackIndex, trackCount } = this.playlistState;
+        this.scriptWorker.postMessage({
+            type: "playlist",
+            payload: { active, paused, playlistName, trackName, trackIndex, trackCount },
+        });
     }
 
     handleScriptWorkerMessage(event) {

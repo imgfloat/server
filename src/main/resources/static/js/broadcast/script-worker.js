@@ -13,6 +13,14 @@ const nativeFetch = typeof self.fetch === "function" ? self.fetch.bind(self) : n
 let activeScriptId = null;
 let chatMessages = [];
 let emoteCatalog = [];
+let playlistContext = {
+    active: false,
+    paused: false,
+    playlistName: null,
+    trackName: null,
+    trackIndex: null,
+    trackCount: null,
+};
 
 function normalizeUrl(url) {
     try {
@@ -270,6 +278,7 @@ function updateScriptContexts() {
         script.context.chatMessages = chatMessages;
         script.context.emoteCatalog = emoteCatalog;
         script.context.allowedDomains = script.allowedDomains;
+        script.context.playlist = playlistContext;
     });
 }
 
@@ -315,8 +324,8 @@ function stopTickLoopIfIdle() {
 }
 
 function createScriptHandlers(source, context, state, sourceLabel = "") {
-    const contextPrelude =
-        "const { canvas, ctx, channelName, width, height, now, deltaMs, elapsedMs, assets, chatMessages, emoteCatalog, playAudio, fetch, allowedDomains } = context;";
+        const contextPrelude =
+            "const { canvas, ctx, channelName, width, height, now, deltaMs, elapsedMs, assets, chatMessages, emoteCatalog, playAudio, fetch, allowedDomains, playlist } = context;";
     const sourceUrl = sourceLabel ? `\n//# sourceURL=${sourceLabel}` : "";
     const factory = new Function(
         "context",
@@ -380,6 +389,7 @@ self.addEventListener("message", (event) => {
             chatMessages,
             emoteCatalog,
             allowedDomains,
+            playlist: playlistContext,
             playAudio: (attachment) => {
                 const attachmentId = typeof attachment === "string" ? attachment : attachment?.id;
                 if (!attachmentId) {
@@ -467,6 +477,18 @@ self.addEventListener("message", (event) => {
     if (type === "emoteCatalog") {
         emoteCatalog = Array.isArray(payload?.emotes) ? payload.emotes : [];
         refreshAllowedFetchUrls();
+        updateScriptContexts();
+    }
+
+    if (type === "playlist") {
+        playlistContext = {
+            active: payload?.active === true,
+            paused: payload?.paused === true,
+            playlistName: payload?.playlistName ?? null,
+            trackName: payload?.trackName ?? null,
+            trackIndex: payload?.trackIndex ?? null,
+            trackCount: payload?.trackCount ?? null,
+        };
         updateScriptContexts();
     }
 });
