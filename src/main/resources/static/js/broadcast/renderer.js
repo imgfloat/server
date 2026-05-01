@@ -87,9 +87,9 @@ export class BroadcastRenderer {
 
     connect() {
         const socket = new SockJS("/ws");
-        const stompClient = Stomp.over(socket);
-        stompClient.connect({}, () => {
-            stompClient.subscribe(`/topic/channel/${this.broadcaster}`, (payload) => {
+        this.stompClient = Stomp.over(socket);
+        this.stompClient.connect({}, () => {
+            this.stompClient.subscribe(`/topic/channel/${this.broadcaster}`, (payload) => {
                 const body = JSON.parse(payload.body);
                 this.handleEvent(body);
             });
@@ -119,25 +119,18 @@ export class BroadcastRenderer {
                 })
                 .catch(() => {});
 
-            // Periodically persist playback position so reconnects can resume accurately
+            // Periodically persist playback position over STOMP so reconnects can resume accurately
             this._positionReporterInterval = setInterval(() => {
                 if (!this.playlistCurrentElement || this.playlistCurrentElement.paused) return;
                 if (!this.playlistState.playlistId || !this.playlistState.trackId) return;
-                const xsrf = this._xsrfToken();
-                fetch(
-                    `/api/channels/${encodeURIComponent(this.broadcaster)}/playlists/${encodeURIComponent(this.playlistState.playlistId)}/position`,
-                    {
-                        method: "POST",
-                        headers: {
-                            "Content-Type": "application/json",
-                            ...(xsrf ? { "X-XSRF-TOKEN": xsrf } : {}),
-                        },
-                        body: JSON.stringify({
-                            trackId: this.playlistState.trackId,
-                            position: this.playlistCurrentElement.currentTime,
-                        }),
-                    }
-                ).catch(() => {});
+                this.stompClient.send(
+                    `/app/channel/${encodeURIComponent(this.broadcaster)}/playlists/${encodeURIComponent(this.playlistState.playlistId)}/position`,
+                    {},
+                    JSON.stringify({
+                        trackId: this.playlistState.trackId,
+                        position: this.playlistCurrentElement.currentTime,
+                    })
+                );
             }, 5000);
         });
     }

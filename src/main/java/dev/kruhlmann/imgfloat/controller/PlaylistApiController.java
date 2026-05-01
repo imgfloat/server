@@ -232,19 +232,4 @@ public class PlaylistApiController {
         playlistService.commandTrackEnded(broadcaster, playlistId, body.get("trackId"));
         return ResponseEntity.ok().build();
     }
-
-    @PostMapping("/{playlistId}/position")
-    public ResponseEntity<Void> reportPosition(
-        @PathVariable("broadcaster") String broadcaster,
-        @PathVariable("playlistId") String playlistId,
-        @RequestBody java.util.Map<String, Object> body,
-        OAuth2AuthenticationToken oauthToken
-    ) {
-        String sessionUsername = OauthSessionUser.from(oauthToken).login();
-        authorizationService.userIsBroadcasterOrChannelAdminForBroadcasterOrThrowHttpError(broadcaster, sessionUsername);
-        String trackId = (String) body.get("trackId");
-        double position = body.get("position") instanceof Number n ? n.doubleValue() : 0.0;
-        playlistService.reportPosition(broadcaster, playlistId, trackId, position);
-        return ResponseEntity.ok().build();
-    }
 }
