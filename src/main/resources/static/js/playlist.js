@@ -62,7 +62,8 @@
         if (csrfToken && csrfHeader) headers[csrfHeader] = csrfToken;
         const response = await fetch(`${apiBase()}${path}`, { ...options, headers });
         if (!response.ok) throw new Error(`Request failed: ${response.status}`);
-        if (response.status === 204) return null;
+        const ct = response.headers.get("content-type") || "";
+        if (response.status === 204 || !ct.includes("application/json")) return null;
         return response.json();
     }
 
@@ -160,10 +161,10 @@
         if (!name) { showToast("Enter a playlist name.", "info"); return; }
         try {
             const view = await apiFetch("", { method: "POST", body: JSON.stringify({ name }) });
-            playlists.push(view);
             input.value = "";
-            renderPlaylistList();
-            expandPlaylist(view.id);
+            // Don't push locally — the PLAYLIST_CREATED STOMP event will add it.
+            // Just pre-set the expanded id so it opens as soon as the event renders it.
+            if (view?.id) expandedPlaylistId = view.id;
         } catch {
             showToast("Could not create playlist.", "error");
         }
@@ -186,11 +187,11 @@
             const li = document.createElement("li");
             li.className = "playlist-list-item" + (p.id === expandedPlaylistId ? " expanded" : "") + (p.id === activePlaylistId ? " active" : "");
             li.dataset.id = p.id;
+            li.addEventListener("click", () => toggleExpand(p.id));
 
             const nameSpan = document.createElement("span");
             nameSpan.className = "playlist-list-name";
             nameSpan.textContent = p.name;
-            nameSpan.addEventListener("click", () => toggleExpand(p.id));
 
             const actions = document.createElement("div");
             actions.className = "playlist-list-actions";
