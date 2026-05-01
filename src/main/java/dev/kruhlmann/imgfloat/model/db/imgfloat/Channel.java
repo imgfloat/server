@@ -53,10 +53,10 @@ public class Channel {
     @Column(name = "playlist_current_track_id")
     private String playlistCurrentTrackId;
 
-    @Column(name = "playlist_is_playing", nullable = false)
+    @Column(name = "playlist_is_playing", nullable = false, columnDefinition = "INTEGER")
     private boolean playlistIsPlaying = false;
 
-    @Column(name = "playlist_is_paused", nullable = false)
+    @Column(name = "playlist_is_paused", nullable = false, columnDefinition = "INTEGER")
     private boolean playlistIsPaused = false;
 
     @Column(name = "playlist_track_position", nullable = false)
