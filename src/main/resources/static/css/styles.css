@@ -1013,55 +1013,54 @@ button:disabled:hover {
 }
 
 /* ── Playlist panel (admin rail) ─────────────────────────────── */
+
+/*
+ * The panel sits at the bottom of the rail and reserves a fixed slice
+ * of vertical space. The list scrolls inside it; no toggle/collapse.
+ */
 .playlist-panel {
     border-top: 1px solid var(--color-border);
     flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    max-height: 40vh;
 }
 
 .playlist-panel-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 10px 12px;
-    cursor: pointer;
-    user-select: none;
-    font-size: 13px;
+    padding: 8px 12px 4px;
+    font-size: 12px;
     font-weight: 600;
     color: var(--color-text-2);
-    transition: color 0.15s;
-}
-
-.playlist-panel-header:hover {
-    color: var(--color-text);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    flex-shrink: 0;
 }
 
 .playlist-panel-title {
     display: flex;
     align-items: center;
-    gap: 7px;
-}
-
-.playlist-panel-chevron {
-    font-size: 11px;
-    transition: transform 0.2s;
-}
-
-.playlist-panel-chevron.rotated {
-    transform: rotate(180deg);
-}
-
-.playlist-panel-body {
-    padding: 0 8px 10px;
-    display: flex;
-    flex-direction: column;
     gap: 6px;
 }
 
+.playlist-panel-body {
+    overflow-y: auto;
+    padding: 0 8px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-height: 0;
+}
+
+/* new-playlist input row */
 .playlist-create-row {
     display: flex;
     gap: 6px;
     align-items: center;
-    padding: 4px 0;
+    padding: 2px 0 4px;
+    flex-shrink: 0;
 }
 
 .playlist-create-row input {
@@ -1079,13 +1078,14 @@ button:disabled:hover {
     border-color: var(--color-accent-border);
 }
 
+/* list */
 .playlist-list {
     list-style: none;
     margin: 0;
     padding: 0;
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 1px;
 }
 
 .playlist-list-empty {
@@ -1094,20 +1094,10 @@ button:disabled:hover {
     padding: 4px 4px;
 }
 
+/* each playlist row */
 .playlist-list-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 6px;
-    padding: 5px 6px;
     border-radius: 8px;
     border: 1px solid transparent;
-    transition: background 0.12s;
-    cursor: pointer;
-}
-
-.playlist-list-item:hover {
-    background: var(--color-surface-3);
 }
 
 .playlist-list-item.active {
@@ -1115,9 +1105,23 @@ button:disabled:hover {
     background: var(--color-accent-subtle);
 }
 
+.playlist-list-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    padding: 5px 6px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.12s;
+}
+
+.playlist-list-item:not(.active) .playlist-list-row:hover {
+    background: var(--color-surface-3);
+}
+
 .playlist-list-name {
     font-size: 13px;
-    cursor: pointer;
     flex: 1;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1126,48 +1130,19 @@ button:disabled:hover {
 
 .playlist-list-actions {
     display: flex;
-    gap: 4px;
+    gap: 2px;
     flex-shrink: 0;
 }
 
-/* Playlist detail */
-.playlist-detail {
-    border: 1px solid var(--color-border);
-    border-radius: 10px;
-    padding: 10px;
+/* inline detail — appears directly under the row when expanded */
+.playlist-inline-detail {
+    padding: 4px 6px 8px 6px;
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    background: var(--color-surface-1);
-}
-
-.playlist-detail-header {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.playlist-detail-title-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
     gap: 6px;
 }
 
-.playlist-detail-name {
-    font-size: 13px;
-    font-weight: 600;
-    flex: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.playlist-detail-actions {
-    display: flex;
-    gap: 4px;
-}
-
+/* rename form */
 .playlist-rename-form {
     display: flex;
     gap: 4px;
@@ -1190,13 +1165,11 @@ button:disabled:hover {
     border-color: var(--color-accent-border);
 }
 
-/* Playback controls */
+/* playback controls */
 .playlist-controls {
     display: flex;
-    flex-direction: column;
-    gap: 4px;
-    padding: 6px 0 2px;
-    border-top: 1px solid var(--color-border);
+    align-items: center;
+    gap: 6px;
 }
 
 .playlist-now-playing {
@@ -1205,16 +1178,18 @@ button:disabled:hover {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    min-height: 14px;
+    flex: 1;
+    min-width: 0;
 }
 
 .playlist-buttons {
     display: flex;
-    gap: 4px;
+    gap: 2px;
     align-items: center;
+    flex-shrink: 0;
 }
 
-/* Track list */
+/* add-track row */
 .playlist-add-track-row {
     display: flex;
     gap: 6px;
@@ -1232,36 +1207,39 @@ button:disabled:hover {
     color: var(--color-text);
 }
 
+/* track list — max 4 items visible */
 .playlist-track-list {
     list-style: none;
     margin: 0;
     padding: 0;
     display: flex;
     flex-direction: column;
-    gap: 2px;
-    max-height: 160px;
+    gap: 1px;
+    max-height: calc(4 * 30px);
     overflow-y: auto;
 }
 
 .playlist-track-empty {
     font-size: 12px;
     color: var(--color-text-2);
-    padding: 4px;
+    padding: 2px 4px;
 }
 
 .playlist-track-item {
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 5px 6px;
-    border-radius: 7px;
-    border: 1px solid transparent;
-    background: var(--color-surface-2);
-    cursor: grab;
+    padding: 4px 4px;
+    border-radius: 6px;
+    min-height: 30px;
+    transition: background 0.1s;
+}
+
+.playlist-track-item:hover {
+    background: var(--color-surface-3);
 }
 
 .playlist-track-item.playing {
-    border-color: var(--color-accent-border);
     background: var(--color-accent-subtle);
 }
 
@@ -1270,13 +1248,13 @@ button:disabled:hover {
 }
 
 .playlist-track-item.drag-over {
-    border-color: var(--color-accent-icon);
+    background: var(--color-surface-4);
 }
 
 .playlist-track-handle {
     color: var(--color-text-2);
-    font-size: 11px;
     cursor: grab;
+    font-size: 11px;
     flex-shrink: 0;
 }
 

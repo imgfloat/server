@@ -23,33 +23,6 @@
     };
     let audioAssets = [];         // [{id, name}] — populated from the DOM asset list
 
-    // ── DOM refs ──────────────────────────────────────────────────────────
-
-    const el = {
-        panel:            () => document.getElementById("playlist-panel"),
-        toggle:           () => document.getElementById("playlist-panel-toggle"),
-        body:             () => document.getElementById("playlist-panel-body"),
-        chevron:          () => document.querySelector(".playlist-panel-chevron"),
-        newNameInput:     () => document.getElementById("new-playlist-name"),
-        createBtn:        () => document.getElementById("create-playlist-btn"),
-        list:             () => document.getElementById("playlist-list"),
-        detail:           () => document.getElementById("playlist-detail"),
-        renameForm:       () => document.getElementById("playlist-rename-form"),
-        renameInput:      () => document.getElementById("playlist-rename-input"),
-        renameSave:       () => document.getElementById("playlist-rename-save"),
-        renameCancel:     () => document.getElementById("playlist-rename-cancel"),
-        controls:         () => document.getElementById("playlist-controls"),
-        nowPlayingLabel:  () => document.getElementById("playlist-now-playing-label"),
-        playPauseBtn:     () => document.getElementById("playlist-play-pause-btn"),
-        prevBtn:          () => document.getElementById("playlist-prev-btn"),
-        nextBtn:          () => document.getElementById("playlist-next-btn"),
-        trackSelect:      () => document.getElementById("playlist-track-select"),
-        addTrackBtn:      () => document.getElementById("playlist-add-track-btn"),
-        trackList:        () => document.getElementById("playlist-track-list"),
-        nowPlayingPill:   () => document.getElementById("admin-now-playing-pill"),
-        nowPlayingText:   () => document.getElementById("admin-now-playing-text"),
-    };
-
     // ── API helpers ───────────────────────────────────────────────────────
 
     async function apiFetch(path, options = {}) {
@@ -67,17 +40,11 @@
     // ── Initialisation ────────────────────────────────────────────────────
 
     async function init() {
-        bindToggle();
         bindCreate();
-        bindDetailButtons();
-        bindPlaybackButtons();
-        bindAddTrack();
         await loadPlaylists();
         await loadActivePlaylist();
         refreshAudioAssetOptions();
-        // Listen for live updates forwarded from admin.js
         window.addEventListener("playlistEvent", (e) => handlePlaylistEvent(e.detail));
-        // Also watch asset list mutations to keep the audio asset picker fresh
         const assetListEl = document.getElementById("asset-list");
         if (assetListEl) {
             new MutationObserver(refreshAudioAssetOptions).observe(assetListEl, { childList: true, subtree: true });
@@ -85,27 +52,23 @@
     }
 
     function refreshAudioAssetOptions() {
-        // Collect audio asset IDs and names from the admin asset list items (data attributes set by admin.js)
         const items = document.querySelectorAll("#asset-list .asset-item[data-asset-type='AUDIO']");
         audioAssets = Array.from(items).map(item => ({
             id: item.dataset.assetId,
-            name: item.dataset.assetName || item.querySelector(".asset-name")?.textContent?.trim() || item.dataset.assetId,
+            name: item.dataset.assetName || item.dataset.assetId,
         })).filter(a => a.id);
-        renderTrackSelectOptions();
-    }
-
-    function renderTrackSelectOptions() {
-        const sel = el.trackSelect();
-        if (!sel) return;
-        const current = sel.value;
-        sel.innerHTML = '<option value="">Add audio asset…</option>';
-        audioAssets.forEach(a => {
-            const opt = document.createElement("option");
-            opt.value = a.id;
-            opt.textContent = a.name;
-            sel.appendChild(opt);
+        // Update any open track-select dropdowns
+        document.querySelectorAll(".playlist-track-select").forEach(sel => {
+            const current = sel.value;
+            sel.innerHTML = '<option value="">Add audio asset…</option>';
+            audioAssets.forEach(a => {
+                const opt = document.createElement("option");
+                opt.value = a.id;
+                opt.textContent = a.name;
+                sel.appendChild(opt);
+            });
+            if (current) sel.value = current;
         });
-        if (current) sel.value = current;
     }
 
     // ── Load ──────────────────────────────────────────────────────────────
@@ -124,43 +87,27 @@
             const active = await fetch(`${apiBase()}/active`).then(r => r.ok ? r.json() : null).catch(() => null);
             activePlaylistId = active?.id ?? null;
             renderPlaylistList();
-            if (expandedPlaylistId) renderDetail();
         } catch { /* silently ignore */ }
-    }
-
-    // ── Panel toggle ──────────────────────────────────────────────────────
-
-    function bindToggle() {
-        const toggle = el.toggle();
-        if (!toggle) return;
-        toggle.addEventListener("click", () => {
-            const body = el.body();
-            const open = !body.classList.contains("hidden");
-            body.classList.toggle("hidden", open);
-            toggle.setAttribute("aria-expanded", String(!open));
-            el.chevron()?.classList.toggle("rotated", !open);
-        });
-        toggle.addEventListener("keydown", e => {
-            if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle.click(); }
-        });
     }
 
     // ── Create playlist ───────────────────────────────────────────────────
 
     function bindCreate() {
-        el.createBtn()?.addEventListener("click", createPlaylist);
-        el.newNameInput()?.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); createPlaylist(); } });
+        document.getElementById("create-playlist-btn")?.addEventListener("click", createPlaylist);
+        document.getElementById("new-playlist-name")?.addEventListener("keydown", e => {
+            if (e.key === "Enter") { e.preventDefault(); createPlaylist(); }
+        });
     }
 
     async function createPlaylist() {
-        const input = el.newNameInput();
+        const input = document.getElementById("new-playlist-name");
         const name = input?.value?.trim();
         if (!name) { showToast("Enter a playlist name.", "info"); return; }
         try {
             const view = await apiFetch("", { method: "POST", body: JSON.stringify({ name }) });
             input.value = "";
             // Don't push locally — the PLAYLIST_CREATED STOMP event will add it.
-            // Just pre-set the expanded id so it opens as soon as the event renders it.
+            // Pre-set expanded id so it opens as soon as the event renders it.
             if (view?.id) expandedPlaylistId = view.id;
         } catch {
             showToast("Could not create playlist.", "error");
@@ -170,7 +117,7 @@
     // ── Playlist list ─────────────────────────────────────────────────────
 
     function renderPlaylistList() {
-        const list = el.list();
+        const list = document.getElementById("playlist-list");
         if (!list) return;
         list.innerHTML = "";
         if (playlists.length === 0) {
@@ -181,10 +128,19 @@
             return;
         }
         playlists.forEach(p => {
+            const isExpanded = p.id === expandedPlaylistId;
+            const isActive   = p.id === activePlaylistId;
+
             const li = document.createElement("li");
-            li.className = "playlist-list-item" + (p.id === expandedPlaylistId ? " expanded" : "") + (p.id === activePlaylistId ? " active" : "");
+            li.className = "playlist-list-item"
+                + (isExpanded ? " expanded" : "")
+                + (isActive   ? " active"   : "");
             li.dataset.id = p.id;
-            li.addEventListener("click", () => toggleExpand(p.id));
+
+            // ── header row ───────────────────────────────────────────────
+            const row = document.createElement("div");
+            row.className = "playlist-list-row";
+            row.addEventListener("click", () => toggleExpand(p.id));
 
             const nameSpan = document.createElement("span");
             nameSpan.className = "playlist-list-name";
@@ -193,45 +149,221 @@
             const actions = document.createElement("div");
             actions.className = "playlist-list-actions";
 
+            // select-for-playback button
             const selectBtn = document.createElement("button");
             selectBtn.type = "button";
-            selectBtn.className = "ghost small" + (p.id === activePlaylistId ? " active" : "");
-            selectBtn.title = p.id === activePlaylistId ? "Active — click to deselect" : "Select for playback";
-            selectBtn.innerHTML = p.id === activePlaylistId
+            selectBtn.className = "ghost small icon-button" + (isActive ? " active" : "");
+            selectBtn.title = isActive ? "Active — click to deselect" : "Select for playback";
+            selectBtn.innerHTML = isActive
                 ? '<i class="fa-solid fa-check" aria-hidden="true"></i>'
                 : '<i class="fa-solid fa-circle-play" aria-hidden="true"></i>';
             selectBtn.addEventListener("click", (e) => { e.stopPropagation(); toggleActivePlaylist(p.id); });
-
             actions.appendChild(selectBtn);
 
-            if (p.id === expandedPlaylistId) {
+            if (isExpanded) {
                 const renameBtn = document.createElement("button");
                 renameBtn.type = "button";
                 renameBtn.className = "ghost small icon-button";
-                renameBtn.title = "Rename playlist";
+                renameBtn.title = "Rename";
                 renameBtn.innerHTML = '<i class="fa-solid fa-pencil" aria-hidden="true"></i>';
                 renameBtn.addEventListener("click", (e) => {
                     e.stopPropagation();
-                    el.renameInput().value = p.name;
-                    el.renameForm()?.classList.remove("hidden");
-                    el.renameInput()?.focus();
+                    const form = li.querySelector(".playlist-rename-form");
+                    if (form) {
+                        form.classList.toggle("hidden");
+                        if (!form.classList.contains("hidden")) {
+                            form.querySelector("input")?.focus();
+                        }
+                    }
                 });
 
                 const deleteBtn = document.createElement("button");
                 deleteBtn.type = "button";
                 deleteBtn.className = "ghost small icon-button danger-icon";
-                deleteBtn.title = "Delete playlist";
+                deleteBtn.title = "Delete";
                 deleteBtn.innerHTML = '<i class="fa-solid fa-trash" aria-hidden="true"></i>';
-                deleteBtn.addEventListener("click", (e) => { e.stopPropagation(); deletePlaylist(); });
+                deleteBtn.addEventListener("click", (e) => { e.stopPropagation(); deletePlaylist(p); });
 
                 actions.appendChild(renameBtn);
                 actions.appendChild(deleteBtn);
             }
-            li.appendChild(nameSpan);
-            li.appendChild(actions);
+
+            row.appendChild(nameSpan);
+            row.appendChild(actions);
+            li.appendChild(row);
+
+            // ── inline detail (only when expanded) ───────────────────────
+            if (isExpanded) {
+                li.appendChild(buildInlineDetail(p));
+            }
+
             list.appendChild(li);
         });
     }
+
+    function buildInlineDetail(p) {
+        const detail = document.createElement("div");
+        detail.className = "playlist-inline-detail";
+
+        // rename form (hidden by default)
+        const renameForm = document.createElement("div");
+        renameForm.className = "playlist-rename-form hidden";
+        const renameInput = document.createElement("input");
+        renameInput.type = "text";
+        renameInput.maxLength = 100;
+        renameInput.autocomplete = "off";
+        renameInput.value = p.name;
+        const renameSave = document.createElement("button");
+        renameSave.type = "button";
+        renameSave.className = "ghost small";
+        renameSave.textContent = "Save";
+        const renameCancel = document.createElement("button");
+        renameCancel.type = "button";
+        renameCancel.className = "ghost small";
+        renameCancel.textContent = "Cancel";
+
+        const doRename = async () => {
+            const name = renameInput.value.trim();
+            if (!name) return;
+            try {
+                const updated = await apiFetch(`/${p.id}`, { method: "PUT", body: JSON.stringify({ name }) });
+                const idx = playlists.findIndex(x => x.id === p.id);
+                if (idx >= 0) playlists[idx] = updated;
+                renameForm.classList.add("hidden");
+                renderPlaylistList();
+            } catch {
+                showToast("Could not rename playlist.", "error");
+            }
+        };
+        renameSave.addEventListener("click", doRename);
+        renameInput.addEventListener("keydown", e => { if (e.key === "Enter") doRename(); });
+        renameCancel.addEventListener("click", () => renameForm.classList.add("hidden"));
+
+        renameForm.appendChild(renameInput);
+        renameForm.appendChild(renameSave);
+        renameForm.appendChild(renameCancel);
+        detail.appendChild(renameForm);
+
+        // playback controls (only when this playlist is active)
+        if (p.id === activePlaylistId) {
+            const controls = document.createElement("div");
+            controls.className = "playlist-controls";
+
+            const nowPlaying = document.createElement("div");
+            nowPlaying.className = "playlist-now-playing";
+            if (playbackState.playing && playbackState.trackId) {
+                const track = p.tracks.find(t => t.id === playbackState.trackId);
+                nowPlaying.textContent = track ? `♪ ${track.assetName}` : "Playing…";
+            }
+            controls.appendChild(nowPlaying);
+
+            const buttons = document.createElement("div");
+            buttons.className = "playlist-buttons";
+
+            const prevBtn = document.createElement("button");
+            prevBtn.type = "button";
+            prevBtn.className = "ghost small icon-button";
+            prevBtn.title = "Previous / Restart";
+            prevBtn.innerHTML = '<i class="fa-solid fa-backward-step" aria-hidden="true"></i>';
+            prevBtn.addEventListener("click", () => commandPrev(p));
+
+            const playPauseBtn = document.createElement("button");
+            playPauseBtn.type = "button";
+            playPauseBtn.className = "ghost small icon-button";
+            playPauseBtn.title = "Play / Pause";
+            const ppIcon = playbackState.playing && !playbackState.paused ? "fa-pause" : "fa-play";
+            playPauseBtn.innerHTML = `<i class="fa-solid ${ppIcon}" aria-hidden="true"></i>`;
+            playPauseBtn.addEventListener("click", () => togglePlayPause(p));
+
+            const nextBtn = document.createElement("button");
+            nextBtn.type = "button";
+            nextBtn.className = "ghost small icon-button";
+            nextBtn.title = "Next track";
+            nextBtn.innerHTML = '<i class="fa-solid fa-forward-step" aria-hidden="true"></i>';
+            nextBtn.addEventListener("click", () => commandNext(p));
+
+            buttons.appendChild(prevBtn);
+            buttons.appendChild(playPauseBtn);
+            buttons.appendChild(nextBtn);
+            controls.appendChild(buttons);
+            detail.appendChild(controls);
+        }
+
+        // add-track row
+        const addRow = document.createElement("div");
+        addRow.className = "playlist-add-track-row";
+
+        const sel = document.createElement("select");
+        sel.className = "playlist-track-select";
+        sel.innerHTML = '<option value="">Add audio asset…</option>';
+        audioAssets.forEach(a => {
+            const opt = document.createElement("option");
+            opt.value = a.id;
+            opt.textContent = a.name;
+            sel.appendChild(opt);
+        });
+
+        const addBtn = document.createElement("button");
+        addBtn.type = "button";
+        addBtn.className = "ghost small";
+        addBtn.textContent = "Add";
+        addBtn.addEventListener("click", () => addTrack(p, sel.value));
+
+        addRow.appendChild(sel);
+        addRow.appendChild(addBtn);
+        detail.appendChild(addRow);
+
+        // track list
+        const trackList = document.createElement("ul");
+        trackList.className = "playlist-track-list";
+
+        if (!p.tracks?.length) {
+            const empty = document.createElement("li");
+            empty.className = "playlist-track-empty";
+            empty.textContent = "No tracks yet.";
+            trackList.appendChild(empty);
+        } else {
+            p.tracks.forEach(track => {
+                const tli = document.createElement("li");
+                tli.className = "playlist-track-item" + (track.id === playbackState.trackId ? " playing" : "");
+                tli.dataset.trackId = track.id;
+                tli.draggable = true;
+
+                const handle = document.createElement("span");
+                handle.className = "playlist-track-handle";
+                handle.innerHTML = '<i class="fa-solid fa-grip-vertical" aria-hidden="true"></i>';
+
+                const name = document.createElement("span");
+                name.className = "playlist-track-name";
+                name.textContent = track.assetName;
+
+                const removeBtn = document.createElement("button");
+                removeBtn.type = "button";
+                removeBtn.className = "ghost small icon-button danger-icon";
+                removeBtn.title = "Remove";
+                removeBtn.innerHTML = '<i class="fa-solid fa-xmark" aria-hidden="true"></i>';
+                removeBtn.addEventListener("click", () => removeTrack(p.id, track.id));
+
+                tli.appendChild(handle);
+                tli.appendChild(name);
+                tli.appendChild(removeBtn);
+                trackList.appendChild(tli);
+            });
+            bindDragReorder(trackList, p.id);
+        }
+
+        detail.appendChild(trackList);
+        return detail;
+    }
+
+    // ── Expand / collapse ─────────────────────────────────────────────────
+
+    function toggleExpand(playlistId) {
+        expandedPlaylistId = expandedPlaylistId === playlistId ? null : playlistId;
+        renderPlaylistList();
+    }
+
+    // ── Active playlist ───────────────────────────────────────────────────
 
     async function toggleActivePlaylist(playlistId) {
         const newId = playlistId === activePlaylistId ? null : playlistId;
@@ -239,92 +371,37 @@
             await apiFetch("/active", { method: "PUT", body: JSON.stringify({ playlistId: newId }) });
             activePlaylistId = newId;
             renderPlaylistList();
-            renderDetail();
         } catch {
             showToast("Could not update active playlist.", "error");
         }
     }
 
-    function toggleExpand(playlistId) {
-        expandedPlaylistId = expandedPlaylistId === playlistId ? null : playlistId;
-        renderPlaylistList();
-        renderDetail();
-    }
+    // ── Track management ──────────────────────────────────────────────────
 
-    function expandPlaylist(playlistId) {
-        expandedPlaylistId = playlistId;
-        renderPlaylistList();
-        renderDetail();
-    }
-
-    // ── Detail panel ──────────────────────────────────────────────────────
-
-    function bindDetailButtons() {
-        el.renameSave()?.addEventListener("click", saveRename);
-        el.renameInput()?.addEventListener("keydown", e => { if (e.key === "Enter") saveRename(); });
-        el.renameCancel()?.addEventListener("click", () => el.renameForm()?.classList.add("hidden"));
-    }
-
-    function renderDetail() {
-        const detail = el.detail();
-        if (!detail) return;
-        const p = getExpanded();
-        if (!p) { detail.classList.add("hidden"); el.renameForm()?.classList.add("hidden"); return; }
-        detail.classList.remove("hidden");
-        renderControls(p);
-        renderTrackList(p);
-    }
-
-    function renderControls(p) {
-        const controls = el.controls();
-        if (!controls) return;
-        const isActive = p.id === activePlaylistId;
-        controls.classList.toggle("hidden", !isActive);
-        if (!isActive) return;
-
-        const playPauseIcon = el.playPauseBtn()?.querySelector("i");
-        if (playPauseIcon) {
-            playPauseIcon.className = playbackState.playing && !playbackState.paused
-                ? "fa-solid fa-pause"
-                : "fa-solid fa-play";
-        }
-
-        const label = el.nowPlayingLabel();
-        if (label) {
-            if (playbackState.playing && playbackState.trackId) {
-                const track = p.tracks.find(t => t.id === playbackState.trackId);
-                label.textContent = track ? `♪ ${track.assetName}` : "Playing…";
-            } else {
-                label.textContent = "";
-            }
-        }
-    }
-
-    function getExpanded() {
-        return playlists.find(p => p.id === expandedPlaylistId) ?? null;
-    }
-
-    async function saveRename() {
-        const input = el.renameInput();
-        const name = input?.value?.trim();
-        if (!name) return;
-        const p = getExpanded();
-        if (!p) return;
+    async function addTrack(p, audioAssetId) {
+        if (!audioAssetId) { showToast("Select an audio asset to add.", "info"); return; }
         try {
-            const updated = await apiFetch(`/${p.id}`, { method: "PUT", body: JSON.stringify({ name }) });
+            const updated = await apiFetch(`/${p.id}/tracks`, { method: "POST", body: JSON.stringify({ audioAssetId }) });
             const idx = playlists.findIndex(x => x.id === p.id);
             if (idx >= 0) playlists[idx] = updated;
-            el.renameForm()?.classList.add("hidden");
             renderPlaylistList();
-            renderDetail();
         } catch {
-            showToast("Could not rename playlist.", "error");
+            showToast("Could not add track.", "error");
         }
     }
 
-    async function deletePlaylist() {
-        const p = getExpanded();
-        if (!p) return;
+    async function removeTrack(playlistId, trackId) {
+        try {
+            const updated = await apiFetch(`/${playlistId}/tracks/${trackId}`, { method: "DELETE" });
+            const idx = playlists.findIndex(p => p.id === playlistId);
+            if (idx >= 0) playlists[idx] = updated;
+            renderPlaylistList();
+        } catch {
+            showToast("Could not remove track.", "error");
+        }
+    }
+
+    async function deletePlaylist(p) {
         if (!confirm(`Delete playlist "${p.name}"?`)) return;
         try {
             await apiFetch(`/${p.id}`, { method: "DELETE" });
@@ -332,57 +409,13 @@
             if (expandedPlaylistId === p.id) expandedPlaylistId = null;
             if (activePlaylistId === p.id) activePlaylistId = null;
             renderPlaylistList();
-            renderDetail();
         } catch {
             showToast("Could not delete playlist.", "error");
         }
     }
 
-    // ── Track list ────────────────────────────────────────────────────────
-
-    function renderTrackList(p) {
-        const list = el.trackList();
-        if (!list) return;
-        list.innerHTML = "";
-        if (!p.tracks?.length) {
-            const empty = document.createElement("li");
-            empty.className = "playlist-track-empty";
-            empty.textContent = "No tracks yet.";
-            list.appendChild(empty);
-            return;
-        }
-        p.tracks.forEach(track => {
-            const li = document.createElement("li");
-            li.className = "playlist-track-item" + (track.id === playbackState.trackId ? " playing" : "");
-            li.dataset.trackId = track.id;
-            li.draggable = true;
-
-            const handle = document.createElement("span");
-            handle.className = "playlist-track-handle";
-            handle.innerHTML = '<i class="fa-solid fa-grip-vertical" aria-hidden="true"></i>';
-
-            const name = document.createElement("span");
-            name.className = "playlist-track-name";
-            name.textContent = track.assetName;
-
-            const removeBtn = document.createElement("button");
-            removeBtn.type = "button";
-            removeBtn.className = "ghost small icon-button danger-icon";
-            removeBtn.title = "Remove from playlist";
-            removeBtn.innerHTML = '<i class="fa-solid fa-xmark" aria-hidden="true"></i>';
-            removeBtn.addEventListener("click", () => removeTrack(p.id, track.id));
-
-            li.appendChild(handle);
-            li.appendChild(name);
-            li.appendChild(removeBtn);
-            list.appendChild(li);
-        });
-        bindDragReorder(list, p.id);
-    }
-
     function bindDragReorder(list, playlistId) {
         let dragging = null;
-
         list.querySelectorAll(".playlist-track-item").forEach(item => {
             item.addEventListener("dragstart", (e) => {
                 dragging = item;
@@ -399,15 +432,11 @@
                 if (dragging && dragging !== item) {
                     list.querySelectorAll(".playlist-track-item").forEach(el => el.classList.remove("drag-over"));
                     item.classList.add("drag-over");
-                    // Reorder in DOM
                     const items = [...list.querySelectorAll(".playlist-track-item")];
                     const fromIdx = items.indexOf(dragging);
                     const toIdx = items.indexOf(item);
-                    if (fromIdx < toIdx) {
-                        list.insertBefore(dragging, item.nextSibling);
-                    } else {
-                        list.insertBefore(dragging, item);
-                    }
+                    if (fromIdx < toIdx) list.insertBefore(dragging, item.nextSibling);
+                    else list.insertBefore(dragging, item);
                 }
             });
             item.addEventListener("drop", async (e) => {
@@ -421,70 +450,25 @@
                     });
                     const idx = playlists.findIndex(p => p.id === playlistId);
                     if (idx >= 0) playlists[idx] = updated;
-                    // No full re-render needed; DOM is already in the right order
                 } catch {
                     showToast("Could not reorder tracks.", "error");
                     await loadPlaylists();
-                    renderDetail();
                 }
             });
         });
     }
 
-    function bindAddTrack() {
-        el.addTrackBtn()?.addEventListener("click", addTrack);
-    }
-
-    async function addTrack() {
-        const p = getExpanded();
-        if (!p) return;
-        const audioAssetId = el.trackSelect()?.value;
-        if (!audioAssetId) { showToast("Select an audio asset to add.", "info"); return; }
-        try {
-            const updated = await apiFetch(`/${p.id}/tracks`, { method: "POST", body: JSON.stringify({ audioAssetId }) });
-            const idx = playlists.findIndex(x => x.id === p.id);
-            if (idx >= 0) playlists[idx] = updated;
-            el.trackSelect().value = "";
-            renderPlaylistList();
-            renderDetail();
-        } catch {
-            showToast("Could not add track.", "error");
-        }
-    }
-
-    async function removeTrack(playlistId, trackId) {
-        try {
-            const updated = await apiFetch(`/${playlistId}/tracks/${trackId}`, { method: "DELETE" });
-            const idx = playlists.findIndex(p => p.id === playlistId);
-            if (idx >= 0) playlists[idx] = updated;
-            renderPlaylistList();
-            renderDetail();
-        } catch {
-            showToast("Could not remove track.", "error");
-        }
-    }
-
     // ── Playback controls ─────────────────────────────────────────────────
 
-    function bindPlaybackButtons() {
-        el.playPauseBtn()?.addEventListener("click", togglePlayPause);
-        el.prevBtn()?.addEventListener("click", commandPrev);
-        el.nextBtn()?.addEventListener("click", commandNext);
-    }
-
-    async function togglePlayPause() {
-        const p = getExpanded();
-        if (!p || p.id !== activePlaylistId) return;
+    async function togglePlayPause(p) {
         if (playbackState.playing && !playbackState.paused) {
-            await commandPause();
+            await commandPause(p);
         } else {
-            await commandPlay(playbackState.trackId || p.tracks[0]?.id || null);
+            await commandPlay(p, playbackState.trackId || p.tracks[0]?.id || null);
         }
     }
 
-    async function commandPlay(trackId) {
-        const p = getExpanded();
-        if (!p) return;
+    async function commandPlay(p, trackId) {
         try {
             await apiFetch(`/${p.id}/play`, { method: "POST", body: JSON.stringify({ trackId }) });
         } catch {
@@ -492,9 +476,7 @@
         }
     }
 
-    async function commandPause() {
-        const p = getExpanded();
-        if (!p) return;
+    async function commandPause(p) {
         try {
             await apiFetch(`/${p.id}/pause`, { method: "POST" });
         } catch {
@@ -502,9 +484,8 @@
         }
     }
 
-    async function commandNext() {
-        const p = getExpanded();
-        if (!p || !playbackState.trackId) return;
+    async function commandNext(p) {
+        if (!playbackState.trackId) return;
         try {
             await apiFetch(`/${p.id}/next`, { method: "POST", body: JSON.stringify({ currentTrackId: playbackState.trackId }) });
         } catch {
@@ -512,9 +493,8 @@
         }
     }
 
-    async function commandPrev() {
-        const p = getExpanded();
-        if (!p || !playbackState.trackId) return;
+    async function commandPrev(p) {
+        if (!playbackState.trackId) return;
         try {
             await apiFetch(`/${p.id}/prev`, { method: "POST", body: JSON.stringify({ currentTrackId: playbackState.trackId }) });
         } catch {
@@ -541,7 +521,6 @@
                     if (idx >= 0) playlists[idx] = payload;
                     else playlists.push(payload);
                     renderPlaylistList();
-                    if (expandedPlaylistId === payload.id) renderDetail();
                 }
                 break;
             case "PLAYLIST_DELETED":
@@ -549,45 +528,40 @@
                 if (expandedPlaylistId === playlistId) expandedPlaylistId = null;
                 if (activePlaylistId === playlistId) activePlaylistId = null;
                 renderPlaylistList();
-                renderDetail();
                 break;
             case "PLAYLIST_SELECTED":
                 activePlaylistId = payload?.id ?? null;
                 playbackState = { playing: false, paused: false, trackId: null };
                 renderPlaylistList();
-                renderDetail();
                 break;
             case "PLAYLIST_PLAY":
                 playbackState = { playing: true, paused: false, trackId: trackId ?? null };
+                renderPlaylistList();
                 updateNowPlayingPill();
-                renderDetail();
                 break;
             case "PLAYLIST_PAUSE":
                 playbackState = { ...playbackState, paused: true };
+                renderPlaylistList();
                 updateNowPlayingPill();
-                renderDetail();
                 break;
             case "PLAYLIST_NEXT":
             case "PLAYLIST_PREV":
-                if (trackId) {
-                    playbackState = { playing: true, paused: false, trackId };
-                }
+                if (trackId) playbackState = { playing: true, paused: false, trackId };
+                renderPlaylistList();
                 updateNowPlayingPill();
-                renderDetail();
                 break;
             case "PLAYLIST_ENDED":
                 playbackState = { playing: false, paused: false, trackId: null };
+                renderPlaylistList();
                 updateNowPlayingPill();
-                renderDetail();
                 break;
         }
     }
 
     function updateNowPlayingPill() {
-        const pill = el.nowPlayingPill();
-        const textEl = el.nowPlayingText();
+        const pill = document.getElementById("admin-now-playing-pill");
+        const textEl = document.getElementById("admin-now-playing-text");
         if (!pill || !textEl) return;
-
         if (playbackState.playing && !playbackState.paused && playbackState.trackId) {
             const p = playlists.find(pl => pl.id === activePlaylistId);
             const track = p?.tracks?.find(t => t.id === playbackState.trackId);
