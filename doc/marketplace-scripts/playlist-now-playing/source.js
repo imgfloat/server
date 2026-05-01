@@ -1,9 +1,10 @@
 /**
  * Now Playing — minimal playlist pill overlay.
  *
- * Displays a pill in the bottom-right corner of the broadcast canvas
+ * Displays a pill in the top-left corner of the broadcast canvas
  * showing the current track name when a playlist is active and playing.
- * Fades in when playback starts and fades out when paused or stopped.
+ * Fades in when playback starts and fades out when paused, stopped, or
+ * when the playlist ends.
  *
  * Context used: context.playlist, context.width, context.height
  */
@@ -37,7 +38,7 @@ exports.tick = function (context, state) {
     ctx.save();
     ctx.globalAlpha = state.opacity;
 
-    const fontSize = Math.round(height * 0.022);
+    const fontSize = Math.round(height * 0.016);
     ctx.font = `600 ${fontSize}px system-ui, sans-serif`;
 
     const iconGlyph = "\u266A"; // ♪
@@ -47,8 +48,8 @@ exports.tick = function (context, state) {
     const pillWidth = Math.min(ctx.measureText(text).width + paddingH * 2, width * 0.38);
     const pillHeight = fontSize + paddingV * 2;
     const margin = Math.round(height * 0.025);
-    const x = width - pillWidth - margin;
-    const y = height - pillHeight - margin;
+    const x = margin;
+    const y = margin;
     const radius = pillHeight / 2;
 
     // Pill background
