@@ -9,6 +9,7 @@ import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.server.ResponseStatusException;
 
 @RestControllerAdvice
@@ -36,6 +37,21 @@ public class RestExceptionHandler {
             message = "Request failed with status " + statusCode.value();
         }
         return ResponseEntity.status(statusCode).body(new ErrorResponse(statusCode.value(), message, path));
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ErrorResponse> handleValidationException(
+        MethodArgumentNotValidException exception,
+        HttpServletRequest request
+    ) {
+        String path = request.getRequestURI();
+        String message = exception.getBindingResult().getFieldErrors().stream()
+            .map(fe -> fe.getField() + " " + fe.getDefaultMessage())
+            .findFirst()
+            .orElse("Validation failed");
+        LOG.debug("Validation failed for {} {}: {}", request.getMethod(), path, message);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+            .body(new ErrorResponse(HttpStatus.BAD_REQUEST.value(), message, path));
     }
 
     @ExceptionHandler(Exception.class)

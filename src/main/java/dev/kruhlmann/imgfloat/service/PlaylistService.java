@@ -84,13 +84,9 @@ public class PlaylistService {
     public void deletePlaylist(String broadcaster, String playlistId) {
         Playlist playlist = requirePlaylist(broadcaster, playlistId);
         channelRepository.findById(normalize(broadcaster)).ifPresent(channel -> {
-            if (playlistId.equals(channel.getActivePlaylistId())) {
+            boolean wasActive = playlistId.equals(channel.getActivePlaylistId());
+            if (wasActive) {
                 channel.setActivePlaylistId(null);
-            }
-            // Clear playback state if this playlist was playing
-            if (playlistId.equals(channel.getActivePlaylistId())
-                    || (channel.getPlaylistCurrentTrackId() != null
-                        && channel.isPlaylistIsPlaying())) {
                 clearPlaybackState(channel);
             }
             channelRepository.save(channel);
@@ -197,11 +193,12 @@ public class PlaylistService {
     public void commandPlay(String broadcaster, String playlistId, String trackId) {
         requirePlaylist(broadcaster, playlistId);
         // If no trackId specified, resolve the first track
-        String resolvedTrackId = trackId;
-        if (resolvedTrackId == null) {
+        String resolvedTrackIdMutable = trackId;
+        if (resolvedTrackIdMutable == null) {
             List<PlaylistTrack> tracks = playlistTrackRepository.findAllByPlaylistIdOrderByTrackOrderAsc(playlistId);
-            if (!tracks.isEmpty()) resolvedTrackId = tracks.get(0).getId();
+            if (!tracks.isEmpty()) resolvedTrackIdMutable = tracks.get(0).getId();
         }
+        final String resolvedTrackId = resolvedTrackIdMutable;
         channelRepository.findById(normalize(broadcaster)).ifPresent(channel -> {
             channel.setPlaylistCurrentTrackId(resolvedTrackId);
             channel.setPlaylistIsPlaying(true);
