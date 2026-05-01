@@ -104,16 +104,41 @@ export class BroadcastRenderer {
                 .catch(() => this.showToast("Unable to load overlay assets. Retrying may help.", "error"));
             fetch(`/api/channels/${this.broadcaster}/playlists/active`)
                 .then((r) => r.ok ? r.json() : null)
-                .then((playlist) => {
-                    if (playlist) {
-                        this.playlistState.playlistId = playlist.id;
-                        this.playlistState.playlistName = playlist.name;
-                        this.playlistState.tracks = Array.isArray(playlist.tracks) ? playlist.tracks : [];
-                        this.playlistState.trackCount = this.playlistState.tracks.length;
-                        this.updateScriptWorkerPlaylist();
+                .then((state) => {
+                    if (!state) return;
+                    this.playlistState.playlistId = state.id;
+                    this.playlistState.playlistName = state.name;
+                    this.playlistState.tracks = Array.isArray(state.tracks) ? state.tracks : [];
+                    this.playlistState.trackCount = this.playlistState.tracks.length;
+                    if (state.isPlaying && state.currentTrackId) {
+                        this.playlistState.active = true;
+                        this.playlistState.paused = state.isPaused;
+                        this._resumeTrack(state.currentTrackId, state.trackPosition, state.isPaused);
                     }
+                    this.updateScriptWorkerPlaylist();
                 })
                 .catch(() => {});
+
+            // Periodically persist playback position so reconnects can resume accurately
+            this._positionReporterInterval = setInterval(() => {
+                if (!this.playlistCurrentElement || this.playlistCurrentElement.paused) return;
+                if (!this.playlistState.playlistId || !this.playlistState.trackId) return;
+                const xsrf = this._xsrfToken();
+                fetch(
+                    `/api/channels/${encodeURIComponent(this.broadcaster)}/playlists/${encodeURIComponent(this.playlistState.playlistId)}/position`,
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            ...(xsrf ? { "X-XSRF-TOKEN": xsrf } : {}),
+                        },
+                        body: JSON.stringify({
+                            trackId: this.playlistState.trackId,
+                            position: this.playlistCurrentElement.currentTime,
+                        }),
+                    }
+                ).catch(() => {});
+            }, 5000);
         });
     }
 
@@ -862,9 +887,7 @@ export class BroadcastRenderer {
         el.preload = "auto";
         el.controls = false;
         this.audioManager.releaseMediaElement && this.audioManager.releaseMediaElement(el);
-        // Wire through the channel limiter
-        this.audioManager.ensureAudioController(asset); // ensures limiter is set up
-        // Use a fresh Audio element independent of the per-asset loop controller
+        this.audioManager.ensureAudioController(asset);
         el.volume = Math.min(1, Math.max(0, asset.audioVolume ?? 1));
         el.playbackRate = Math.max(0.25, (asset.audioSpeed ?? 1) * (asset.audioPitch ?? 1));
         el.onended = () => {
@@ -875,6 +898,61 @@ export class BroadcastRenderer {
         };
         this.playlistCurrentElement = el;
         el.play().catch(() => {});
+    }
+
+    /**
+     * Resume a track at a specific position, optionally paused.
+     * Used on reconnect to restore state from the server.
+     */
+    _resumeTrack(trackId, position, startPaused) {
+        this._stopPlaylistAudio();
+        if (!trackId) return;
+
+        const track = this.playlistState.tracks.find(t => t.id === trackId);
+        if (!track) return;
+
+        const asset = this.state.assets.get(track.audioAssetId);
+        if (!asset) return;
+
+        const idx = this.playlistState.tracks.indexOf(track);
+        this.playlistState.trackId = trackId;
+        this.playlistState.trackName = track.assetName;
+        this.playlistState.trackIndex = idx;
+
+        const el = new Audio(asset.url);
+        el.preload = "auto";
+        el.controls = false;
+        this.audioManager.releaseMediaElement && this.audioManager.releaseMediaElement(el);
+        this.audioManager.ensureAudioController(asset);
+        el.volume = Math.min(1, Math.max(0, asset.audioVolume ?? 1));
+        el.playbackRate = Math.max(0.25, (asset.audioSpeed ?? 1) * (asset.audioPitch ?? 1));
+        el.onended = () => {
+            if (this.playlistCurrentElement === el) {
+                this.playlistCurrentElement = null;
+                this._onPlaylistTrackEnded();
+            }
+        };
+        this.playlistCurrentElement = el;
+
+        if (position > 0 || startPaused) {
+            el.addEventListener("canplay", () => {
+                if (position > 0) el.currentTime = position;
+                if (startPaused) {
+                    el.pause();
+                } else {
+                    el.play().catch(() => {});
+                }
+            }, { once: true });
+            // Load without playing so canplay fires
+            el.load();
+        } else {
+            el.play().catch(() => {});
+        }
+    }
+
+    _xsrfToken() {
+        const cookie = document.cookie.split("; ").find(c => c.startsWith("XSRF-TOKEN="));
+        return cookie ? decodeURIComponent(cookie.split("=")[1]) : null;
     }
 
     _stopPlaylistAudio() {
@@ -888,15 +966,14 @@ export class BroadcastRenderer {
 
     _onPlaylistTrackEnded() {
         if (!this.playlistState.playlistId || !this.playlistState.trackId) return;
-        // POST to server so it emits the appropriate NEXT or ENDED event
-        const xsrfToken = document.cookie.split("; ").find(c => c.startsWith("XSRF-TOKEN="))?.split("=")[1];
+        const xsrf = this._xsrfToken();
         fetch(
             `/api/channels/${encodeURIComponent(this.broadcaster)}/playlists/${encodeURIComponent(this.playlistState.playlistId)}/track-ended`,
             {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    ...(xsrfToken ? { "X-XSRF-TOKEN": decodeURIComponent(xsrfToken) } : {}),
+                    ...(xsrf ? { "X-XSRF-TOKEN": xsrf } : {}),
                 },
                 body: JSON.stringify({ trackId: this.playlistState.trackId }),
             }

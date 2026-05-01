@@ -50,6 +50,18 @@ public class Channel {
     @Column(name = "active_playlist_id")
     private String activePlaylistId;
 
+    @Column(name = "playlist_current_track_id")
+    private String playlistCurrentTrackId;
+
+    @Column(name = "playlist_is_playing", nullable = false)
+    private boolean playlistIsPlaying = false;
+
+    @Column(name = "playlist_is_paused", nullable = false)
+    private boolean playlistIsPaused = false;
+
+    @Column(name = "playlist_track_position", nullable = false)
+    private double playlistTrackPosition = 0.0;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -140,6 +152,38 @@ public class Channel {
 
     public void setActivePlaylistId(String activePlaylistId) {
         this.activePlaylistId = activePlaylistId;
+    }
+
+    public String getPlaylistCurrentTrackId() {
+        return playlistCurrentTrackId;
+    }
+
+    public void setPlaylistCurrentTrackId(String playlistCurrentTrackId) {
+        this.playlistCurrentTrackId = playlistCurrentTrackId;
+    }
+
+    public boolean isPlaylistIsPlaying() {
+        return playlistIsPlaying;
+    }
+
+    public void setPlaylistIsPlaying(boolean playlistIsPlaying) {
+        this.playlistIsPlaying = playlistIsPlaying;
+    }
+
+    public boolean isPlaylistIsPaused() {
+        return playlistIsPaused;
+    }
+
+    public void setPlaylistIsPaused(boolean playlistIsPaused) {
+        this.playlistIsPaused = playlistIsPaused;
+    }
+
+    public double getPlaylistTrackPosition() {
+        return playlistTrackPosition;
+    }
+
+    public void setPlaylistTrackPosition(double playlistTrackPosition) {
+        this.playlistTrackPosition = playlistTrackPosition;
     }
 
     public Instant getCreatedAt() {

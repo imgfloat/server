@@ -5,6 +5,7 @@ import dev.kruhlmann.imgfloat.model.api.request.ActivePlaylistRequest;
 import dev.kruhlmann.imgfloat.model.api.request.PlaylistRequest;
 import dev.kruhlmann.imgfloat.model.api.request.PlaylistTrackOrderRequest;
 import dev.kruhlmann.imgfloat.model.api.request.PlaylistTrackRequest;
+import dev.kruhlmann.imgfloat.model.api.response.ActivePlaylistState;
 import dev.kruhlmann.imgfloat.model.api.response.PlaylistView;
 import dev.kruhlmann.imgfloat.service.AuthorizationService;
 import dev.kruhlmann.imgfloat.service.PlaylistService;
@@ -139,13 +140,13 @@ public class PlaylistApiController {
     // ── Active playlist ───────────────────────────────────────────────────
 
     @GetMapping("/active")
-    public ResponseEntity<PlaylistView> getActive(
+    public ResponseEntity<ActivePlaylistState> getActive(
         @PathVariable("broadcaster") String broadcaster,
         OAuth2AuthenticationToken oauthToken
     ) {
         String sessionUsername = OauthSessionUser.from(oauthToken).login();
         authorizationService.userIsBroadcasterOrChannelAdminForBroadcasterOrThrowHttpError(broadcaster, sessionUsername);
-        return playlistService.getActivePlaylist(broadcaster)
+        return playlistService.getActivePlaylistState(broadcaster)
             .map(ResponseEntity::ok)
             .orElse(ResponseEntity.noContent().build());
     }
@@ -229,6 +230,21 @@ public class PlaylistApiController {
         String sessionUsername = OauthSessionUser.from(oauthToken).login();
         authorizationService.userIsBroadcasterOrChannelAdminForBroadcasterOrThrowHttpError(broadcaster, sessionUsername);
         playlistService.commandTrackEnded(broadcaster, playlistId, body.get("trackId"));
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/{playlistId}/position")
+    public ResponseEntity<Void> reportPosition(
+        @PathVariable("broadcaster") String broadcaster,
+        @PathVariable("playlistId") String playlistId,
+        @RequestBody java.util.Map<String, Object> body,
+        OAuth2AuthenticationToken oauthToken
+    ) {
+        String sessionUsername = OauthSessionUser.from(oauthToken).login();
+        authorizationService.userIsBroadcasterOrChannelAdminForBroadcasterOrThrowHttpError(broadcaster, sessionUsername);
+        String trackId = (String) body.get("trackId");
+        double position = body.get("position") instanceof Number n ? n.doubleValue() : 0.0;
+        playlistService.reportPosition(broadcaster, playlistId, trackId, position);
         return ResponseEntity.ok().build();
     }
 }

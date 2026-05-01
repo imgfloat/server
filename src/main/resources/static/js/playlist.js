@@ -84,8 +84,16 @@
 
     async function loadActivePlaylist() {
         try {
-            const active = await fetch(`${apiBase()}/active`).then(r => r.ok ? r.json() : null).catch(() => null);
-            activePlaylistId = active?.id ?? null;
+            const state = await fetch(`${apiBase()}/active`).then(r => r.ok ? r.json() : null).catch(() => null);
+            if (!state) return;
+            activePlaylistId = state.id ?? null;
+            if (state.isPlaying && state.currentTrackId) {
+                playbackState = {
+                    playing: true,
+                    paused: state.isPaused ?? false,
+                    trackId: state.currentTrackId,
+                };
+            }
             renderPlaylistList();
         } catch { /* silently ignore */ }
     }

@@ -3,6 +3,7 @@ package dev.kruhlmann.imgfloat.service;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 
+import dev.kruhlmann.imgfloat.model.api.response.ActivePlaylistState;
 import dev.kruhlmann.imgfloat.model.api.response.PlaylistEvent;
 import dev.kruhlmann.imgfloat.model.api.response.PlaylistTrackView;
 import dev.kruhlmann.imgfloat.model.api.response.PlaylistView;
@@ -14,7 +15,6 @@ import dev.kruhlmann.imgfloat.repository.AudioAssetRepository;
 import dev.kruhlmann.imgfloat.repository.ChannelRepository;
 import dev.kruhlmann.imgfloat.repository.PlaylistRepository;
 import dev.kruhlmann.imgfloat.repository.PlaylistTrackRepository;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -83,12 +83,17 @@ public class PlaylistService {
     @Transactional
     public void deletePlaylist(String broadcaster, String playlistId) {
         Playlist playlist = requirePlaylist(broadcaster, playlistId);
-        // Clear active_playlist_id on channel if it pointed to this playlist
         channelRepository.findById(normalize(broadcaster)).ifPresent(channel -> {
             if (playlistId.equals(channel.getActivePlaylistId())) {
                 channel.setActivePlaylistId(null);
-                channelRepository.save(channel);
             }
+            // Clear playback state if this playlist was playing
+            if (playlistId.equals(channel.getActivePlaylistId())
+                    || (channel.getPlaylistCurrentTrackId() != null
+                        && channel.isPlaylistIsPlaying())) {
+                clearPlaybackState(channel);
+            }
+            channelRepository.save(channel);
         });
         playlistTrackRepository.deleteAllByPlaylistId(playlistId);
         playlistRepository.delete(playlist);
@@ -100,7 +105,7 @@ public class PlaylistService {
     @Transactional
     public PlaylistView addTrack(String broadcaster, String playlistId, String audioAssetId) {
         requirePlaylist(broadcaster, playlistId);
-        AudioAsset audio = audioAssetRepository.findById(audioAssetId)
+        audioAssetRepository.findById(audioAssetId)
             .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Audio asset not found"));
         int nextOrder = playlistTrackRepository.countByPlaylistId(playlistId);
         PlaylistTrack track = new PlaylistTrack(playlistId, audioAssetId, nextOrder);
@@ -121,6 +126,13 @@ public class PlaylistService {
             remaining.get(i).setTrackOrder(i);
         }
         playlistTrackRepository.saveAll(remaining);
+        // Clear playback state if the removed track was the current one
+        channelRepository.findById(normalize(broadcaster)).ifPresent(channel -> {
+            if (trackId.equals(channel.getPlaylistCurrentTrackId())) {
+                clearPlaybackState(channel);
+                channelRepository.save(channel);
+            }
+        });
         return refreshAndPublish(broadcaster, playlistId);
     }
 
@@ -142,13 +154,24 @@ public class PlaylistService {
     // ── Active playlist ───────────────────────────────────────────────────
 
     @Transactional(readOnly = true)
-    public Optional<PlaylistView> getActivePlaylist(String broadcaster) {
+    public Optional<ActivePlaylistState> getActivePlaylistState(String broadcaster) {
         Channel channel = channelRepository.findById(normalize(broadcaster)).orElse(null);
         if (channel == null || channel.getActivePlaylistId() == null) {
             return Optional.empty();
         }
         return playlistRepository.findByIdAndBroadcaster(channel.getActivePlaylistId(), normalize(broadcaster))
-            .map(p -> toView(p, loadTracks(p.getId())));
+            .map(p -> {
+                List<PlaylistTrackView> tracks = loadTracks(p.getId());
+                return new ActivePlaylistState(
+                    p.getId(),
+                    p.getName(),
+                    tracks,
+                    channel.getPlaylistCurrentTrackId(),
+                    channel.isPlaylistIsPlaying(),
+                    channel.isPlaylistIsPaused(),
+                    channel.getPlaylistTrackPosition()
+                );
+            });
     }
 
     @Transactional
@@ -162,6 +185,7 @@ public class PlaylistService {
             view = toView(playlist, loadTracks(playlistId));
         }
         channel.setActivePlaylistId(playlistId);
+        clearPlaybackState(channel);
         channelRepository.save(channel);
         publish(broadcaster, PlaylistEvent.selected(normalize(broadcaster), view));
         return Optional.ofNullable(view);
@@ -169,19 +193,36 @@ public class PlaylistService {
 
     // ── Playback commands ─────────────────────────────────────────────────
 
-    @Transactional(readOnly = true)
+    @Transactional
     public void commandPlay(String broadcaster, String playlistId, String trackId) {
         requirePlaylist(broadcaster, playlistId);
-        publish(broadcaster, PlaylistEvent.play(normalize(broadcaster), playlistId, trackId));
+        // If no trackId specified, resolve the first track
+        String resolvedTrackId = trackId;
+        if (resolvedTrackId == null) {
+            List<PlaylistTrack> tracks = playlistTrackRepository.findAllByPlaylistIdOrderByTrackOrderAsc(playlistId);
+            if (!tracks.isEmpty()) resolvedTrackId = tracks.get(0).getId();
+        }
+        channelRepository.findById(normalize(broadcaster)).ifPresent(channel -> {
+            channel.setPlaylistCurrentTrackId(resolvedTrackId);
+            channel.setPlaylistIsPlaying(true);
+            channel.setPlaylistIsPaused(false);
+            channel.setPlaylistTrackPosition(0.0);
+            channelRepository.save(channel);
+        });
+        publish(broadcaster, PlaylistEvent.play(normalize(broadcaster), playlistId, resolvedTrackId));
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public void commandPause(String broadcaster, String playlistId) {
         requirePlaylist(broadcaster, playlistId);
+        channelRepository.findById(normalize(broadcaster)).ifPresent(channel -> {
+            channel.setPlaylistIsPaused(true);
+            channelRepository.save(channel);
+        });
         publish(broadcaster, PlaylistEvent.pause(normalize(broadcaster), playlistId));
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public void commandNext(String broadcaster, String playlistId, String currentTrackId) {
         requirePlaylist(broadcaster, playlistId);
         List<PlaylistTrack> tracks = playlistTrackRepository.findAllByPlaylistIdOrderByTrackOrderAsc(playlistId);
@@ -194,14 +235,25 @@ public class PlaylistService {
             }
         }
         if (nextTrackId != null) {
+            final String resolvedNext = nextTrackId;
+            channelRepository.findById(normalize(broadcaster)).ifPresent(channel -> {
+                channel.setPlaylistCurrentTrackId(resolvedNext);
+                channel.setPlaylistIsPlaying(true);
+                channel.setPlaylistIsPaused(false);
+                channel.setPlaylistTrackPosition(0.0);
+                channelRepository.save(channel);
+            });
             publish(broadcaster, PlaylistEvent.next(normalize(broadcaster), playlistId, nextTrackId));
         } else {
-            // End of playlist
+            channelRepository.findById(normalize(broadcaster)).ifPresent(channel -> {
+                clearPlaybackState(channel);
+                channelRepository.save(channel);
+            });
             publish(broadcaster, PlaylistEvent.ended(normalize(broadcaster), playlistId));
         }
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public void commandPrev(String broadcaster, String playlistId, String currentTrackId) {
         requirePlaylist(broadcaster, playlistId);
         List<PlaylistTrack> tracks = playlistTrackRepository.findAllByPlaylistIdOrderByTrackOrderAsc(playlistId);
@@ -213,15 +265,47 @@ public class PlaylistService {
                 break;
             }
         }
-        // If null, there is no previous track — the client restarts the current track
+        // null means restart current — persist the same track, reset position
+        final String resolvedTrackId = prevTrackId != null ? prevTrackId : currentTrackId;
+        channelRepository.findById(normalize(broadcaster)).ifPresent(channel -> {
+            channel.setPlaylistCurrentTrackId(resolvedTrackId);
+            channel.setPlaylistIsPlaying(true);
+            channel.setPlaylistIsPaused(false);
+            channel.setPlaylistTrackPosition(0.0);
+            channelRepository.save(channel);
+        });
         publish(broadcaster, PlaylistEvent.prev(normalize(broadcaster), playlistId, prevTrackId));
     }
 
+    @Transactional
     public void commandTrackEnded(String broadcaster, String playlistId, String finishedTrackId) {
         commandNext(broadcaster, playlistId, finishedTrackId);
     }
 
+    // ── Position reporting ────────────────────────────────────────────────
+
+    @Transactional
+    public void reportPosition(String broadcaster, String playlistId, String trackId, double position) {
+        channelRepository.findById(normalize(broadcaster)).ifPresent(channel -> {
+            // Only persist if this is still the active playlist and we're playing
+            if (playlistId.equals(channel.getActivePlaylistId())
+                    && channel.isPlaylistIsPlaying()
+                    && !channel.isPlaylistIsPaused()
+                    && trackId.equals(channel.getPlaylistCurrentTrackId())) {
+                channel.setPlaylistTrackPosition(position);
+                channelRepository.save(channel);
+            }
+        });
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────
+
+    private void clearPlaybackState(Channel channel) {
+        channel.setPlaylistCurrentTrackId(null);
+        channel.setPlaylistIsPlaying(false);
+        channel.setPlaylistIsPaused(false);
+        channel.setPlaylistTrackPosition(0.0);
+    }
 
     private Playlist requirePlaylist(String broadcaster, String playlistId) {
         return playlistRepository.findByIdAndBroadcaster(playlistId, normalize(broadcaster))
