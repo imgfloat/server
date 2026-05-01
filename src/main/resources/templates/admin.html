@@ -97,23 +97,10 @@
                                 <ul id="playlist-list" class="playlist-list"></ul>
                                 <!-- Playlist detail (shown when one is expanded) -->
                                 <div id="playlist-detail" class="playlist-detail hidden">
-                                    <div class="playlist-detail-header">
-                                        <div class="playlist-detail-title-row">
-                                            <span id="playlist-detail-name" class="playlist-detail-name"></span>
-                                            <div class="playlist-detail-actions">
-                                                <button type="button" id="playlist-rename-btn" class="ghost small icon-button" title="Rename playlist">
-                                                    <i class="fa-solid fa-pencil" aria-hidden="true"></i>
-                                                </button>
-                                                <button type="button" id="playlist-delete-btn" class="ghost small icon-button danger-icon" title="Delete playlist">
-                                                    <i class="fa-solid fa-trash" aria-hidden="true"></i>
-                                                </button>
-                                            </div>
-                                        </div>
-                                        <div id="playlist-rename-form" class="playlist-rename-form hidden">
-                                            <input id="playlist-rename-input" type="text" maxlength="100" autocomplete="off" />
-                                            <button type="button" id="playlist-rename-save" class="ghost small">Save</button>
-                                            <button type="button" id="playlist-rename-cancel" class="ghost small">Cancel</button>
-                                        </div>
+                                    <div id="playlist-rename-form" class="playlist-rename-form hidden">
+                                        <input id="playlist-rename-input" type="text" maxlength="100" autocomplete="off" />
+                                        <button type="button" id="playlist-rename-save" class="ghost small">Save</button>
+                                        <button type="button" id="playlist-rename-cancel" class="ghost small">Cancel</button>
                                     </div>
                                     <!-- Playback controls (only when this playlist is active) -->
                                     <div id="playlist-controls" class="playlist-controls hidden">

@@ -34,9 +34,6 @@
         createBtn:        () => document.getElementById("create-playlist-btn"),
         list:             () => document.getElementById("playlist-list"),
         detail:           () => document.getElementById("playlist-detail"),
-        detailName:       () => document.getElementById("playlist-detail-name"),
-        renameBtn:        () => document.getElementById("playlist-rename-btn"),
-        deleteBtn:        () => document.getElementById("playlist-delete-btn"),
         renameForm:       () => document.getElementById("playlist-rename-form"),
         renameInput:      () => document.getElementById("playlist-rename-input"),
         renameSave:       () => document.getElementById("playlist-rename-save"),
@@ -206,6 +203,30 @@
             selectBtn.addEventListener("click", (e) => { e.stopPropagation(); toggleActivePlaylist(p.id); });
 
             actions.appendChild(selectBtn);
+
+            if (p.id === expandedPlaylistId) {
+                const renameBtn = document.createElement("button");
+                renameBtn.type = "button";
+                renameBtn.className = "ghost small icon-button";
+                renameBtn.title = "Rename playlist";
+                renameBtn.innerHTML = '<i class="fa-solid fa-pencil" aria-hidden="true"></i>';
+                renameBtn.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    el.renameInput().value = p.name;
+                    el.renameForm()?.classList.remove("hidden");
+                    el.renameInput()?.focus();
+                });
+
+                const deleteBtn = document.createElement("button");
+                deleteBtn.type = "button";
+                deleteBtn.className = "ghost small icon-button danger-icon";
+                deleteBtn.title = "Delete playlist";
+                deleteBtn.innerHTML = '<i class="fa-solid fa-trash" aria-hidden="true"></i>';
+                deleteBtn.addEventListener("click", (e) => { e.stopPropagation(); deletePlaylist(); });
+
+                actions.appendChild(renameBtn);
+                actions.appendChild(deleteBtn);
+            }
             li.appendChild(nameSpan);
             li.appendChild(actions);
             list.appendChild(li);
@@ -239,26 +260,17 @@
     // ── Detail panel ──────────────────────────────────────────────────────
 
     function bindDetailButtons() {
-        el.renameBtn()?.addEventListener("click", () => {
-            const p = getExpanded();
-            if (!p) return;
-            el.renameInput().value = p.name;
-            el.renameForm()?.classList.remove("hidden");
-        });
         el.renameSave()?.addEventListener("click", saveRename);
         el.renameInput()?.addEventListener("keydown", e => { if (e.key === "Enter") saveRename(); });
         el.renameCancel()?.addEventListener("click", () => el.renameForm()?.classList.add("hidden"));
-        el.deleteBtn()?.addEventListener("click", deletePlaylist);
     }
 
     function renderDetail() {
         const detail = el.detail();
         if (!detail) return;
         const p = getExpanded();
-        if (!p) { detail.classList.add("hidden"); return; }
+        if (!p) { detail.classList.add("hidden"); el.renameForm()?.classList.add("hidden"); return; }
         detail.classList.remove("hidden");
-        el.detailName().textContent = p.name;
-        el.renameForm()?.classList.add("hidden");
         renderControls(p);
         renderTrackList(p);
     }
