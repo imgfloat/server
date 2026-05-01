@@ -1,0 +1,4 @@
+{
+    "name": "Now Playing",
+    "description": "Shows a minimal pill in the bottom-right corner with the current playlist track name. Fades in when playing and out when paused or stopped."
+}

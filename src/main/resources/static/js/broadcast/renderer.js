@@ -809,8 +809,15 @@ export class BroadcastRenderer {
             case "PLAYLIST_NEXT":
             case "PLAYLIST_PREV": {
                 if (playlistId !== this.playlistState.playlistId) break;
+                const isPrev = event.type === "PLAYLIST_PREV";
                 if (trackId) {
-                    this._playTrack(trackId);
+                    // For PREV: if current track has played >= 3 s, restart it instead of going back
+                    if (isPrev && this.playlistCurrentElement && this.playlistCurrentElement.currentTime >= 3) {
+                        this.playlistCurrentElement.currentTime = 0;
+                        this.playlistCurrentElement.play().catch(() => {});
+                    } else {
+                        this._playTrack(trackId);
+                    }
                 } else {
                     // PREV with no trackId means restart current track
                     if (this.playlistCurrentElement) {
@@ -882,11 +889,15 @@ export class BroadcastRenderer {
     _onPlaylistTrackEnded() {
         if (!this.playlistState.playlistId || !this.playlistState.trackId) return;
         // POST to server so it emits the appropriate NEXT or ENDED event
+        const xsrfToken = document.cookie.split("; ").find(c => c.startsWith("XSRF-TOKEN="))?.split("=")[1];
         fetch(
             `/api/channels/${encodeURIComponent(this.broadcaster)}/playlists/${encodeURIComponent(this.playlistState.playlistId)}/track-ended`,
             {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    ...(xsrfToken ? { "X-XSRF-TOKEN": decodeURIComponent(xsrfToken) } : {}),
+                },
                 body: JSON.stringify({ trackId: this.playlistState.trackId }),
             }
         ).catch(() => {});

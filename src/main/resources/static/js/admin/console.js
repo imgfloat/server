@@ -727,6 +727,11 @@ export function createAdminConsole({
             applyCanvasSettings(event.payload);
             return;
         }
+        // Forward playlist events to playlist.js via a DOM event
+        if (event.type && event.type.startsWith("PLAYLIST_")) {
+            window.dispatchEvent(new CustomEvent("playlistEvent", { detail: event }));
+            return;
+        }
         const assetId = event.assetId || event?.patch?.id || event?.payload?.id;
         if (event.type === "PREVIEW" && event.patch) {
             applyPreviewPatch(assetId, event.patch);
@@ -1551,6 +1556,9 @@ export function createAdminConsole({
             li.classList.add("selected");
         }
         li.classList.toggle("is-hidden", !!asset.hidden);
+        li.dataset.assetId = asset.id;
+        li.dataset.assetName = asset.name || "";
+        li.dataset.assetType = asset.assetType || "";
 
         const row = document.createElement("div");
         row.className = "asset-row";

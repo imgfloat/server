@@ -76,6 +76,72 @@
                         <div class="rail-scroll">
                             <ul id="asset-list" class="asset-list"></ul>
                         </div>
+                        <!-- Playlist panel -->
+                        <div class="playlist-panel" id="playlist-panel">
+                            <div class="playlist-panel-header" id="playlist-panel-toggle" role="button" tabindex="0" aria-expanded="false">
+                                <span class="playlist-panel-title">
+                                    <i class="fa-solid fa-music" aria-hidden="true"></i>
+                                    Playlists
+                                </span>
+                                <i class="fa-solid fa-chevron-down playlist-panel-chevron" aria-hidden="true"></i>
+                            </div>
+                            <div class="playlist-panel-body hidden" id="playlist-panel-body">
+                                <!-- New playlist form -->
+                                <div class="playlist-create-row">
+                                    <input id="new-playlist-name" type="text" placeholder="Playlist name" maxlength="100" autocomplete="off" />
+                                    <button type="button" id="create-playlist-btn" class="ghost small">
+                                        <i class="fa-solid fa-plus" aria-hidden="true"></i>
+                                    </button>
+                                </div>
+                                <!-- Playlist list -->
+                                <ul id="playlist-list" class="playlist-list"></ul>
+                                <!-- Playlist detail (shown when one is expanded) -->
+                                <div id="playlist-detail" class="playlist-detail hidden">
+                                    <div class="playlist-detail-header">
+                                        <div class="playlist-detail-title-row">
+                                            <span id="playlist-detail-name" class="playlist-detail-name"></span>
+                                            <div class="playlist-detail-actions">
+                                                <button type="button" id="playlist-rename-btn" class="ghost small icon-button" title="Rename playlist">
+                                                    <i class="fa-solid fa-pencil" aria-hidden="true"></i>
+                                                </button>
+                                                <button type="button" id="playlist-delete-btn" class="ghost small icon-button danger-icon" title="Delete playlist">
+                                                    <i class="fa-solid fa-trash" aria-hidden="true"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div id="playlist-rename-form" class="playlist-rename-form hidden">
+                                            <input id="playlist-rename-input" type="text" maxlength="100" autocomplete="off" />
+                                            <button type="button" id="playlist-rename-save" class="ghost small">Save</button>
+                                            <button type="button" id="playlist-rename-cancel" class="ghost small">Cancel</button>
+                                        </div>
+                                    </div>
+                                    <!-- Playback controls (only when this playlist is active) -->
+                                    <div id="playlist-controls" class="playlist-controls hidden">
+                                        <div class="playlist-now-playing" id="playlist-now-playing-label"></div>
+                                        <div class="playlist-buttons">
+                                            <button type="button" id="playlist-prev-btn" class="ghost small icon-button" title="Previous / Restart">
+                                                <i class="fa-solid fa-backward-step" aria-hidden="true"></i>
+                                            </button>
+                                            <button type="button" id="playlist-play-pause-btn" class="ghost small icon-button" title="Play / Pause">
+                                                <i class="fa-solid fa-play" aria-hidden="true"></i>
+                                            </button>
+                                            <button type="button" id="playlist-next-btn" class="ghost small icon-button" title="Next track">
+                                                <i class="fa-solid fa-forward-step" aria-hidden="true"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <!-- Add track -->
+                                    <div class="playlist-add-track-row">
+                                        <select id="playlist-track-select" class="playlist-track-select">
+                                            <option value="">Add audio asset…</option>
+                                        </select>
+                                        <button type="button" id="playlist-add-track-btn" class="ghost small">Add</button>
+                                    </div>
+                                    <!-- Track list (drag to reorder) -->
+                                    <ul id="playlist-track-list" class="playlist-track-list"></ul>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <div id="asset-inspector" class="rail-inspector hidden">
@@ -374,6 +440,11 @@
                         <div class="overlay canvas-boundary" id="admin-overlay">
                             <div class="canvas-guides"></div>
                             <canvas id="admin-canvas"></canvas>
+                            <!-- Now-playing pill: visible only in the admin view, not in the broadcast canvas -->
+                            <div id="admin-now-playing-pill" class="admin-now-playing-pill hidden">
+                                <i class="fa-solid fa-music" aria-hidden="true"></i>
+                                <span id="admin-now-playing-text"></span>
+                            </div>
                         </div>
                         <div class="canvas-footnote">
                             <p>Edges of the canvas are outlined to match the aspect ratio of the stream.</p>
@@ -602,5 +673,6 @@
         <script src="/js/cookie-consent.js"></script>
         <script src="/js/toast.js"></script>
         <script type="module" src="/js/admin.js"></script>
+        <script src="/js/playlist.js"></script>
     </body>
 </html>
